@@ -8,7 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from copilot.matrix import COLS, ROWS, FakeMatrix, frame  # noqa: E402
+from copilot.matrix import COLS, ROWS, FakeMatrix, frame, rgb  # noqa: E402
 from copilot.tutor import Tutor, leaks_answer  # noqa: E402
 
 
@@ -270,6 +270,16 @@ class Profile(unittest.TestCase):
 
 
 class Matrix(unittest.TestCase):
+    def test_onboard_rgb_color_follows_tutor_events(self):
+        self.assertEqual(rgb({"event": "tick"}), (0, 1, 0))
+        self.assertEqual(rgb({"event": "cross"}), (1, 0, 0))
+        self.assertEqual(rgb({"event": "thinking"}), (1, 1, 0))
+        self.assertEqual(rgb({"event": "help_step", "value": 2, "of": 4}), (1, 0, 1))
+        self.assertEqual(rgb({"event": "level", "value": 2}), (0, 0, 1))
+        self.assertEqual(rgb({"event": "clear"}), (0, 0, 0))
+        with self.assertRaises(ValueError):
+            rgb({"event": "fireworks"})
+
     def test_every_event_fits(self):
         m = FakeMatrix()
         for e in ({"event": "letter", "value": "B"}, {"event": "number", "value": 42}, {"event": "tick"},
