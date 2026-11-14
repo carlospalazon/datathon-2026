@@ -34,6 +34,14 @@ CATALOGUE = [
     problem("p4_eng", 1, topic="geometria_plana"),
     problem("p5_eng", 2, hints=[{"text": "Draft hint", "status": "generado"}]),
 ]
+def similar_step(tutor):
+    """The 'similar problem' step, which now comes after the help about the problem itself."""
+    while True:
+        step = tutor.help()
+        if step["kind"] in ("similar", "none"):
+            return step
+
+
 TYPES = {"aritmetica": {"method": "Write down each quantity, then do the operations in order.",
                         "steps": ["Read", "Compute"], "status": "revisado"}}
 
@@ -81,25 +89,25 @@ class HelpLadder(unittest.TestCase):
     def test_order_and_leak_filter(self):
         t = Tutor(CATALOGUE, TYPES)
         t.start("p1_eng")
+        hint = t.help()                                             # help about this problem comes first
+        self.assertEqual(hint["text"], "Count the apples first, then take away.")
+        self.assertEqual(t.current["rejected"], ["hint 1"])        # the leaking hint was skipped
+        self.assertEqual(t.help()["kind"], "method")
         similar = t.help()
         self.assertEqual(similar["kind"], "similar")
         self.assertEqual(similar["problem"]["key"], "p2_eng")       # easier, same topic, same language
-        self.assertEqual(t.help()["kind"], "method")
-        hint = t.help()
-        self.assertEqual(hint["text"], "Count the apples first, then take away.")
-        self.assertEqual(t.current["rejected"], ["hint 1"])        # the leaking hint was skipped
         self.assertEqual(t.help()["kind"], "none")
 
     def test_only_allowed_statuses(self):
         t = Tutor(CATALOGUE, TYPES, show=("revisado",))
         t.start("p5_eng")
         kinds = [t.help()["kind"] for _ in range(3)]
-        self.assertEqual(kinds, ["similar", "method", "none"])      # the generated hint stays hidden
+        self.assertEqual(kinds, ["method", "similar", "none"])      # the generated hint stays hidden
 
     def test_never_its_own_translation(self):
         t = Tutor([CATALOGUE[0], CATALOGUE[1]], TYPES)
         t.start("p1_eng")
-        self.assertEqual(t.help()["kind"], "method")               # no similar problem: only the translation exists
+        self.assertEqual(similar_step(t)["kind"], "none")          # no similar problem: only the translation exists
 
     def test_solution_only_on_request(self):
         t = Tutor(CATALOGUE, TYPES)
@@ -139,17 +147,9 @@ class Guide(unittest.TestCase):
             if step["kind"] == "none":
                 break
             steps.append(step.get("qid") or step["kind"])
-        self.assertEqual(steps, ["similar", "compare", "method", "guide 1", "guide 2", "checkpoint 1"])
+        self.assertEqual(steps, ["checkpoint 1", "method", "guide 1", "guide 2", "similar", "compare"])
 
     def test_questions_are_checked(self):
-        for _ in range(2):
-            self.t.help()                                   # similar, then compare
-        self.assertFalse(self.t.respond("compare", 0)["correct"])
-        self.assertTrue(self.t.respond("compare", "1")["correct"])
-        for _ in range(3):
-            self.t.help()                                   # method, guide 1, guide 2
-        self.assertIsNone(self.t.respond("guide 1", "anything")["correct"])   # reflection: no wrong answer
-        self.assertTrue(self.t.respond("guide 2", 0)["correct"])
         step = self.t.help()
         self.assertEqual(step["qid"], "checkpoint 1")
         self.assertNotIn("_q", step)                        # the expected answer never reaches the page
@@ -158,6 +158,14 @@ class Guide(unittest.TestCase):
         self.assertTrue(self.t.respond("checkpoint 1", " 12 apples")["correct"])
         with self.assertRaises(ValueError):
             self.t.respond("checkpoint 1", "twelve")
+        for _ in range(3):
+            self.t.help()                                   # method, guide 1, guide 2
+        self.assertIsNone(self.t.respond("guide 1", "anything")["correct"])   # reflection: no wrong answer
+        self.assertTrue(self.t.respond("guide 2", 0)["correct"])
+        for _ in range(2):
+            self.t.help()                                   # similar, then compare
+        self.assertFalse(self.t.respond("compare", 0)["correct"])
+        self.assertTrue(self.t.respond("compare", "1")["correct"])
         with self.assertRaises(ValueError):
             self.t.respond("checkpoint 2", "10")            # never offered: it was the final answer
 
@@ -181,7 +189,7 @@ class Similar(unittest.TestCase):
         pool = [base, problem("n2_cat", 1), problem("n3_cat", 1, needs_figure=True), problem("n4_cat", 1)]
         t = Tutor(pool)
         t.start("n1_cat")
-        self.assertEqual(t.help()["problem"]["key"], "n2_cat")   # n3 is nearer but needs a figure; n1 doesn't
+        self.assertEqual(similar_step(t)["problem"]["key"], "n2_cat")   # n3 is nearer but needs a figure; n1 doesn't
 
 
 class Adaptive(unittest.TestCase):
@@ -204,23 +212,23 @@ class FineDifficulty(unittest.TestCase):
                problem("q4_eng", 1, difficulty=5), problem("q5_eng", 1, difficulty=5)]
         t = Tutor(cat, TYPES)
         t.start("q4_eng")
-        self.assertEqual(t.help()["problem"]["key"], "q0_eng")     # 4 is the closest below 5
+        self.assertEqual(similar_step(t)["problem"]["key"], "q0_eng")     # 4 is the closest below 5
         t = Tutor([c for c in cat if c["key"] != "q0_eng"], TYPES)
         t.start("q4_eng")
-        self.assertEqual(t.help()["problem"]["key"], "q1_eng")
+        self.assertEqual(similar_step(t)["problem"]["key"], "q1_eng")
 
     def test_similar_falls_back_to_equal_difficulty(self):
         cat = [problem("q0_eng", 1, difficulty=3), problem("q1_eng", 1, difficulty=3)]
         t = Tutor(cat, TYPES)
         t.start("q0_eng")
-        self.assertEqual(t.help()["problem"]["key"], "q1_eng")
+        self.assertEqual(similar_step(t)["problem"]["key"], "q1_eng")
 
     def test_similar_keeps_neighbours_order(self):
         cat = [problem("q0_eng", 1, difficulty=5), problem("q1_eng", 1, difficulty=3),
                problem("q2_eng", 1, difficulty=3)]
         t = Tutor(cat, TYPES, neighbours=lambda p: ["q2_eng", "q1_eng"])
         t.start("q0_eng")
-        self.assertEqual(t.help()["problem"]["key"], "q2_eng")
+        self.assertEqual(similar_step(t)["problem"]["key"], "q2_eng")
 
     def test_next_problem_steps_by_one_difficulty(self):
         cat = [problem("q0_eng", 1, difficulty=3), problem("q1_eng", 1, difficulty=4),

@@ -69,13 +69,16 @@ def load_content(path):
     return {row["id"]: row for row in load(path)} if os.path.exists(path) else {}
 
 
-def apply_content(record, fig, cp):
+def apply_content(record, fig, cp, hints=None):
     """Lay prepared content over a catalogue record, keeping each item's status.
 
     fig: options read from the image and a figure description (both languages).
     cp: a Catalan solution, checkpoints and distractor explanations, so only
     Catalan rows get them.
+    hints: graded Catalan hints about this problem, from laptop/merge_hints.py.
     """
+    if hints and record["language"] == "cat":
+        record["hints"] = [{"text": text, "status": hints["content_status"]} for text in hints["hints"]]
     if fig:
         record["options"] = fig["options"]
         record["options_status"] = fig["options_status"]
@@ -130,6 +133,7 @@ def main():
     content = os.path.join(args.out, "content")
     figures = load_content(os.path.join(content, "figures.jsonl"))
     checkpoints = load_content(os.path.join(content, "checkpoints.jsonl"))
+    hints = load_content(os.path.join(content, "hints.jsonl"))  # from laptop/merge_hints.py
     neighbours = load_content(os.path.join(content, "neighbours.jsonl"))  # from board/embed_neighbours.py
 
     os.makedirs(args.out, exist_ok=True)
@@ -164,7 +168,7 @@ def main():
                 "hints": [],
                 "distractors": {},
             }
-            apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]))
+            apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]), hints.get(x["id"]))
             if x["id"] in neighbours:  # nearest problems by meaning (bge-small, English text), best first
                 record["similar_ids"] = [i for i, _score in neighbours[x["id"]]["neighbours"]]
             f.write(json.dumps(record, ensure_ascii=False) + "\n")

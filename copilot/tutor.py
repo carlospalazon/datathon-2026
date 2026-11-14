@@ -23,13 +23,14 @@ What the tutor remembers about the student, and the rules that use it:
                        help step is the method of the topic, not one more detail of the problem.
   review               problems that went wrong come back REVIEW_AFTER problems later.
 
-The guide, in order, skipping steps that have no content or aren't safe to show:
-  1. similar     an easier solved problem of the same type
-  2. compare     "what do the two problems have in common?" (choice, from the type card)
+The guide, in order, skipping steps that have no content or aren't safe to show.
+Help about the problem on screen comes first, the general method after it:
+  1. hint        graded hints written for this problem (where to look, how to start, the key step)
+  2. checkpoint  intermediate results the student computes and the tutor checks (problem)
   3. method      how this type of problem is approached (type card)
   4. guide       reflection and choice questions about the method (type card)
-  5. checkpoint  intermediate results the student computes and the tutor checks (problem)
-  6. hint        hints written for this problem
+  5. similar     an easier solved problem of the same type
+  6. compare     "what do the two problems have in common?" (choice, from the type card)
 The solution is never a step: the student asks for it on purpose.
 """
 import hashlib
@@ -186,19 +187,8 @@ class Tutor:
         """Every step this problem can offer, in order. Built once, when the problem starts."""
         card = self.types.get(problem["topic"]) or {}
         card_ok = base_status(card.get("status")) in self.show
-        steps = []
-        similar = self._similar(problem)
-        if similar:
-            steps.append(similar)
-            if card_ok and card.get("compare"):
-                steps.append(self._question("compare", "choice", card["compare"], card["status"],
-                                            f"type {problem['topic']}"))
-        method = self._method(problem)
-        if method:
-            steps.append(method)
-        if card_ok:
-            for i, q in enumerate(card.get("guide", []), 1):
-                steps.append(self._question(f"guide {i}", q["kind"], q, card["status"], f"type {problem['topic']}"))
+        steps = [{"kind": "hint", "item": h, "source": f"hint {i}"}
+                 for i, h in enumerate(problem.get("hints") or [], 1)]
         final = correct_value(problem)
         for i, c in enumerate(problem.get("checkpoints") or [], 1):
             if base_status(c.get("status")) not in self.show or _number(c.get("answer")) is None:
@@ -208,8 +198,18 @@ class Tutor:
             if leaks_answer(c["question"], problem):
                 continue
             steps.append(self._question(f"checkpoint {i}", "number", c, c["status"], f"checkpoint {i}"))
-        for i, h in enumerate(problem.get("hints") or [], 1):
-            steps.append({"kind": "hint", "item": h, "source": f"hint {i}"})
+        method = self._method(problem)
+        if method:
+            steps.append(method)
+        if card_ok:
+            for i, q in enumerate(card.get("guide", []), 1):
+                steps.append(self._question(f"guide {i}", q["kind"], q, card["status"], f"type {problem['topic']}"))
+        similar = self._similar(problem)
+        if similar:
+            steps.append(similar)
+            if card_ok and card.get("compare"):
+                steps.append(self._question("compare", "choice", card["compare"], card["status"],
+                                            f"type {problem['topic']}"))
         return steps
 
     def _question(self, qid, kind, q, status, source):

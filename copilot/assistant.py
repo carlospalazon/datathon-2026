@@ -119,8 +119,11 @@ class Assistant:
             self.jobs[job] = result
 
     def _fallback(self, problem):
-        """When the model fails: a curated step for this problem, never a bare template if we have one."""
+        """When the model fails: a written hint or step for this problem, never a bare template if we have one."""
         show = self.tutor.show
+        for h in problem.get("hints") or []:
+            if h.get("text") and base_status(h.get("status")) in show and not leaks_answer(h["text"], problem):
+                return h["text"], h["status"]
         for c in problem.get("checkpoints") or []:
             if base_status(c.get("status")) in show:
                 return c["question"], c["status"]
