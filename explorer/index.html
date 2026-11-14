@@ -108,15 +108,22 @@
     </section>
 
     <!-- NUEVO PANEL SOCRÁTICO INTEGRADO -->
-    <section id="copilot-panel">
-      <h2>🧠 Kangaroo Socratic Coach</h2>
-      <p id="copilot-message" style="font-style: italic; color: var(--muted); margin-bottom: 12px;">Click a button below to get guided assistance.</p>
-      <div class="row">
-        <button onclick="requestSocraticHint()" class="primary" style="background: #2e7d32;">💡 Next Socratic Hint</button>
-        <button onclick="requestAIWildcard()" class="primary" style="background: #ed6c02;">🤖 AI Wildcard Hint</button>
-      </div>
-    </section>
-    
+    <div id="copilot-section" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px;">
+      <h3>🤖 Kangaroo Socratic Coach</h3>
+      <p id="socratic-hint-text" style="color: #333; font-weight: 500;">
+          Need a hint? We will guide you step-by-step without giving away the answer.
+      </p>
+      
+      <!-- Botones de interacción -->
+      <button id="btn-hint" onclick="fetchSocraticHint()" style="background: #4CAF50; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+          💡 Get Socratic Hint
+      </button>
+      
+      <button id="btn-llm" onclick="fetchLLMComodin()" style="background: #ff9800; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+          🔮 AI Wildcard (Advanced)
+      </button>
+    </div>
+
     <section class="row">
       <button class="primary" id="next">Next problem</button>
       <span class="hint">Keys: <kbd>A</kbd>–<kbd>E</kbd> answer · <kbd>M</kbd> ask the model · <kbd>N</kbd> next · <kbd>R</kbd> random</span>
@@ -158,7 +165,9 @@ function renderList() {
 async function open(key) {
   current = await api("/api/problem?key=" + encodeURIComponent(key));
   myChoice = null;
-  currentStep = 0;
+  hintStep = 0;
+  $("btn-hint").innerText = "💡 Get Socratic Hint";
+  $("socratic-hint-text").innerText = "Need a hint? We will guide you step-by-step without giving away the answer.";
   $("meta").textContent = `${current.id} · ${current.language} · level ${current.level}${current.year ? " · " + current.year : ""}`;
   $("img").style.display = current.image ? "" : "none";
   if (current.image) { $("img").src = "/image/" + encodeURIComponent(current.key); $("img").alt = "Problem " + current.id; }
@@ -267,31 +276,41 @@ async function main() {
   if (shown.length) open(shown[0].key);
 }
 
-let currentStep = 0;
+let hintStep = 0;
 
-function requestSocraticHint() {
-    console.log("Client requested local socratic hint, step:", currentStep);
-    fetch('/api/socratic?step=' + currentStep)
-        .then(response => response.json())
+function fetchSocraticHint() {
+    if (!current) { $("socratic-hint-text").innerText = "Select a problem first."; return; }
+    const out = $("socratic-hint-text");
+    fetch(`/api/socratic?step=${hintStep}&key=${encodeURIComponent(current.key)}`)
+        .then(r => { if (!r.ok) throw new Error("Failed to fetch hint"); return r.json(); })
         .then(data => {
-            document.getElementById('copilot-message').innerText = data.content;
-            if (data.next_step !== null) {
-                currentStep = data.next_step;
-            }
+            out.innerText = `[${data.step}/${data.total}] ${data.content}`;
+            hintStep = data.next_step;
+            $("btn-hint").innerText = data.done ? "💡 Repeat last hint" : "💡 Next hint";
         })
-        .catch(err => console.error("Error fetching socratic hint:", err));
+        .catch(err => { console.error(err); out.innerText = "Error loading local socratic hint."; });
 }
 
-function requestAIWildcard() {
-    console.log("Client requested LLM wildcard fallback");
-    document.getElementById('copilot-message').innerText = "Consulting local AI copilot (please wait ~5s)...";
+function fetchLLMComodin() {
+    document.getElementById('socratic-hint-text').innerText = "Consulting local AI copilot (please wait ~5s)...";
+    const currentKey = current ? current.key : null;
     
-    fetch('/api/wildcard', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('copilot-message').innerText = data.content;
-        })
-        .catch(err => console.error("Error fetching AI wildcard:", err));
+    fetch('/api/wildcard', {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ key: currentKey })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("Failed to fetch AI wildcard");
+        return response.json();
+    })
+    .then(data => {
+        document.getElementById('socratic-hint-text').innerText = "🔮 AI Hint: " + data.content;
+    })
+    .catch(err => {
+        console.error("Error fetching AI wildcard:", err);
+        document.getElementById('socratic-hint-text').innerText = "Local AI copilot is currently offline.";
+    });
 }
 
 $("list").addEventListener("click", e => { const d = e.target.closest("div[data-key]"); if (d) open(d.dataset.key); });
