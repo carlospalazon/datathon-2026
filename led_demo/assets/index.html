@@ -7,7 +7,11 @@
   <style>
     body { font: 18px system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #18324c; }
     button { font: inherit; min-width: 54px; min-height: 50px; margin: 5px; cursor: pointer; }
-    #status { min-height: 54px; padding: 12px; background: #eef5f5; border-radius: 8px; }
+    #status { min-height: 54px; padding: 12px; background: #eef5f5; border-radius: 8px; border-left: 6px solid #255ab3; }
+    #status.thinking { border-color: #b18500; background: #fff8db; }
+    #status.correct { border-color: #188342; background: #e7f6ec; }
+    #status.incorrect, #status.error { border-color: #bc3535; background: #fff0ef; }
+    #status.hint { border-color: #7545a0; background: #f5effb; }
     .choices { display: flex; flex-wrap: wrap; }
     small { display: block; color: #53616b; margin-top: 24px; }
   </style>
@@ -42,6 +46,7 @@
       try {
         const data = await (await fetch('/status')).json();
         status.textContent = data.message;
+        status.className = data.phase;
       } catch (_) {
         status.textContent = 'Board connection unavailable.';
       }
