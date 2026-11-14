@@ -38,15 +38,59 @@ def build_messages(problem, examples=(), image_b64=None):
     return messages
 
 
-def answer_letter(problem, examples=(), timeout=60, image_b64=None, url=URL):
-    """Return (letter, timings). The grammar makes any other output impossible."""
-    response = post(url, {
+def _payload(problem, examples, image_b64, logprobs=False):
+    payload = {
         "messages": build_messages(problem, examples, image_b64),
         "grammar": "root ::= [A-E]",
         "max_tokens": 1,
         "temperature": 0,
         "seed": int(CONFIG["SEED"]),
         "cache_prompt": True,
-    }, timeout=timeout)
+    }
+    if logprobs:
+        payload["logprobs"] = True
+        payload["top_logprobs"] = 60
+    return payload
+
+
+def answer_letter(problem, examples=(), timeout=60, image_b64=None, url=URL):
+    """Return (letter, timings). The grammar makes any other output impossible."""
+    response = post(url, _payload(problem, examples, image_b64), timeout=timeout)
     letter = response["choices"][0]["message"]["content"].strip()
     return letter, response.get("timings", {})
+
+
+def letter_logprobs(response):
+    """{"A": lp, ..., "E": lp} from a response asked with logprobs, or None if it has none.
+
+    These are the model's probabilities before the grammar, so a letter can be
+    missing from the top list: it gets (lowest logprob listed) - 1.
+    """
+    try:
+        top = response["choices"][0]["logprobs"]["content"][0]["top_logprobs"]
+        found, lowest = {}, None
+        for entry in top:
+            lp = float(entry["logprob"])
+            lowest = lp if lowest is None else min(lowest, lp)
+            token = str(entry["token"]).strip()
+            if len(token) == 1 and token in "ABCDE" and token not in found:
+                found[token] = lp
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+    if not found:
+        return None
+    floor = lowest - 1.0
+    return {c: found.get(c, floor) for c in "ABCDE"}
+
+
+def answer_scores(problem, examples=(), timeout=60, image_b64=None, url=URL):
+    """Return (letter, {"A": logprob, ..., "E": logprob}, timings), asking for logprobs.
+
+    Without usable logprobs the grammar's letter gets 0 and the others -20.
+    """
+    response = post(url, _payload(problem, examples, image_b64, logprobs=True), timeout=timeout)
+    letter = response["choices"][0]["message"]["content"].strip()
+    scores = letter_logprobs(response)
+    if scores is None:
+        scores = {c: (0.0 if c == letter else -20.0) for c in "ABCDE"}
+    return letter, scores, response.get("timings", {})

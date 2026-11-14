@@ -6,6 +6,8 @@ from array import array
 from .embed import embed
 from .llm import format_problem
 
+SAME_LANGUAGE_SLACK = 0.05  # cosine score
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS problems (
     key TEXT PRIMARY KEY,   -- id|language
@@ -41,16 +43,28 @@ class Index:
         db.close()
 
     def search(self, problem, k=1, exclude_id=None):
-        """Return up to k (score, problem) pairs, most similar first.
+        """Return up to k (score, problem) pairs, most similar first, one per problem id.
 
         exclude_id skips the same problem in other languages, so validation
-        never retrieves its own translation.
+        never retrieves its own translation. The index holds each id in several
+        languages: the best-scoring row wins, except that the row in the query's
+        language is taken when it scores within SAME_LANGUAGE_SLACK of it.
         """
         query = embed([format_problem(problem)], query=True)[0]
-        scored = []
+        language = problem.get("language")
+        by_id = {}
         for _key, stored, vec in self.rows:
             if exclude_id and stored["id"] == exclude_id:
                 continue
-            scored.append((sum(a * b for a, b in zip(query, vec)), stored))
+            by_id.setdefault(stored["id"], []).append((sum(a * b for a, b in zip(query, vec)), stored))
+        scored = []
+        for rows in by_id.values():
+            pick = max(rows, key=lambda pair: pair[0])
+            same = [r for r in rows if language and r[1].get("language") == language]
+            if same:
+                mine = max(same, key=lambda pair: pair[0])
+                if mine[0] >= pick[0] - SAME_LANGUAGE_SLACK:
+                    pick = mine
+            scored.append(pick)
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return scored[:k]

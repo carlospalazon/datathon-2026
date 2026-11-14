@@ -25,8 +25,10 @@ INTENTS = {
               "i dont know", "i don't know", "stuck", "no entenc", "atascado", "encallat"],
     "repetir": ["repeat", "again", "repite", "repeteix", "otra vez", "una altra vegada"],
     "siguiente": ["next", "skip", "siguiente", "seguent", "otro problema", "un altre problema", "pasa"],
+    # Only a request to be given the answer: "the answer is 12" is an attempt, not a request.
     "solucion": ["solution", "give up", "solucion", "me rindo", "em rendeixo", "dime la respuesta",
-                 "dona'm la resposta", "tell me the answer", "la respuesta", "la resposta"],
+                 "dona'm la resposta", "tell me the answer", "quina es la resposta",
+                 "cual es la respuesta", "what is the answer"],
     "progreso": ["how am i doing", "my level", "mi nivel", "el meu nivell", "como voy", "com vaig", "progress"],
     "ayuda_app": ["how do i use", "como se usa", "com es fa servir", "how does this work", "como funciona"],
 }
@@ -74,6 +76,21 @@ def clean(text):
     return re.sub(r"\s+", " ", strip_accents(text.lower())).strip()
 
 
+# "B", "(b)", "option b", "crec que és la B", "la resposta és b", "creo que es la c": a choice.
+# Anchored to the whole text, so "a la granja" is never read as the letter A.
+CHOICE = re.compile(r"^(?:(?:jo )?(?:crec|penso|diria|creo|pienso|i think)(?: que| it)?\s+)?"
+                    r"(?:(?:es|seria|is|sera)\s+)?(?:(?:la|el|l'|the)\s*)?"
+                    r"(?:(?:opcio|opcion|resposta|respuesta|lletra|letra|option|answer|letter)\s+)?"
+                    r"(?:(?:es|is|:)\s*)?(?:(?:la|el|the)\s+)?"
+                    r"\(?([a-e])\)?[.!]?$")
+
+
+def choice_letter(text):
+    """The letter A-E the student chose, or None if the text is not a choice."""
+    match = CHOICE.match(clean(text))
+    return match.group(1).upper() if match else None
+
+
 def _has(text, phrases):
     return any(re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", text) for p in phrases)
 
@@ -94,7 +111,7 @@ def classify(text, problem):
         return "offtopic"
     if _has(t, INJECTION) or "http" in t:
         return "injection"
-    if re.fullmatch(r"\(?(?:option |opcion |opcio |letter |letra )?[a-e]\)?", t):
+    if choice_letter(t):
         return "eleccion"
     for intent, phrases in INTENTS.items():
         if _has(t, phrases):

@@ -149,7 +149,7 @@ class OptionOrders(unittest.TestCase):
 
     def test_fewer_than_five_options_is_one_plain_pass(self):
         problem = {**PROBLEM, "options": {"A": "x", "B": "y", "C": "z"}}
-        fake = Fake(favour_text("y"))
+        fake = Fake(lambda o, _n: {c: (-0.1 if o.get(c) == "y" else -3.0) for c in "ABCDE"})
         result = run(fake, {"OPTION_ORDERS": "5"}, problem=problem)
         self.assertEqual((result["passes"], len(fake.payloads), result["answer"]), (1, 1, "B"))
         self.assertNotIn("logprobs", fake.payloads[0])

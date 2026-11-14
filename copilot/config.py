@@ -5,8 +5,17 @@ import shlex
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+# Settings the settings file may not define. All are off. The file overrides
+# these, the environment overrides both.
+DEFAULTS = {
+    "NO_OPTIONS_PRIOR": "",   # a letter: answer problems without options with it, no model call
+    "LETTER_BIAS_FILE": "",   # JSON {"A": x, ..., "E": x}: per-letter log-probability offsets
+    "OPTION_ORDERS": "1",     # 1..5 cyclic option orders to ask, time permitting
+}
+
+
 def load(path=os.path.join(ROOT, "config.env")):
-    values = {}
+    values = dict(DEFAULTS)
     with open(path) as f:
         for line in f:
             line = line.strip()

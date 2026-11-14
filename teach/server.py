@@ -35,6 +35,7 @@ def parse_args():
     p.add_argument("--stage", default="primaria")
     p.add_argument("--language", default="cat")
     p.add_argument("--show", default=",".join(STATUSES), help="content statuses the student may see")
+    p.add_argument("--profile", default="", help="SQLite file that keeps what the student has done (empty: off)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8010)
     return p.parse_args()
@@ -59,7 +60,8 @@ class App:
         self.problems = load_problems(args)
         with open(os.path.join(ROOT, args.types)) as f:
             types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
-        self.tutor = Tutor(self.problems, types, show=set(args.show.split(",")))
+        self.tutor = Tutor(self.problems, types, show=set(args.show.split(",")),
+                           profile_path=args.profile or None)
         self.assistant = Assistant(self.tutor)
         self.lock = threading.Lock()
         first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
