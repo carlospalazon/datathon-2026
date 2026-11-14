@@ -39,6 +39,7 @@ assistant = Assistant(tutor)  # free text, guardrails and the model (port 8081),
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
 view = {"current": tutor.start(first["key"])}
+assistant.warm()
 
 
 def draw(events):
@@ -63,6 +64,7 @@ def run(action, *args):
             return {"error": "no queden problemes"}
         events = result.get("events", [])
         draw(events)
+        assistant.warm()  # a new problem: the model reads it ahead, in a thread
         return {**result, "frames": [frame(e) for e in events]}  # the page draws the same matrix
     except (KeyError, ValueError, RuntimeError) as error:
         return {"error": str(error)}

@@ -39,17 +39,50 @@ LABEL = {"cat": ("Problema: ", "Pregunta:"), "eng": ("Problem: ", "Question:")}
 GRAMMAR = 'root ::= [A-ZÀ-Ú¿] [^0-9?\\n]{15,150} "?"'
 
 
+READ = {"cat": "Llegit.", "eng": "Read."}
+
+
 def build_messages(problem, student_text=""):
+    """The request for a hint: the statement as a first turn, what the student wrote as a second one.
+
+    The statement is a turn of its own on purpose. llama-server can only go back to what it had read
+    at the end of a message, so with the statement and the student's words in one message it read the
+    statement again for every question. Measured on the board: 36 new tokens instead of 101, and
+    6 seconds instead of 12.
+    """
     language = problem.get("language") if problem.get("language") in SYSTEM else "eng"
     problem_label, question_label = LABEL[language]
-    parts = [problem_label + (problem.get("question") or problem.get("text", ""))]
+    statement = problem_label + (problem.get("question") or problem.get("text", ""))
     figure = (problem.get("figure") or {}).get(language)
     if figure:
-        parts.append(("Figura: " if language == "cat" else "Figure: ") + figure)
+        statement += ("\nFigura: " if language == "cat" else "\nFigure: ") + figure
+    ask = question_label
     if student_text:
-        parts.append(("L'alumne diu: " if language == "cat" else "The student says: ") + student_text)
-    parts.append(question_label)
-    return [{"role": "system", "content": SYSTEM[language]}, {"role": "user", "content": "\n".join(parts)}]
+        ask = ("L'alumne diu: " if language == "cat" else "The student says: ") + student_text + "\n" + ask
+    return [{"role": "system", "content": SYSTEM[language]}, {"role": "user", "content": statement},
+            {"role": "assistant", "content": READ[language]}, {"role": "user", "content": ask}]
+
+
+def warm(problem, timeout=60, url=LLM_URL):
+    """Have the model read the statement now, so a later question only pays for the student's words.
+
+    llama-server keeps what it has just read (cache_prompt) and a later request reuses it up to
+    the end of the statement's turn. Reading is most of the wait: about 11 tokens per second.
+    Returns {"seconds", "prompt_tokens", "error"}. Never raises.
+    """
+    start = time.perf_counter()
+    payload = {"messages": build_messages(problem), "max_tokens": 1, "temperature": 0,
+               "seed": 42, "cache_prompt": True}
+    try:
+        request = urllib.request.Request(url, data=json.dumps(payload).encode(),
+                                         headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            timings = json.loads(response.read()).get("timings", {})
+        return {"seconds": round(time.perf_counter() - start, 1), "prompt_tokens": timings.get("prompt_n"),
+                "error": None}
+    except Exception as error:  # noqa: BLE001 - warming is a convenience, the lesson goes on without it
+        return {"seconds": round(time.perf_counter() - start, 1), "prompt_tokens": None,
+                "error": f"{type(error).__name__}: {error}"}
 
 
 def ask_hint(problem, student_text="", timeout=50, url=LLM_URL):
@@ -65,8 +98,8 @@ def ask_hint(problem, student_text="", timeout=50, url=LLM_URL):
         text = reply["choices"][0]["message"]["content"].strip()
         timings = reply.get("timings", {})
         return {"text": text, "seconds": round(time.perf_counter() - start, 1),
-                "prompt_tokens": timings.get("prompt_n"), "generated_tokens": timings.get("predicted_n"),
-                "error": None}
+                "prompt_tokens": timings.get("prompt_n"), "cached_tokens": timings.get("cache_n"),
+                "generated_tokens": timings.get("predicted_n"), "error": None}
     except Exception as error:  # noqa: BLE001 - the lesson goes on without the model
         return {"text": "", "seconds": round(time.perf_counter() - start, 1), "prompt_tokens": None,
                 "generated_tokens": None, "error": f"{type(error).__name__}: {error}"}

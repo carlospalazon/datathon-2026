@@ -129,6 +129,13 @@ class OutputRails(unittest.TestCase):
         r = self.run_model("Quantes pomes li queden a l'Anna?")
         self.assertEqual(r["debug"]["rail"], "restates_question")
 
+    def test_giving_the_student_their_own_words_back_is_rejected(self):
+        tutor = Tutor([PROBLEM])
+        tutor.start("s1_cat")
+        a = Assistant(tutor, ask=fake_model("Per què s'han de multiplicar les bosses?"))
+        r = wait(a, a.model_hint("per què s'han de multiplicar les bosses?"))
+        self.assertEqual((r["debug"]["rail"], r["debug"]["accepted"]), ("echoes_student", False))
+
     def test_fallback_is_a_curated_step(self):
         tutor = Tutor([{**PROBLEM, "checkpoints": [{"question": "Quantes pomes hi ha a les bosses?", "answer": 12,
                                                     "status": "revisado"}]}])
@@ -142,5 +149,46 @@ class OutputRails(unittest.TestCase):
         self.assertEqual((r["debug"]["rail"], r["status"]), ("model_error", "plantilla"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class ReadAhead(unittest.TestCase):
+    """The model reads a problem's statement when it opens, so a question only pays for the student's words."""
+
+    def setUp(self):
+        self.tutor = Tutor([PROBLEM, {**PROBLEM, "key": "s2_cat", "id": "s2"}])
+        self.tutor.start("s1_cat")
+        self.read = []
+        self.a = Assistant(self.tutor, ask=fake_model("x"), warmer=lambda problem: self.read.append(problem["key"]))
+
+    def settle(self):
+        with self.a.warm_lock:
+            pass
+
+    def test_once_per_problem(self):
+        self.assertTrue(self.a.warm())
+        self.assertFalse(self.a.warm())            # same problem: nothing to do
+        time.sleep(0.05)
+        self.settle()
+        self.assertEqual(self.read, ["s1_cat"])
+        self.tutor.start("s2_cat")
+        self.assertTrue(self.a.warm())
+        time.sleep(0.05)
+        self.settle()
+        self.assertEqual(self.read, ["s1_cat", "s2_cat"])
+
+    def test_a_problem_the_student_left_is_skipped(self):
+        self.a.warm_lock.acquire()                 # the model is busy
+        self.a.warm()                              # s1 waits
+        self.tutor.start("s2_cat")                 # the student moves on
+        self.a.warm()
+        self.a.warm_lock.release()
+        time.sleep(0.1)
+        self.settle()
+        self.assertEqual(self.read, ["s2_cat"])
+
+    def test_the_statement_is_a_turn_of_its_own(self):
+        from copilot import slm
+        ahead = slm.build_messages(PROBLEM)
+        full = slm.build_messages(PROBLEM, "no ho entenc")
+        self.assertEqual(ahead[:3], full[:3])      # what the model read ahead is the start of the question
+        self.assertNotIn("no ho entenc", str(full[:3]))
+        self.assertIn("no ho entenc", full[3]["content"])
+        self.assertIn(PROBLEM["text"], full[1]["content"])

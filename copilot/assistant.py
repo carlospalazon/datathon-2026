@@ -39,15 +39,24 @@ def restates_question(hint, problem, limit=0.6):
     return bool(words) and len(words & _words(asked)) / len(words) >= limit
 
 
+def echoes_student(hint, student_text, limit=0.6):
+    """True if the model only gave the student's own words back."""
+    words = _words(hint)
+    return bool(words) and bool(student_text) and len(words & _words(student_text)) / len(words) >= limit
+
+
 def answer_letter(text):
     """The letter the student chose ("opcio b", "crec que és la c"), or None."""
     return topics.choice_letter(text)
 
 
 class Assistant:
-    def __init__(self, tutor, ask=slm.ask_hint):
+    def __init__(self, tutor, ask=slm.ask_hint, warmer=slm.warm):
         self.tutor = tutor
         self.ask = ask  # replaceable in tests
+        self.warmer = warmer
+        self.warmed = None  # key of the last problem the model was asked to read ahead
+        self.warm_lock = threading.Lock()
         self.state = {"streak": 0}
         self.jobs = {}
         self.ids = itertools.count(1)
@@ -90,6 +99,24 @@ class Assistant:
 
     # --- The model, in the background ---------------------------------------------
 
+    def warm(self):
+        """Let the model read the current problem while the student reads it. Once per problem.
+
+        Call it after any action that may have changed the problem. Returns True if it started.
+        """
+        problem = self._problem()
+        if problem["key"] == self.warmed:
+            return False
+        self.warmed = problem["key"]
+        threading.Thread(target=self._warm, args=(problem,), daemon=True).start()
+        return True
+
+    def _warm(self, problem):
+        with self.warm_lock:  # one at a time, and skip a problem the student has already left
+            current = self.tutor.current
+            if current and current["problem"]["key"] == problem["key"]:
+                self.warmer(problem)
+
     def model_hint(self, student_text="", debug=None):
         job = next(self.ids)
         problem = self._problem()
@@ -106,12 +133,15 @@ class Assistant:
             ok, reason = False, "tutor_leak_check"
         if ok and restates_question(reply["text"], problem):
             ok, reason = False, "restates_question"
+        if ok and echoes_student(reply["text"], student_text):
+            ok, reason = False, "echoes_student"
         if ok:
             text, status = reply["text"].strip(), "generado:qwen"
         else:
             text, status = self._fallback(problem)
         debug.update(model_text=reply["text"], model_error=reply["error"], rail=reason, accepted=ok,
                      seconds=reply["seconds"], prompt_tokens=reply["prompt_tokens"],
+                     cached_tokens=reply.get("cached_tokens"),
                      generated_tokens=reply.get("generated_tokens"))
         result = {"done": True, "kind": "model_hint", "text": text, "status": status, "debug": debug,
                   "events": [{"event": "help_step", "value": 1, "of": 1} if ok else {"event": "letter", "value": "?"}]}
