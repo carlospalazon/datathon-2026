@@ -1,0 +1,8 @@
+# M3Kang data and derived indexes must remain local.
+data/
+*.db
+*.gguf
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store

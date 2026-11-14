@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Math Copilot LED demo</title>
+  <style>
+    body { font: 18px system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #18324c; }
+    button { font: inherit; min-width: 54px; min-height: 50px; margin: 5px; cursor: pointer; }
+    #status { min-height: 54px; padding: 12px; background: #eef5f5; border-radius: 8px; }
+    .choices { display: flex; flex-wrap: wrap; }
+    small { display: block; color: #53616b; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Math Copilot LED demo</h1>
+  <p>What is <strong>2 + 3 &times; 4</strong>?</p>
+  <div class="choices" id="choices"></div>
+  <p><button id="hint">Next hint</button><button id="reset">Reset</button></p>
+  <p id="status" role="status" aria-live="polite">Choose A-E.</p>
+  <small>This original example tests the LED feedback flow. It is not an M3Kang problem.</small>
+  <script>
+    const choices = { A: '20', B: '14', C: '24', D: '9', E: '25' };
+    const status = document.querySelector('#status');
+    async function call(path) {
+      try {
+        const result = await (await fetch(path)).json();
+        if (result.error) status.textContent = result.error;
+      } catch (_) {
+        status.textContent = 'Board connection unavailable.';
+      }
+    }
+    for (const [letter, value] of Object.entries(choices)) {
+      const button = document.createElement('button');
+      button.textContent = `${letter}: ${value}`;
+      button.addEventListener('click', () => call(`/answer/${letter}`));
+      document.querySelector('#choices').append(button);
+    }
+    document.querySelector('#hint').addEventListener('click', () => call('/hint'));
+    document.querySelector('#reset').addEventListener('click', () => call('/reset'));
+    setInterval(async () => {
+      try {
+        const data = await (await fetch('/status')).json();
+        status.textContent = data.message;
+      } catch (_) {
+        status.textContent = 'Board connection unavailable.';
+      }
+    }, 700);
+  </script>
+</body>
+</html>
