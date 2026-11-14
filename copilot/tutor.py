@@ -10,10 +10,18 @@ Kept apart from predict.py and copilot/pipeline.py: the official run never impor
     tutor = Tutor(problems, types)          # records from data/catalog/problems.jsonl, method cards
     view = tutor.start("lvl-0_2015_13_cat") # the problem, without its answer
     tutor.answer("B")                       # {"correct": False, "feedback": ..., "events": [...]}
+                                            # feedback: a reviewed distractor note, else a rule diagnosis
     step = tutor.help()                     # next step of the guide
     tutor.respond(step["qid"], 12)          # the student answers a guide question
     tutor.solution()                        # only when the student asks for it
     tutor.next_problem()                    # adaptive: up a level after a right answer
+
+What the tutor remembers about the student, and the rules that use it:
+  skill[topic]         right answers in a row. MASTERED in a row: the next problem is from the
+                       topic that goes worst, or from one not tried yet.
+  errors[topic, code]  problems where a rule diagnosed that mistake. The second time, the next
+                       help step is the method of the topic, not one more detail of the problem.
+  review               problems that went wrong come back REVIEW_AFTER problems later.
 
 The guide, in order, skipping steps that have no content or aren't safe to show:
   1. similar     an easier solved problem of the same type
@@ -30,6 +38,8 @@ import sqlite3
 from datetime import datetime, timezone
 
 STATUSES = ("revisado", "preparado", "generado")
+MASTERED = 3      # first-try right answers in a row before the tutor moves to another topic
+REVIEW_AFTER = 3  # a problem that went wrong comes back after this many other problems
 
 
 def _rank(key):
@@ -106,6 +116,9 @@ class Tutor:
         self.neighbours = neighbours
         self.seen = set()
         self.history = []  # (key, solved_first_try)
+        self.skill = {}    # topic -> {"streak", "done", "right"}
+        self.errors = {}   # (topic, code) -> problems where it was diagnosed
+        self.review = []   # [key, problems left before it comes back]; in memory only
         self.current = None
         self.profile_path = profile_path
         if profile_path:
@@ -119,7 +132,7 @@ class Tutor:
 
     def start(self, key):
         problem = self.problems[key]
-        self.current = {"problem": problem, "attempts": [], "rejected": [], "solution_shown": False,
+        self.current = {"problem": problem, "attempts": [], "rejected": [], "errors": [], "solution_shown": False,
                         "queue": self._plan(problem), "done": 0, "questions": {}}
         self.seen.add(key)
         self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
@@ -139,11 +152,33 @@ class Tutor:
         feedback = None
         if not correct:
             feedback = self._visible(problem.get("distractors", {}).get(letter), problem,
-                                     source=f"distractor {letter}")
+                                     source=f"distractor {letter}") or self._diagnosis(problem, letter)
         if correct or s["solution_shown"]:
             self._remember(problem, correct and len(s["attempts"]) == 1)
         return {"correct": correct, "attempts": len(s["attempts"]), "feedback": feedback,
                 "events": [{"event": "tick" if correct else "cross"}]}
+
+    def _diagnosis(self, problem, letter):
+        """Feedback worked out by rules from the wrong option (copilot/diagnose.py), or None."""
+        from . import diagnose  # here: diagnose imports this module
+        card = self.types.get(problem.get("topic")) or {}
+        card = card if base_status(card.get("status")) in self.show else None
+        for found in diagnose.diagnose(problem, letter, show=self.show):
+            text, status = diagnose.message(found["code"], problem.get("language"), card)
+            if leaks_answer(text, problem):
+                continue
+            s, pair = self._session(), (problem.get("topic"), found["code"])
+            if found["code"] not in s["errors"]:  # once per problem
+                s["errors"].append(found["code"])
+                self.errors[pair] = self.errors.get(pair, 0) + 1
+                self._save("INSERT INTO errors (topic, code, n) VALUES (?, ?, 1)"
+                           " ON CONFLICT (topic, code) DO UPDATE SET n = n + 1", pair)
+            repeated = self.errors[pair] >= 2
+            if repeated:  # the same mistake again: the method of the topic is the next help step
+                s["queue"].sort(key=lambda step: step["kind"] != "method")
+            return {"kind": "diagnosis", "text": text, "status": status, "source": f"rule {found['code']}",
+                    "code": found["code"], "repeated": repeated}
+        return None
 
     # --- The guide -----------------------------------------------------------------
 
@@ -282,9 +317,22 @@ class Tutor:
     # --- Adaptive practice -----------------------------------------------------------
 
     def next_problem(self):
-        """Same type; one step up the difficulty scale after a first-try right answer, one down otherwise."""
+        """The next problem, by rules, in this order:
+
+        1. a problem that went wrong REVIEW_AFTER problems ago comes back;
+        2. after MASTERED first-try right answers in a row, another topic: the one that goes worst,
+           an untried one before one that goes well;
+        3. else the same topic, one step up the difficulty scale after a first-try right answer,
+           one down otherwise.
+        """
         s = self._session()
         problem = s["problem"]
+        for item in self.review:
+            item[1] -= 1
+        due = next((item for item in self.review if item[1] <= 0 and item[0] != problem["key"]), None)
+        if due:
+            self.review.remove(due)
+            return {**self.start(due[0]), "review": True}
         first_try = s["attempts"][:1] == [problem["label"]] and not s["solution_shown"]
         step = 1 if "difficulty" in problem else 3  # without the fine scale, move a whole level
         target = _difficulty(problem) + (step if first_try else -step)
@@ -292,13 +340,33 @@ class Tutor:
                 if p["key"] not in self.seen and p["language"] == problem["language"]]
         if not pool:
             return None
-        pool.sort(key=lambda p: (p["topic"] != problem["topic"], abs(_difficulty(p) - target),
+        topic = problem["topic"]
+        skill = self.skill.get(topic)
+        others = {p["topic"] for p in pool} - {topic}
+        if skill and skill["streak"] >= MASTERED and others:
+            skill["streak"] = 0
+            self._save_skill(topic)
+            topic = min(others, key=self._mastery)
+            target = _difficulty(problem)
+        pool.sort(key=lambda p: (p["topic"] != topic, abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))
         return self.start(pool[0]["key"])
+
+    def _mastery(self, topic):
+        """Sort key: the topic with the lowest share of first-try right answers first; untried ones at 0.5."""
+        skill = self.skill.get(topic)
+        return (skill["right"] / skill["done"] if skill and skill["done"] else 0.5, topic)
 
     def _remember(self, problem, solved_first_try):
         if not any(k == problem["key"] for k, _ in self.history):
             self.history.append((problem["key"], solved_first_try))
+            skill = self.skill.setdefault(problem["topic"], {"streak": 0, "done": 0, "right": 0})
+            skill["done"] += 1
+            skill["right"] += int(solved_first_try)
+            skill["streak"] = skill["streak"] + 1 if solved_first_try else 0
+            self._save_skill(problem["topic"])
+            if not solved_first_try:
+                self.review.append([problem["key"], REVIEW_AFTER + 1])  # next_problem counts down first
             self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (problem["key"], _now()))
             self._save("UPDATE history SET solved_first_try = ?, done_at = ? WHERE key = ?",
                        (int(solved_first_try), _now(), problem["key"]))
@@ -309,13 +377,24 @@ class Tutor:
         db = sqlite3.connect(self.profile_path)
         db.execute("CREATE TABLE IF NOT EXISTS history (key TEXT PRIMARY KEY, solved_first_try INTEGER,"
                    " seen_at TEXT, done_at TEXT)")
+        db.execute("CREATE TABLE IF NOT EXISTS skill (topic TEXT PRIMARY KEY, streak INTEGER, done INTEGER,"
+                   " right INTEGER)")
+        db.execute("CREATE TABLE IF NOT EXISTS errors (topic TEXT, code TEXT, n INTEGER, PRIMARY KEY (topic, code))")
         return db
 
     def _load_profile(self):
         with self._connect() as db:
             rows = db.execute("SELECT key, solved_first_try FROM history ORDER BY done_at, key").fetchall()
+            self.skill = {t: {"streak": a, "done": b, "right": c}
+                          for t, a, b, c in db.execute("SELECT topic, streak, done, right FROM skill")}
+            self.errors = {(t, c): n for t, c, n in db.execute("SELECT topic, code, n FROM errors")}
         self.seen = {k for k, _ in rows}
         self.history = [(k, bool(v)) for k, v in rows if v is not None]
+
+    def _save_skill(self, topic):
+        skill = self.skill[topic]
+        self._save("INSERT OR REPLACE INTO skill (topic, streak, done, right) VALUES (?, ?, ?, ?)",
+                   (topic, skill["streak"], skill["done"], skill["right"]))
 
     def _save(self, sql, args):
         if self.profile_path:

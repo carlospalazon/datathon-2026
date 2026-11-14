@@ -3,6 +3,7 @@
 
     python3 measure_teach.py coverage [--show revisado,preparado,generado] [--markdown out.md]
     python3 measure_teach.py simulate [--steps 30]
+    python3 measure_teach.py diagnose                  # wrong choices the rules can explain (copilot/diagnose.py)
     python3 measure_teach.py hints [--limit 20]        # needs the model server (run it on the board)
     python3 measure_teach.py guards                    # data/guardrail_phrases.jsonl through topics.check_input
 
@@ -185,9 +186,11 @@ def simulate_student(problems, types, show, steps, threshold):
     tutor = Tutor(problems, types, show=show)
     first = min(problems, key=lambda p: (diff(p), p["key"]))
     tutor.start(first["key"])
-    visited, topics_seq, ran_out = [], [], None
+    visited, topics_seq, ran_out, reviews = [], [], None, 0
+    view = {}
     for i in range(steps):
         p = tutor.current["problem"]
+        reviews += bool(view.get("review"))
         visited.append(diff(p))
         topics_seq.append(p["topic"])
         right = threshold is None or (threshold != "wrong" and diff(p) <= threshold)
@@ -197,7 +200,8 @@ def simulate_student(problems, types, show, steps, threshold):
             tutor.answer(wrong_letter(p))
             if threshold != "wrong":
                 tutor.solution()
-        if tutor.next_problem() is None:
+        view = tutor.next_problem()
+        if view is None:
             ran_out = i + 1
             break
     stays = [a == b for a, b in zip(topics_seq, topics_seq[1:])]
@@ -206,7 +210,7 @@ def simulate_student(problems, types, show, steps, threshold):
         tail = visited[-max(1, len(visited) // 3):]
         settle = mean([abs(d - threshold) for d in tail])
     return {"visited": visited, "same_topic": sum(stays) / len(stays) if stays else None,
-            "settle": settle, "ran_out": ran_out}
+            "settle": settle, "ran_out": ran_out, "reviews": reviews, "topics": len(set(topics_seq))}
 
 
 def run_simulate(problems, types, show, steps):
@@ -217,11 +221,40 @@ def run_simulate(problems, types, show, steps):
     for name, t in students:
         r = simulate_student(problems, types, show, steps, t)
         rows.append([name, len(r["visited"]), pct(r["same_topic"] or 0, 1) if r["same_topic"] is not None else "n/a",
-                     fmt(r["settle"]), r["ran_out"] if r["ran_out"] else "no"])
+                     fmt(r["settle"]), r["topics"], r["reviews"], r["ran_out"] if r["ran_out"] else "no"])
         sequences.append([name, " ".join(str(d) for d in r["visited"])])
     report.table("Per student", ["student", "steps run", "same topic as previous", "mean |difficulty - T|, last third",
-                                 "pool ran out at step"], rows)
+                                 "topics visited", "problems reviewed", "pool ran out at step"], rows)
     report.table("Difficulty visited, in order", ["student", "sequence"], sequences)
+    return report
+
+
+# --- 2b. diagnose ----------------------------------------------------------------------------------
+
+def run_diagnose(problems, types, show):
+    """How many wrong choices get feedback, and from where: a reviewed note, or a rule."""
+    tutor = Tutor(problems, types, show=show)
+    by_topic, codes = {}, Counter()
+    for p in problems:
+        row = by_topic.setdefault(p["topic"], Counter())
+        for letter in "ABCDE":
+            if letter == p["label"] or letter not in p["options"]:
+                continue
+            tutor.start(p["key"])
+            feedback = tutor.answer(letter)["feedback"]
+            row["choices"] += 1
+            if feedback:
+                row["note" if feedback["kind"] == "distractor" else "rule"] += 1
+                if feedback["kind"] == "diagnosis":
+                    codes[feedback["code"]] += 1
+    total = sum(by_topic.values(), Counter())
+    report = Report(f"Feedback on wrong choices (show={','.join(show)})")
+    rows = [[t, r["choices"], r["note"], r["rule"], pct(r["note"] + r["rule"], r["choices"])]
+            for t, r in sorted(by_topic.items())]
+    rows.append(["all", total["choices"], total["note"], total["rule"], pct(total["note"] + total["rule"], total["choices"])])
+    report.table("By topic", ["topic", "wrong choices", "written note", "rule diagnosis", "with feedback"], rows)
+    report.table("Rule diagnoses by code (the first that applies)", ["code", "wrong choices"],
+                 [[c, n] for c, n in codes.most_common()])
     return report
 
 
@@ -348,6 +381,7 @@ def parse_args(argv=None):
     sub.add_parser("coverage", parents=[common], help="help ladder coverage (no model)")
     s = sub.add_parser("simulate", parents=[common], help="simulated students (no model)")
     s.add_argument("--steps", type=int, default=30)
+    sub.add_parser("diagnose", parents=[common], help="feedback on wrong choices: notes and rules (no model)")
     h = sub.add_parser("hints", parents=[common], help="model hints through the guardrails (needs the model)")
     h.add_argument("--limit", type=int, default=20, help="problems to ask; 0 = all")
     # Full model texts: for the team's own inspection only. The file must NOT be committed.
@@ -367,6 +401,8 @@ def main(argv=None):
         sys.exit(f"No problems for stage={args.stage}, language={args.language} in {args.catalog}.")
     if args.command == "coverage":
         run_coverage(problems, load_types(args.types), show).emit(args.markdown)
+    elif args.command == "diagnose":
+        run_diagnose(problems, load_types(args.types), show).emit(args.markdown)
     elif args.command == "simulate":
         run_simulate(problems, load_types(args.types), show, args.steps).emit(args.markdown)
     else:

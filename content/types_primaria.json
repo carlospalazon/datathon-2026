@@ -1,5 +1,5 @@
 {
-  "_about": "Fitxes de mètode per tipus d'exercici, per a 5è i 6è de primària. Contingut propi de l'equip (no deriva de M3Kang): es pot publicar. Els exemples són inventats. Estat 'generado': esborrany escrit amb un assistent; cal que una persona el revisi abans de passar a 'revisado'.",
+  "_about": "Fitxes de mètode per tipus d'exercici, per a 5è i 6è de primària. Contingut propi de l'equip (no deriva de M3Kang): es pot publicar. Els exemples són inventats. Estat 'generado' (amb ':autor' si diu qui l'ha escrit): esborrany escrit amb un assistent; cal que una persona el revisi abans de passar a 'revisado'.",
   "aritmetica": {
     "name": {
       "cat": "Càlcul amb dades",
@@ -17,14 +17,17 @@
     "typical_errors": [
       {
         "error": "Sumar tots els números que surten, sense pensar què vol dir cadascun.",
+        "code": "sum_all",
         "hint": "Què representa cada número? Cal sumar-los tots, o només alguns?"
       },
       {
         "error": "Respondre un resultat intermedi en lloc del que demanen.",
+        "code": "intermediate",
         "hint": "Torna a llegir la pregunta: has arribat al final o només a un pas del camí?"
       },
       {
         "error": "Fer les operacions en un ordre equivocat (per exemple, sumar abans de multiplicar).",
+        "code": "left_to_right",
         "hint": "Recorda: primer multiplicacions i divisions, després sumes i restes."
       },
       {
@@ -177,6 +180,7 @@
       },
       {
         "error": "Comptar els espais en lloc dels objectes (o al revés).",
+        "code": "off_by_one",
         "hint": "Què has de comptar exactament: les coses o els espais que hi ha entre elles?"
       }
     ],
@@ -222,6 +226,606 @@
         ],
         "answer": 2,
         "explain": "Només una llista feta amb un ordre fix et garanteix que no te'n deixes cap ni en comptes cap dues vegades."
+      }
+    ]
+  },
+  "numeros": {
+    "name": {
+      "cat": "Propietats dels nombres",
+      "eng": "Number properties"
+    },
+    "status": "generado:claude-fable",
+    "method": "Escriu la condició que ha de complir el nombre i prova-la amb candidats, d'un en un i amb ordre. Si hi ha més d'una condició, comença per la que deixa menys candidats.",
+    "method_eng": "Write down the condition the number must meet and test candidates one at a time, in order. With several conditions, start with the one that leaves the fewest candidates.",
+    "steps": [
+      "Subratlla les paraules clau: parell, senar, múltiple, divisor, xifra, residu.",
+      "Escriu amb les teves paraules què ha de complir el nombre.",
+      "Fes una llista curta de candidats, començant per la condició més exigent.",
+      "Comprova cada candidat amb totes les condicions, no només amb una."
+    ],
+    "typical_errors": [
+      {
+        "error": "Confondre xifra amb nombre (per exemple, sumar les xifres quan demanen el nombre).",
+        "hint": "Et demanen el nombre sencer o una de les seves xifres?"
+      },
+      {
+        "error": "Confondre múltiple amb divisor.",
+        "hint": "El nombre que busques ha de ser més gran (múltiple) o més petit (divisor) que el que et donen?"
+      },
+      {
+        "error": "Comprovar només una de les condicions.",
+        "hint": "Quantes condicions hi ha a l'enunciat? El teu nombre les compleix totes?"
+      },
+      {
+        "error": "Respondre un nombre de l'enunciat en lloc del que es demana.",
+        "code": "copied_datum",
+        "hint": "Aquest nombre és una dada o és el que has trobat tu? Què et demanen exactament?"
+      }
+    ],
+    "example": {
+      "text": "Quin d'aquests nombres és múltiple de 3 i també és parell?",
+      "options": {
+        "A": "9",
+        "B": "14",
+        "C": "15",
+        "D": "18",
+        "E": "21"
+      },
+      "label": "D",
+      "solution": "Els parells són 14 i 18. D'aquests dos, només 18 és múltiple de 3 (3 × 6 = 18).",
+      "distractors": {
+        "A": "9 és múltiple de 3, però és senar.",
+        "B": "14 és parell, però no és múltiple de 3."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "En tots dos cal trobar nombres que compleixin una condició",
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "No s'assemblen gens"
+      ],
+      "answer": 0,
+      "explain": "Tots dos demanen nombres que compleixen una propietat: cal provar candidats amb ordre."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Escriu amb les teves paraules la condició (o les condicions) que ha de complir el nombre."
+      },
+      {
+        "kind": "choice",
+        "question": "Si un nombre ha de complir dues condicions, què és millor fer?",
+        "choices": [
+          "Provar nombres a l'atzar",
+          "Buscar primer els que compleixen la condició més exigent i després comprovar l'altra",
+          "Comprovar només la primera condició"
+        ],
+        "answer": 1,
+        "explain": "Començar per la condició més exigent deixa pocs candidats, i després només cal comprovar l'altra."
+      }
+    ]
+  },
+  "logica": {
+    "name": {
+      "cat": "Deduir amb pistes",
+      "eng": "Logic"
+    },
+    "status": "generado:claude-fable",
+    "method": "Apunta cada pista en una taula o un esquema. Comença per la pista que dona una cosa segura i fes servir cada cosa segura per descartar possibilitats.",
+    "method_eng": "Write each clue in a table or a sketch. Start with the clue that gives a sure fact and use each sure fact to rule out possibilities.",
+    "steps": [
+      "Fes una llista de les persones o coses i del que pot ser cadascuna.",
+      "Busca la pista que dona una cosa segura i apunta-la.",
+      "Amb el que ja saps, descarta el que no pot ser.",
+      "Quan acabis, repassa totes les pistes: s'han de complir totes alhora."
+    ],
+    "typical_errors": [
+      {
+        "error": "Fer servir només una part de les pistes.",
+        "hint": "Has fet servir totes les pistes? Torna a llegir-les una per una."
+      },
+      {
+        "error": "Donar per fet una cosa que l'enunciat no diu.",
+        "hint": "Això que has suposat, ho diu l'enunciat o t'ho has imaginat?"
+      },
+      {
+        "error": "Girar una relació (qui és davant de qui, qui és més alt que qui).",
+        "hint": "Fes un dibuix amb l'ordre. Qui va davant i qui va darrere?"
+      },
+      {
+        "error": "No comprovar la resposta amb totes les pistes.",
+        "hint": "Posa la teva resposta al lloc i comprova cada pista: n'hi ha alguna que falli?"
+      }
+    ],
+    "example": {
+      "text": "L'Anna, en Biel i la Carla fan una cursa. L'Anna no arriba primera. En Biel arriba just darrere de la Carla. Qui arriba última?",
+      "options": {
+        "A": "L'Anna",
+        "B": "En Biel",
+        "C": "La Carla",
+        "D": "L'Anna i en Biel empaten",
+        "E": "No es pot saber"
+      },
+      "label": "A",
+      "solution": "En Biel va just darrere de la Carla, o sigui que van seguits: Carla i Biel. L'Anna no és primera, per tant no pot anar davant de tots dos. L'ordre és Carla, Biel, Anna: l'última és l'Anna.",
+      "distractors": {
+        "B": "En Biel va darrere de la Carla, però l'Anna encara va darrere d'ell.",
+        "E": "Sí que es pot saber: les dues pistes juntes només deixen un ordre possible."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "En tots dos cal combinar pistes per descartar possibilitats",
+        "No s'assemblen gens"
+      ],
+      "answer": 2,
+      "explain": "Tots dos es resolen apuntant les pistes i descartant el que no pot ser."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Quina pista et dona una cosa segura? Apunta-la abans de continuar."
+      },
+      {
+        "kind": "choice",
+        "question": "Com saps que la teva resposta és bona?",
+        "choices": [
+          "Perquè compleix totes les pistes alhora",
+          "Perquè compleix la primera pista",
+          "Perquè és la que sembla més normal"
+        ],
+        "answer": 0,
+        "explain": "Una resposta només és bona si totes les pistes es compleixen alhora."
+      }
+    ]
+  },
+  "patrones": {
+    "name": {
+      "cat": "Trobar la regla d'un patró",
+      "eng": "Patterns"
+    },
+    "status": "generado:claude-fable",
+    "method": "Mira com es passa d'un element al següent i escriu la regla. Comprova-la amb tots els elements que tens abans de fer-la servir per trobar el que et demanen.",
+    "method_eng": "Look at how you get from one item to the next and write the rule. Check it against every item you have before using it to find what is asked.",
+    "steps": [
+      "Escriu els primers elements en fila, amb el número de posició a sota.",
+      "Mira què canvia d'un al següent: se suma, es multiplica, es repeteix un bloc?",
+      "Escriu la regla amb paraules.",
+      "Comprova la regla amb tots els elements i després aplica-la."
+    ],
+    "typical_errors": [
+      {
+        "error": "Decidir la regla mirant només els dos primers elements.",
+        "hint": "La teva regla funciona per a tots els elements que surten, o només per als primers?"
+      },
+      {
+        "error": "Confondre la posició amb el valor (comptar malament en quin lloc és).",
+        "code": "off_by_one",
+        "hint": "Numera les posicions una per una. Per quina comences a comptar?"
+      },
+      {
+        "error": "En un patró que es repeteix, no mirar quants elements té el bloc que es repeteix.",
+        "hint": "Quin és el tros que es va repetint? Quants elements té?"
+      },
+      {
+        "error": "Aturar-se un pas abans o un pas després del que demanen.",
+        "code": "intermediate",
+        "hint": "Quina posició et demanen exactament? Hi has arribat?"
+      }
+    ],
+    "example": {
+      "text": "Un collaret repeteix sempre aquests colors: vermell, blau, blau, verd. De quin color és la bola número 10?",
+      "options": {
+        "A": "Vermell",
+        "B": "Blau",
+        "C": "Verd",
+        "D": "Groc",
+        "E": "No es pot saber"
+      },
+      "label": "B",
+      "solution": "El bloc que es repeteix té 4 boles. Després de 8 boles hi ha dos blocs sencers. La bola 9 torna a ser vermella i la 10 és blava.",
+      "distractors": {
+        "A": "Vermell és la bola 9, la primera del tercer bloc.",
+        "C": "Verd seria la bola 12, l'última del tercer bloc."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "En tots dos cal trobar la regla i fer-la servir",
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "No s'assemblen gens"
+      ],
+      "answer": 0,
+      "explain": "Tots dos tenen una regla amagada: primer es troba, després es comprova i al final s'aplica."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Escriu la regla del patró amb les teves paraules."
+      },
+      {
+        "kind": "choice",
+        "question": "Què has de fer abans de fer servir la regla?",
+        "choices": [
+          "Res, si funciona amb els dos primers ja n'hi ha prou",
+          "Triar l'opció més gran",
+          "Comprovar-la amb tots els elements que es veuen"
+        ],
+        "answer": 2,
+        "explain": "Una regla que només funciona amb els dos primers elements pot ser falsa: cal comprovar-la amb tots."
+      }
+    ]
+  },
+  "geometria_plana": {
+    "name": {
+      "cat": "Figures planes",
+      "eng": "Plane geometry"
+    },
+    "status": "generado:claude-fable",
+    "method": "Fes un dibuix i escriu-hi totes les mides que saps. Decideix què et demanen (un costat, la vora o l'interior) i parteix la figura en trossos senzills si cal.",
+    "method_eng": "Draw the figure and write every length you know on it. Decide what is asked (a side, the border or the inside) and split the figure into simple pieces if needed.",
+    "steps": [
+      "Dibuixa la figura i posa-hi les mides de l'enunciat.",
+      "Decideix què et demanen: una llargada, el perímetre (la vora) o l'àrea (l'interior).",
+      "Busca costats iguals o trossos que siguin quadrats, rectangles o triangles.",
+      "Calcula pas a pas i comprova la unitat de la resposta."
+    ],
+    "typical_errors": [
+      {
+        "error": "Confondre perímetre i àrea.",
+        "code": "perimeter_area",
+        "hint": "El perímetre és la vora i l'àrea és el que hi ha a dins. Quina de les dues et demanen?"
+      },
+      {
+        "error": "Comptar dues vegades un costat que comparteixen dues figures enganxades.",
+        "hint": "Quan dues figures s'enganxen, el costat que comparteixen encara forma part de la vora?"
+      },
+      {
+        "error": "Respondre una mida de l'enunciat en lloc de calcular la que demanen.",
+        "code": "copied_datum",
+        "hint": "Quines mides et donen i quina has de trobar? Què has de fer amb les que et donen?"
+      },
+      {
+        "error": "Quedar-se amb una mida intermèdia (per exemple, el costat quan demanen l'àrea).",
+        "code": "intermediate",
+        "hint": "Quina mida et demanen exactament? Ja hi has arribat, o et falta fer un pas més?"
+      }
+    ],
+    "example": {
+      "text": "Un rectangle fa 6 cm de llarg i 4 cm d'ample. Quin és el seu perímetre?",
+      "options": {
+        "A": "10 cm",
+        "B": "20 cm",
+        "C": "24 cm",
+        "D": "12 cm",
+        "E": "16 cm"
+      },
+      "label": "B",
+      "solution": "El perímetre és la vora: dos costats llargs i dos de curts. 6 + 6 + 4 + 4 = 20 cm.",
+      "distractors": {
+        "A": "10 és sumar només un costat llarg i un de curt.",
+        "C": "24 és l'àrea (6 × 4), no el perímetre."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "En tots dos cal dibuixar la figura i decidir quina mida es demana",
+        "No s'assemblen gens"
+      ],
+      "answer": 2,
+      "explain": "Tots dos es resolen amb un dibuix amb les mides i tenint clar si es demana una llargada, la vora o l'interior."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Fes un dibuix de la figura i escriu-hi totes les mides que diu l'enunciat."
+      },
+      {
+        "kind": "choice",
+        "question": "Què mesura el perímetre d'una figura?",
+        "choices": [
+          "L'espai que hi ha a dins",
+          "La llargada de tota la vora",
+          "El costat més llarg"
+        ],
+        "answer": 1,
+        "explain": "El perímetre és la llargada de la vora. L'espai de dins és l'àrea."
+      }
+    ]
+  },
+  "geometria_espacial": {
+    "name": {
+      "cat": "Cossos i cubs",
+      "eng": "Solid geometry"
+    },
+    "status": "generado:claude-fable",
+    "method": "Imagina el cos per capes o per cares i compta amb ordre. No t'oblidis de les parts que no es veuen al dibuix.",
+    "method_eng": "Picture the solid layer by layer or face by face and count in order. Don't forget the parts the drawing doesn't show.",
+    "steps": [
+      "Decideix què has de comptar: cubs, cares, arestes o vèrtexs.",
+      "Parteix el cos en capes (pis de baix, pis del mig, pis de dalt) o mira les cares d'una en una.",
+      "Compta cada capa o cada cara per separat i apunta el resultat.",
+      "Pensa en el que queda amagat darrere o a sota abans de sumar-ho tot."
+    ],
+    "typical_errors": [
+      {
+        "error": "Comptar només els cubs o les cares que es veuen al dibuix.",
+        "hint": "Hi ha cubs o cares amagats darrere o a sota? Com ho pots saber?"
+      },
+      {
+        "error": "Comptar dues vegades els cubs de les cantonades o de les arestes.",
+        "hint": "Hi ha algun cub que hagis comptat des de dues cares diferents?"
+      },
+      {
+        "error": "Confondre cares, arestes i vèrtexs.",
+        "hint": "Què et demanen comptar: les cares planes, les línies on es troben o les puntes?"
+      },
+      {
+        "error": "Comptar una sola capa i oblidar les altres.",
+        "code": "intermediate",
+        "hint": "Has comptat tot el cos o només una part? Quantes capes té?"
+      }
+    ],
+    "example": {
+      "text": "Una capsa té forma de cub. Volem pintar totes les cares de fora, una de cada color. Quants colors necessitem?",
+      "options": {
+        "A": "4",
+        "B": "5",
+        "C": "6",
+        "D": "8",
+        "E": "12"
+      },
+      "label": "C",
+      "solution": "Un cub té una cara a dalt, una a baix i quatre al voltant. En total, 1 + 1 + 4 = 6 cares, o sigui 6 colors.",
+      "distractors": {
+        "A": "4 són només les cares del voltant: falten la de dalt i la de baix.",
+        "D": "8 són els vèrtexs (les puntes) del cub, no les cares.",
+        "E": "12 són les arestes del cub, no les cares."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "En tots dos cal imaginar el cos sencer i comptar amb ordre",
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "No s'assemblen gens"
+      ],
+      "answer": 0,
+      "explain": "Tots dos demanen imaginar el cos sencer, també el que no es veu, i comptar per capes o per cares."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Què has de comptar exactament? Decideix si ho faràs per capes o per cares."
+      },
+      {
+        "kind": "choice",
+        "question": "En un dibuix d'un cos, què passa amb les parts del darrere?",
+        "choices": [
+          "Existeixen encara que no es vegin, i s'han de comptar",
+          "No existeixen, perquè no es veuen",
+          "Són sempre iguals que les del davant"
+        ],
+        "answer": 0,
+        "explain": "El dibuix només ensenya una part del cos. El que queda amagat també compta."
+      }
+    ]
+  },
+  "medida": {
+    "name": {
+      "cat": "Mesures, temps i diners",
+      "eng": "Measurement"
+    },
+    "status": "generado:claude-fable",
+    "method": "Passa totes les quantitats a la mateixa unitat abans de calcular. Fes un esquema o una línia del temps i calcula pas a pas.",
+    "method_eng": "Turn every quantity into the same unit before computing. Draw a sketch or a timeline and compute one step at a time.",
+    "steps": [
+      "Apunta cada quantitat amb la seva unitat (minuts, hores, cm, m, euros, cèntims).",
+      "Si hi ha unitats diferents, passa-les totes a la mateixa.",
+      "Dibuixa una línia del temps o un esquema amb el que passa.",
+      "Calcula pas a pas i escriu la resposta amb la unitat que demanen."
+    ],
+    "typical_errors": [
+      {
+        "error": "Barrejar unitats diferents (hores amb minuts, metres amb centímetres).",
+        "hint": "Totes les quantitats estan en la mateixa unitat? Quina unitat et demanen a la resposta?"
+      },
+      {
+        "error": "Calcular amb les hores com si una hora tingués cent minuts.",
+        "hint": "Quants minuts té una hora? Compta primer fins a l'hora en punt i després la resta."
+      },
+      {
+        "error": "Comptar els dies o els trossos dels extrems de més o de menys.",
+        "code": "off_by_one",
+        "hint": "Compten també el primer i l'últim? Compta'ls un per un amb els dits o en un dibuix."
+      },
+      {
+        "error": "Donar el resultat d'un pas intermedi, o en una altra unitat.",
+        "code": "intermediate",
+        "hint": "Has arribat al que et demanen, i en la unitat que et demanen?"
+      }
+    ],
+    "example": {
+      "text": "Una pel·lícula comença a les 17:40 i dura 95 minuts. A quina hora acaba?",
+      "options": {
+        "A": "18:35",
+        "B": "18:75",
+        "C": "19:05",
+        "D": "19:15",
+        "E": "19:35"
+      },
+      "label": "D",
+      "solution": "95 minuts són 1 hora i 35 minuts. De 17:40, una hora més tard són les 18:40. Falten 35 minuts: 20 minuts fins a les 19:00 i 15 més, les 19:15.",
+      "distractors": {
+        "B": "18:75 no és cap hora: una hora només té 60 minuts."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "En tots dos cal posar les quantitats en la mateixa unitat i calcular pas a pas",
+        "No s'assemblen gens"
+      ],
+      "answer": 2,
+      "explain": "Tots dos treballen amb mesures: primer la mateixa unitat, després els càlculs pas a pas."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Apunta totes les quantitats de l'enunciat amb la seva unitat. N'hi ha de diferents?"
+      },
+      {
+        "kind": "choice",
+        "question": "Què has de fer si unes dades estan en hores i unes altres en minuts?",
+        "choices": [
+          "Sumar-les tal com estan",
+          "Fer servir només les que estan en hores",
+          "Passar-les totes a la mateixa unitat abans de calcular"
+        ],
+        "answer": 2,
+        "explain": "Només es poden sumar o comparar quantitats que estan en la mateixa unitat."
+      }
+    ]
+  },
+  "visual": {
+    "name": {
+      "cat": "Mirar i imaginar figures",
+      "eng": "Visual reasoning"
+    },
+    "status": "generado:claude-fable",
+    "method": "Tria un detall de la figura que sigui fàcil de seguir (una cantonada, un color, una peça) i mira on va a parar. Fes-lo servir per descartar opcions d'una en una.",
+    "method_eng": "Pick a detail of the figure that is easy to follow (a corner, a colour, a piece) and see where it ends up. Use it to rule out options one at a time.",
+    "steps": [
+      "Mira bé la figura i tria un detall que la faci diferent.",
+      "Imagina el moviment: girar, doblegar, mirar al mirall o mirar des d'un altre costat.",
+      "Mira on queda el teu detall després del moviment.",
+      "Descarta les opcions on el detall no és al lloc que toca. Si en queda més d'una, tria un altre detall."
+    ],
+    "typical_errors": [
+      {
+        "error": "Confondre girar una figura amb veure-la al mirall.",
+        "hint": "La figura es gira o es reflecteix? En un mirall, la dreta i l'esquerra es canvien."
+      },
+      {
+        "error": "Triar l'opció que s'assembla més a primer cop d'ull, sense comprovar-la.",
+        "hint": "Tria un detall de la figura. És al mateix lloc a l'opció que has triat?"
+      },
+      {
+        "error": "Fixar-se només en una part de la figura.",
+        "hint": "Has mirat totes les parts de la figura, o només una?"
+      },
+      {
+        "error": "Oblidar que, vista des de l'altre costat, la dreta i l'esquerra es canvien.",
+        "hint": "Si et poses a l'altre costat, el que tenies a la dreta, on queda?"
+      }
+    ],
+    "example": {
+      "text": "En un mirall veig un rellotge sense números. Sembla que marqui les 3 en punt. Quina hora és de veritat?",
+      "options": {
+        "A": "Les 3",
+        "B": "Les 6",
+        "C": "Les 9",
+        "D": "Les 12",
+        "E": "Les 4"
+      },
+      "label": "C",
+      "solution": "Al mirall, la dreta i l'esquerra es canvien. L'agulla petita, que al mirall apunta a la dreta, de veritat apunta a l'esquerra. L'agulla gran continua apuntant a dalt. Són les 9.",
+      "distractors": {
+        "A": "Les 3 és el que es veu al mirall, però el mirall canvia la dreta per l'esquerra.",
+        "B": "Les 6 seria si el mirall canviés dalt per baix, però canvia dreta per esquerra."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "En tots dos cal imaginar un moviment i seguir un detall de la figura",
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "No s'assemblen gens"
+      ],
+      "answer": 0,
+      "explain": "Tots dos es resolen imaginant el moviment i seguint un detall per descartar opcions."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Tria un detall de la figura que sigui fàcil de seguir. On és ara?"
+      },
+      {
+        "kind": "choice",
+        "question": "Quina és una bona manera de triar entre les opcions?",
+        "choices": [
+          "Triar la que s'assembla més a primer cop d'ull",
+          "Seguir un detall i descartar les opcions on no és al lloc que toca",
+          "Triar sempre la del mig"
+        ],
+        "answer": 1,
+        "explain": "Seguir un detall concret permet descartar opcions amb seguretat, sense refiar-se de la primera impressió."
+      }
+    ]
+  },
+  "otros": {
+    "name": {
+      "cat": "Un pla per a qualsevol problema",
+      "eng": "Other problems"
+    },
+    "status": "generado:claude-fable",
+    "method": "Abans de calcular, digues amb les teves paraules què et demanen i què saps. Prova amb un cas més petit o fes un dibuix per trobar per on començar.",
+    "method_eng": "Before computing, say in your own words what is asked and what you know. Try a smaller case or make a drawing to find where to start.",
+    "steps": [
+      "Llegeix l'enunciat a poc a poc i digues què et demanen.",
+      "Apunta què saps: dades, condicions, el que es veu a la figura.",
+      "Fes un dibuix o prova amb un cas més petit.",
+      "Quan tinguis una resposta, torna a llegir la pregunta i comprova que hi respon."
+    ],
+    "typical_errors": [
+      {
+        "error": "Començar a calcular sense haver entès què es demana.",
+        "hint": "Pots dir amb les teves paraules què et demanen?"
+      },
+      {
+        "error": "Respondre una cosa diferent de la que es pregunta.",
+        "code": "intermediate",
+        "hint": "Torna a llegir l'última frase de l'enunciat: la teva resposta contesta aquesta pregunta?"
+      },
+      {
+        "error": "Deixar de banda una dada o una condició.",
+        "hint": "Has fet servir totes les dades de l'enunciat?"
+      }
+    ],
+    "example": null,
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Tenen la mateixa resposta",
+        "Parlen de les mateixes coses",
+        "En tots dos ajuda entendre bé què es demana abans de calcular",
+        "No s'assemblen gens"
+      ],
+      "answer": 2,
+      "explain": "En tots dos, el primer pas és entendre què es demana i què se sap."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Explica amb les teves paraules què et demana el problema."
+      },
+      {
+        "kind": "reflect",
+        "question": "Quines dades tens? Fes un dibuix o prova amb un cas més petit."
       }
     ]
   }

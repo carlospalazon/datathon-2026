@@ -122,6 +122,7 @@ function say(html, kind) {
 function badge(status) {
   if (status === "generado:qwen") return `<span class="badge">generat pel model (Qwen), validat per les guardes</span>`;
   if (status === "plantilla") return `<span class="badge">plantilla fixa</span>`;
+  if (status === "regla") return `<span class="badge">deduït per regles, sense model</span>`;
   const base = String(status || "").split(":")[0];
   return base ? `<span class="badge ${esc(base)}">${esc(STATUS[base] || base)}</span>` : "";
 }
