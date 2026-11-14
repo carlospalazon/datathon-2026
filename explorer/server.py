@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,7 +31,111 @@ VISION = f"http://127.0.0.1:{CONFIG['VISION_PORT']}"
 # Reading an image takes the board much longer than reading text
 VISION_TIME_LIMIT = 300
 
+# SOCRATIC STEPS (Layer 1: Instant local guidance without LLM)
+SOCRATIC_STEPS = [
+    {
+        "step": 1,
+        "hint": (
+            "Step 1: Read carefully. What is the main question or what are we"
+            " asked to find?"
+        ),
+    },
+    {
+        "step": 2,
+        "hint": (
+            "Step 2: Identify data. What numbers or given conditions does the"
+            " problem provide?"
+        ),
+    },
+    {
+        "step": 3,
+        "hint": (
+            "Step 3: Strategy. What mathematical concept or formula connects"
+            " these data to the goal?"
+        ),
+    },
+]
 
+
+def process_socratic_step(current_step_index):
+  """Returns instant local socratic guidance without touching the LLM."""
+  idx = min(current_step_index, len(SOCRATIC_STEPS) - 1)
+  print(
+      f"[Server] Serving local socratic step {idx + 1} (Zero LLM overhead)"
+  )
+  return {
+      "type": "local_socratic",
+      "content": SOCRATIC_STEPS[idx]["hint"],
+      "next_step": idx + 1 if idx < len(SOCRATIC_STEPS) - 1 else None,
+  }
+
+
+def analyze_distractor(selected_option, correct_option):
+  """Analyzes common errors based on the chosen option (Layer 2)."""
+  print(
+      f"[Server] Analyzing user distractor choice: {selected_option}"
+      f" (Correct: {correct_option})"
+  )
+  if selected_option == correct_option:
+    return {
+        "type": "error_analysis",
+        "content": "That option is correct! Excellent reasoning.",
+    }
+  else:
+    return {
+        "type": "error_analysis",
+        "content": (
+            f"Option {selected_option} is a common pitfall. Review your"
+            " intermediate calculations or check if you missed a condition in"
+            " the text."
+        ),
+    }
+
+
+def call_llm_wildcard(problem_text):
+  """Layer 3: Local LLM wildcard fallback via port 8081 (Strict max_tokens)."""
+  url = "http://127.0.0.1:8081/v1/chat/completions"
+  payload = {
+      "messages": [
+          {
+              "role": "system",
+              "content": (
+                  "You are a Socratic math tutor. Give a short conceptual hint"
+                  " without revealing the final answer or option letter."
+              ),
+          },
+          {
+              "role": "user",
+              "content": (
+                  f"Help with this problem without spoiling the answer:\n{problem_text}"
+              ),
+          },
+      ],
+      "temperature": 0.1,
+      "max_tokens": 40,
+  }
+
+  req = urllib.request.Request(
+      url,
+      data=json.dumps(payload).encode("utf-8"),
+      headers={"Content-Type": "application/json"},
+  )
+
+  try:
+    print("[Server] Calling local LLM wildcard (Qwen 0.8B on port 8081)...")
+    with urllib.request.urlopen(req) as response:
+      res = json.loads(response.read().decode("utf-8"))
+      answer = res["choices"][0]["message"]["content"]
+      print("[Server] LLM wildcard response generated successfully.")
+      return {"type": "llm_wildcard", "content": answer}
+  except Exception as e:
+    print(f"[Server Error] Failed to reach local LLM: {e}")
+    return {
+        "type": "llm_wildcard",
+        "content": "Local AI copilot is currently offline.",
+    }
+
+  
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--input", default="data/val.jsonl", help="problems to explore")
@@ -180,6 +285,9 @@ def make_handler(app):
                 if key in app.image_keys and os.path.exists(file):
                     with open(file, "rb") as f:
                         return self.send(200, f.read(), "image/png")
+            if path == "/api/socratic":
+                step = int(params.get("step", 0))
+                return self.send(200, process_socratic_step(step))
             return self.send(404, {"error": "not found"})
 
         def do_POST(self):
@@ -192,6 +300,10 @@ def make_handler(app):
                     return self.send(200, app.check(key, body["choice"]))
                 if self.path == "/api/ask":
                     return self.send(200, app.ask(key, int(body.get("rag", 0)), bool(body.get("vision"))))
+                if self.path == "/api/wildcard":
+                    problem = app.by_key.get(key)
+                    problem_text = problem.get("text", "") if problem else ""
+                    return self.send(200, call_llm_wildcard(problem_text))
             except (OSError, urllib.error.URLError) as error:
                 return self.send(502, {"error": f"model server: {error}"})
             return self.send(400, {"error": "bad request"})
