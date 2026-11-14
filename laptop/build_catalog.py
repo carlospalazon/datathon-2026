@@ -45,6 +45,26 @@ def ocr_flags(options):
     return flags
 
 
+def question_number(problem_id):
+    return int(problem_id.rsplit("_", 1)[1])
+
+
+def difficulty(problem_id, level, exam_size):
+    """Where a problem sits: school grade, stage, and a 0..23 difficulty.
+
+    The dataset card says the 8 levels go from grade 5 to grade 12, so level 0 is
+    5th of primary school. Within an exam, Kangaroo questions come in three blocks
+    (3, 4 and 5 points) of growing difficulty: that's the competition's rule, not
+    something the dataset states, so treat `difficulty` as an estimate.
+    """
+    number = question_number(problem_id)
+    block = min(2, (number - 1) * 3 // exam_size)
+    grade = level + 5
+    stage = "primaria" if grade <= 6 else "eso" if grade <= 10 else "batxillerat"
+    return {"grade": grade, "stage": stage, "question_number": number, "block": block,
+            "difficulty": level * 3 + block}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data", default="data")
@@ -73,6 +93,11 @@ def main():
     if missing:
         raise SystemExit(f"{len(missing)} problem ids have no label, e.g. {missing[:5]}")
 
+    # Questions per exam differ by level (24 or 30): take the largest number seen
+    exam_size = {}
+    for x in problems:
+        exam_size[x["level"]] = max(exam_size.get(x["level"], 0), question_number(x["id"]))
+
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, "problems.jsonl")
     with open(out_path, "w") as f:
@@ -84,6 +109,7 @@ def main():
                 "id": x["id"],
                 "language": x["language"],
                 "level": x["level"],
+                **difficulty(x["id"], x["level"], exam_size[x["level"]]),
                 "year": x["year"],
                 "split": x["split"],
                 "text": x["text"],
