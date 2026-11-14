@@ -20,14 +20,15 @@ LLM_URL = os.environ.get("LLM_URL", "http://127.0.0.1:8081") + "/v1/chat/complet
 #    ("No, Berta isn't the 8th"), and the guardrails can check leaks and format, not truth.
 # So the assistant sends it questions about meaning only, and answers the rest with written help.
 SYSTEM = {
-    "cat": ("Ets un tutor de matemàtiques per a nens de 10 a 12 anys. Respon la pregunta de l'alumne amb UNA "
-            "frase curta i clara, en català. Fes servir les notes del professor. No diguis mai el resultat "
-            "del problema."),
-    "eng": ("You are a maths tutor for children aged 10 to 12. Answer the student's question in ONE short, "
-            "clear sentence. Use the teacher's notes. Never say the result of the problem."),
+    "cat": ("Ets el professor particular de matemàtiques d'un alumne de 10 a 12 anys, que està resolent un "
+            "problema i et fa una pregunta. Respon la seva pregunta amb UNA frase curta i clara, en català. "
+            "Fes servir les notes del problema. No diguis mai el resultat del problema."),
+    "eng": ("You are the private maths teacher of a student aged 10 to 12, who is solving a problem and asks "
+            "you a question. Answer the question in ONE short, clear sentence. Use the notes on the problem. "
+            "Never say the result of the problem."),
 }
-LABEL = {"cat": ("Problema: ", "Notes del professor: ", "L'alumne pregunta: ", "Què vol dir l'enunciat?"),
-         "eng": ("Problem: ", "Teacher's notes: ", "The student asks: ", "What does the problem say?")}
+LABEL = {"cat": ("Problema: ", "Notes del problema: ", "L'alumne pregunta: ", "Què vol dir l'enunciat?"),
+         "eng": ("Problem: ", "Notes on the problem: ", "The student asks: ", "What does the problem say?")}
 READ = {"cat": "Llegit.", "eng": "Read."}
 NOTES = ("key_data", "key_condition")  # from the problem's anatomy: never the first step or the solution
 
