@@ -1,0 +1,186 @@
+{
+ "_note": "Closed list of solving strategies. 'hint' is the fixed text a student sees when a strategy is retrieved for a problem outside the catalogue. status: generado (written by Claude, not reviewed).",
+ "status": "generado:claude-fable",
+ "strategies": [
+  {
+   "code": "pas_a_pas",
+   "name": {
+    "cat": "Calcular pas a pas"
+   },
+   "definition": {
+    "cat": "La solució encadena operacions directes amb les dades de l'enunciat, una darrere l'altra."
+   },
+   "hint": {
+    "cat": "Escriu què vol dir cada número de l'enunciat. Quina és la primera operació que pots fer amb dues d'aquestes dades?"
+   }
+  },
+  {
+   "code": "llista_ordenada",
+   "name": {
+    "cat": "Fer una llista ordenada"
+   },
+   "definition": {
+    "cat": "La solució escriu tots els casos possibles, en ordre, i els compta o en tria un."
+   },
+   "hint": {
+    "cat": "Escriu tots els casos possibles en ordre, de petit a gran, sense repetir-ne ni deixar-te'n cap. Per quin començaries?"
+   }
+  },
+  {
+   "code": "comptar_per_grups",
+   "name": {
+    "cat": "Comptar per grups"
+   },
+   "definition": {
+    "cat": "La solució compta per parts (files, capes, blocs, tries independents) i després multiplica o suma."
+   },
+   "hint": {
+    "cat": "No ho comptis tot d'un cop: separa-ho en grups iguals o en tries, compta'n un i pensa quants n'hi ha."
+   }
+  },
+  {
+   "code": "provar_opcions",
+   "name": {
+    "cat": "Provar les opcions"
+   },
+   "definition": {
+    "cat": "La solució prova les cinc respostes, o uns quants candidats, i mira quin compleix la condició."
+   },
+   "hint": {
+    "cat": "Agafa les respostes una per una i comprova si compleixen tot el que diu l'enunciat. Quina condició és la més fàcil de comprovar?"
+   }
+  },
+  {
+   "code": "cap_enrere",
+   "name": {
+    "cat": "Treballar cap enrere"
+   },
+   "definition": {
+    "cat": "La solució comença pel resultat final i desfà els passos fins a l'inici."
+   },
+   "hint": {
+    "cat": "Comença pel final, que és el que saps, i desfés cada pas en ordre invers. Què hi havia just abans de l'últim pas?"
+   }
+  },
+  {
+   "code": "suposar_i_ajustar",
+   "name": {
+    "cat": "Suposar i ajustar"
+   },
+   "definition": {
+    "cat": "La solució suposa un cas senzill (tots iguals, un valor de prova) o planteja una igualtat amb el nombre que busquem, i ajusta la diferència."
+   },
+   "hint": {
+    "cat": "Suposa un cas senzill, per exemple que tots són iguals, i mira quant et falta o et sobra. Què canvia cada vegada que en canvies un?"
+   }
+  },
+  {
+   "code": "total_i_parts",
+   "name": {
+    "cat": "El total i les parts"
+   },
+   "definition": {
+    "cat": "La solució mira el total: total menys una part, repartir, comparar el tot amb les parts, mitjana."
+   },
+   "hint": {
+    "cat": "Pensa en el total. Quant fa tot junt, i quina part en coneixes ja? El que busques és la resta."
+   }
+  },
+  {
+   "code": "cas_extrem",
+   "name": {
+    "cat": "Pensar en el cas extrem"
+   },
+   "definition": {
+    "cat": "La solució busca un màxim o un mínim, o raona amb el pitjor cas possible."
+   },
+   "hint": {
+    "cat": "Imagina el cas més extrem: la pitjor sort possible, o fer els altres tan petits com es pugui. Què passa llavors?"
+   }
+  },
+  {
+   "code": "propietat_nombres",
+   "name": {
+    "cat": "Una propietat dels nombres"
+   },
+   "definition": {
+    "cat": "La solució fa servir parells i senars, múltiples, divisors, residus o les xifres d'un nombre."
+   },
+   "hint": {
+    "cat": "Fixa't en com són els números: parells o senars, múltiples d'algun nombre, la seva última xifra. Quina propietat han de complir?"
+   }
+  },
+  {
+   "code": "regularitat",
+   "name": {
+    "cat": "Buscar la regularitat"
+   },
+   "definition": {
+    "cat": "La solució troba què es repeteix (un patró, un cicle) o què no canvia mai (un invariant)."
+   },
+   "hint": {
+    "cat": "Fes els primers passos a mà i mira què es repeteix o què no canvia mai. Cada quants passos torna a passar el mateix?"
+   }
+  },
+  {
+   "code": "dibuix_esquema",
+   "name": {
+    "cat": "Fer un dibuix o una taula"
+   },
+   "definition": {
+    "cat": "La solució ordena la informació en un esquema: una cua, una línia del temps, una taula, un dibuix de la situació."
+   },
+   "hint": {
+    "cat": "Fes un dibuix o una taula de la situació i posa-hi cada dada al seu lloc. Què veus ara que abans no veies?"
+   }
+  },
+  {
+   "code": "deduccio_encadenada",
+   "name": {
+    "cat": "Deduir pas a pas"
+   },
+   "definition": {
+    "cat": "La solució comença per la dada més segura i en dedueix la resta, una conclusió darrere l'altra (lògica, símbols amb valor, qui és qui)."
+   },
+   "hint": {
+    "cat": "Busca la pista que només pot voler dir una cosa i comença per aquí. Amb això que ja saps, què pots deduir després?"
+   }
+  },
+  {
+   "code": "descompondre_figura",
+   "name": {
+    "cat": "Partir la figura"
+   },
+   "definition": {
+    "cat": "La solució parteix o recompon una figura en trossos coneguts per trobar una àrea, un perímetre o una longitud."
+   },
+   "hint": {
+    "cat": "Parteix la figura en trossos que coneguis (quadrats, rectangles, triangles) o mou-ne un tros. Quines mides saps de cada tros?"
+   }
+  },
+  {
+   "code": "imaginar_moviment",
+   "name": {
+    "cat": "Imaginar el moviment"
+   },
+   "definition": {
+    "cat": "La solució gira, plega, reflecteix o munta una figura mentalment, o la mira des d'un altre costat."
+   },
+   "hint": {
+    "cat": "Imagina que ho gires, ho plegues o ho mires des d'un altre costat. Tria una part fàcil de seguir: on va a parar?"
+   }
+  },
+  {
+   "code": "unitats",
+   "name": {
+    "cat": "Posar-ho en la mateixa unitat"
+   },
+   "definition": {
+    "cat": "La solució converteix quantitats a una mateixa unitat o fa servir una equivalència (temps, mesures, canvis)."
+   },
+   "hint": {
+    "cat": "Passa totes les quantitats a la mateixa unitat abans de calcular. Quina equivalència et dona l'enunciat?"
+   }
+  }
+ ]
+}
