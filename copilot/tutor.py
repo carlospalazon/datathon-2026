@@ -26,6 +26,8 @@ The solution is never a step: the student asks for it on purpose.
 """
 import hashlib
 import re
+import sqlite3
+from datetime import datetime, timezone
 
 STATUSES = ("revisado", "preparado", "generado")
 
@@ -33,6 +35,15 @@ STATUSES = ("revisado", "preparado", "generado")
 def _rank(key):
     """A stable pseudo-random order, the same on every run."""
     return hashlib.sha256(key.encode()).hexdigest()
+
+
+def _difficulty(problem):
+    """The fine scale (level * 3 + block); problems without it count as the start of their level."""
+    return problem.get("difficulty", problem["level"] * 3)
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _norm(value):
@@ -80,12 +91,14 @@ def correct_value(problem):
 
 
 class Tutor:
-    def __init__(self, problems, types=None, show=STATUSES, neighbours=None):
+    def __init__(self, problems, types=None, show=STATUSES, neighbours=None, profile_path=None):
         """problems: catalogue records. types: method cards per topic.
 
         show: which content statuses the student may see. For a demo, ("revisado",).
         neighbours(problem) -> catalogue keys, most similar first (for example from
-        the embedding index). Without it, similar problems come from topic and level.
+        the embedding index). Without it, similar problems come from topic and difficulty.
+        profile_path: a SQLite file that keeps what the student has seen and solved across
+        restarts (no name, no personal data). None: kept in memory only.
         """
         self.problems = {p["key"]: p for p in problems}
         self.types = types or {}
@@ -94,6 +107,9 @@ class Tutor:
         self.seen = set()
         self.history = []  # (key, solved_first_try)
         self.current = None
+        self.profile_path = profile_path
+        if profile_path:
+            self._load_profile()
 
     # --- What the student sees -------------------------------------------------
 
@@ -106,6 +122,7 @@ class Tutor:
         self.current = {"problem": problem, "attempts": [], "rejected": [], "solution_shown": False,
                         "queue": self._plan(problem), "done": 0, "questions": {}}
         self.seen.add(key)
+        self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
         return {"problem": self.public(problem),
                 "events": [{"event": "level", "value": problem["level"]}]}
 
@@ -229,19 +246,25 @@ class Tutor:
         return {"kind": source.split()[0], "text": item["text"], "status": item["status"], "source": source}
 
     def _similar(self, problem):
-        """An easier solved problem of the same type, in the student's language."""
+        """An easier solved problem of the same type, in the student's language.
+
+        Strictly easier first (the closest below), then equal difficulty, then the rest.
+        """
+        d = _difficulty(problem)
         pool = [p for p in self.problems.values()
                 if p["id"] != problem["id"] and p["language"] == problem["language"]
                 and p["topic"] == problem["topic"] and p["level"] <= problem["level"]]
         if not pool:
             return None
-        if self.neighbours:
-            order = {k: i for i, k in enumerate(self.neighbours(problem))}
-            pool.sort(key=lambda p: (order.get(p["key"], len(order)), _rank(p["key"])))
-        else:
-            # Prefer one level below, then the same level; then problems with readable options
-            pool.sort(key=lambda p: (abs(problem["level"] - 1 - p["level"]), not p.get("options"),
-                                     _rank(problem["key"] + p["key"])))
+        order = {k: i for i, k in enumerate(self.neighbours(problem))} if self.neighbours else None
+
+        def key(p):
+            q = _difficulty(p)
+            tier = (0, d - q) if q < d else (1, 0) if q == d else (2, q - d)
+            if order is not None:
+                return (tier[0], order.get(p["key"], len(order)), _rank(p["key"]))
+            return (*tier, not p.get("options"), _rank(problem["key"] + p["key"]))
+        pool.sort(key=key)
         best = pool[0]
         solution = best.get("solution") if base_status((best.get("solution") or {}).get("status")) in self.show else None
         return {"kind": "similar", "text": None, "status": "dataset", "source": "M3Kang",
@@ -259,22 +282,49 @@ class Tutor:
     # --- Adaptive practice -----------------------------------------------------------
 
     def next_problem(self):
-        """Same type; one level up after a first-try right answer, one down otherwise."""
+        """Same type; one step up the difficulty scale after a first-try right answer, one down otherwise."""
         s = self._session()
         problem = s["problem"]
         first_try = s["attempts"][:1] == [problem["label"]] and not s["solution_shown"]
-        target = problem["level"] + (1 if first_try else -1)
+        step = 1 if "difficulty" in problem else 3  # without the fine scale, move a whole level
+        target = _difficulty(problem) + (step if first_try else -step)
         pool = [p for p in self.problems.values()
                 if p["key"] not in self.seen and p["language"] == problem["language"]]
         if not pool:
             return None
-        pool.sort(key=lambda p: (p["topic"] != problem["topic"], abs(p["level"] - target),
+        pool.sort(key=lambda p: (p["topic"] != problem["topic"], abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))
         return self.start(pool[0]["key"])
 
     def _remember(self, problem, solved_first_try):
         if not any(k == problem["key"] for k, _ in self.history):
             self.history.append((problem["key"], solved_first_try))
+            self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (problem["key"], _now()))
+            self._save("UPDATE history SET solved_first_try = ?, done_at = ? WHERE key = ?",
+                       (int(solved_first_try), _now(), problem["key"]))
+
+    # --- Profile on disk ---------------------------------------------------------------
+
+    def _connect(self):
+        db = sqlite3.connect(self.profile_path)
+        db.execute("CREATE TABLE IF NOT EXISTS history (key TEXT PRIMARY KEY, solved_first_try INTEGER,"
+                   " seen_at TEXT, done_at TEXT)")
+        return db
+
+    def _load_profile(self):
+        with self._connect() as db:
+            rows = db.execute("SELECT key, solved_first_try FROM history ORDER BY done_at, key").fetchall()
+        self.seen = {k for k, _ in rows}
+        self.history = [(k, bool(v)) for k, v in rows if v is not None]
+
+    def _save(self, sql, args):
+        if self.profile_path:
+            db = self._connect()
+            try:
+                with db:
+                    db.execute(sql, args)
+            finally:
+                db.close()
 
     def _session(self):
         if self.current is None:

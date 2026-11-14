@@ -39,6 +39,11 @@ def restates_question(hint, problem, limit=0.6):
     return bool(words) and len(words & _words(asked)) / len(words) >= limit
 
 
+def answer_letter(text):
+    """The letter the student chose ("opcio b", "crec que és la c"), or None."""
+    return topics.choice_letter(text)
+
+
 class Assistant:
     def __init__(self, tutor, ask=slm.ask_hint):
         self.tutor = tutor
@@ -54,6 +59,11 @@ class Assistant:
     def chat(self, text):
         """Route the student's text. Returns a reply, or {"job": id} when the model is working."""
         problem = self._problem()
+        letter = answer_letter(text)
+        if letter:
+            self.state = {"streak": 0}
+            return {"kind": "answer", **self.tutor.answer(letter),
+                    "debug": {"input": text, "intent": "eleccion", "locked": False}}
         verdict = topics.check_input(text, problem, self.state)
         self.state = verdict["state"]
         debug = {"input": text, "intent": verdict["intent"], "locked": verdict.get("locked", False)}
@@ -62,7 +72,7 @@ class Assistant:
                     "debug": debug, "events": [{"event": "letter", "value": "?"}]}
         intent = verdict["intent"]
         if intent == "eleccion":
-            letter = re.search(r"[a-e]", topics.clean(text)).group().upper()
+            letter = topics.choice_letter(text)
             return {"kind": "answer", **self.tutor.answer(letter), "debug": debug}
         if intent in ("pista", "repetir"):
             step = self.tutor.help()

@@ -48,6 +48,43 @@ class Routing(unittest.TestCase):
         self.assertEqual(r["kind"], "answer")
         self.assertTrue(r["correct"])
 
+    def test_answer_phrases(self):
+        from copilot.assistant import answer_letter
+        for text, letter in (("crec que és la a", "A"), ("Crec que es la B", "B"), ("és la C", "C"), ("la d", "D"),
+                             ("opció E", "E"), ("(b)", "B"), ("I think it is the C", "C"), ("creo que es la e", "E")):
+            self.assertEqual(answer_letter(text), letter, text)
+        for text in ("a la granja hi ha vaques", "dona'm una pista", "a mi no m'agrada", "quantes en queden"):
+            self.assertIsNone(answer_letter(text), text)
+        self.assertEqual(self.a.chat("crec que és la a")["kind"], "answer")
+
+    def test_choice_letter_comes_from_the_phrase(self):
+        from copilot import topics
+        for text, letter in (("opcion a", "A"), ("letter b", "B"), ("letra a", "A"), ("opcio b", "B"),
+                             ("(d)", "D"), ("b", "B"), ("option e", "E"), ("la resposta es b", "B"),
+                             ("the answer is b", "B"), ("creo que es la c", "C")):
+            self.assertEqual(topics.choice_letter(text), letter, text)
+            self.assertEqual(topics.classify(text, PROBLEM), "eleccion", text)
+        self.assertIsNone(topics.choice_letter("a la granja hi ha vaques"))
+
+    def test_chat_submits_the_right_letter(self):
+        for text, letter in (("opcion a", "A"), ("letter b", "B"), ("letra a", "A"), ("opcio b", "B"),
+                             ("(d)", "D"), ("option e", "E")):
+            r = self.a.chat(text)
+            self.assertEqual((r["kind"], r["attempts"]), ("answer", 1), text)
+            self.assertEqual(r["correct"], letter == "C", text)
+            self.a.tutor.start("s1_cat")  # reset the attempts
+
+    def test_an_attempt_is_not_a_request_for_the_solution(self):
+        from copilot import topics
+        for text in ("crec que la resposta és 12", "creo que la respuesta es 12", "I think the answer is 12"):
+            self.assertEqual(topics.classify(text, PROBLEM), "math", text)
+        for text in ("dime la respuesta", "dona'm la resposta", "tell me the answer", "quina és la resposta",
+                     "cuál es la respuesta", "what is the answer", "solution", "give up", "me rindo",
+                     "em rendeixo"):
+            self.assertEqual(topics.classify(text, PROBLEM), "solucion", text)
+        r = self.a.chat("crec que la resposta és 12")
+        self.assertEqual(r["kind"], "job")
+
     def test_hint_goes_to_the_ladder(self):
         r = self.a.chat("dona'm una pista")
         self.assertEqual((r["kind"], r["step"]["kind"]), ("help", "similar"))

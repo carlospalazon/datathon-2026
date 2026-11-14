@@ -130,6 +130,7 @@ def main():
     content = os.path.join(args.out, "content")
     figures = load_content(os.path.join(content, "figures.jsonl"))
     checkpoints = load_content(os.path.join(content, "checkpoints.jsonl"))
+    neighbours = load_content(os.path.join(content, "neighbours.jsonl"))  # from board/embed_neighbours.py
 
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, "problems.jsonl")
@@ -164,6 +165,8 @@ def main():
                 "distractors": {},
             }
             apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]))
+            if x["id"] in neighbours:  # nearest problems by meaning (bge-small, English text), best first
+                record["similar_ids"] = [i for i, _score in neighbours[x["id"]]["neighbours"]]
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     types_path = os.path.join(args.out, "types.json")

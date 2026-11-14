@@ -175,6 +175,15 @@ class Guide(unittest.TestCase):
         self.assertNotIn("checkpoints", self.t.start("g1_eng")["problem"])
 
 
+class Similar(unittest.TestCase):
+    def test_nearest_by_meaning_and_same_figure_need(self):
+        base = problem("n1_cat", 2, similar_ids=["n3", "n2", "n4"])
+        pool = [base, problem("n2_cat", 1), problem("n3_cat", 1, needs_figure=True), problem("n4_cat", 1)]
+        t = Tutor(pool)
+        t.start("n1_cat")
+        self.assertEqual(t.help()["problem"]["key"], "n2_cat")   # n3 is nearer but needs a figure; n1 doesn't
+
+
 class Adaptive(unittest.TestCase):
     def test_up_after_right_down_after_wrong(self):
         t = Tutor(CATALOGUE, TYPES)
@@ -186,6 +195,70 @@ class Adaptive(unittest.TestCase):
         t.answer("A")
         t.answer("C")
         self.assertEqual(t.next_problem()["problem"]["key"], "p2_eng")   # level 2 -> 1
+
+
+class FineDifficulty(unittest.TestCase):
+    def test_similar_prefers_the_closest_easier(self):
+        cat = [problem("q0_eng", 1, difficulty=4), problem("q1_eng", 1, difficulty=3),
+               problem("q2_eng", 1, difficulty=2), problem("q3_eng", 0, difficulty=1),
+               problem("q4_eng", 1, difficulty=5), problem("q5_eng", 1, difficulty=5)]
+        t = Tutor(cat, TYPES)
+        t.start("q4_eng")
+        self.assertEqual(t.help()["problem"]["key"], "q0_eng")     # 4 is the closest below 5
+        t = Tutor([c for c in cat if c["key"] != "q0_eng"], TYPES)
+        t.start("q4_eng")
+        self.assertEqual(t.help()["problem"]["key"], "q1_eng")
+
+    def test_similar_falls_back_to_equal_difficulty(self):
+        cat = [problem("q0_eng", 1, difficulty=3), problem("q1_eng", 1, difficulty=3)]
+        t = Tutor(cat, TYPES)
+        t.start("q0_eng")
+        self.assertEqual(t.help()["problem"]["key"], "q1_eng")
+
+    def test_similar_keeps_neighbours_order(self):
+        cat = [problem("q0_eng", 1, difficulty=5), problem("q1_eng", 1, difficulty=3),
+               problem("q2_eng", 1, difficulty=3)]
+        t = Tutor(cat, TYPES, neighbours=lambda p: ["q2_eng", "q1_eng"])
+        t.start("q0_eng")
+        self.assertEqual(t.help()["problem"]["key"], "q2_eng")
+
+    def test_next_problem_steps_by_one_difficulty(self):
+        cat = [problem("q0_eng", 1, difficulty=3), problem("q1_eng", 1, difficulty=4),
+               problem("q2_eng", 1, difficulty=5), problem("q3_eng", 1, difficulty=2),
+               problem("q4_eng", 1, difficulty=1)]
+        t = Tutor(cat, TYPES)
+        t.start("q0_eng")
+        t.answer("C")
+        self.assertEqual(t.next_problem()["problem"]["key"], "q1_eng")   # 3 -> 4
+        t = Tutor(cat, TYPES)
+        t.start("q0_eng")
+        t.answer("A")
+        self.assertEqual(t.next_problem()["problem"]["key"], "q3_eng")   # 3 -> 2
+
+
+class Profile(unittest.TestCase):
+    def test_survives_a_restart(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "profile.db")
+            t = Tutor(CATALOGUE, TYPES, profile_path=path)
+            t.start("p1_eng")
+            t.answer("C")
+            t2 = Tutor(CATALOGUE, TYPES, profile_path=path)
+            self.assertEqual(t2.history, [("p1_eng", True)])
+            self.assertEqual(t2.seen, {"p1_eng"})
+            t2.start("p2_eng")
+            nxt = t2.next_problem()["problem"]["key"]
+            self.assertNotIn(nxt, ("p1_eng", "p2_eng"))
+            t3 = Tutor(CATALOGUE, TYPES, profile_path=path)
+            self.assertEqual(t3.seen, {"p1_eng", "p2_eng", nxt})
+            self.assertEqual(t3.history, [("p1_eng", True)])
+
+    def test_without_a_path_it_stays_in_memory(self):
+        t = Tutor(CATALOGUE, TYPES)
+        t.start("p1_eng")
+        t.answer("C")
+        self.assertEqual(Tutor(CATALOGUE, TYPES).history, [])
 
 
 class Matrix(unittest.TestCase):

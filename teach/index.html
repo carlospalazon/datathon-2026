@@ -235,7 +235,8 @@ $("#chat").onsubmit = async e => {
     say((r.correct ? "<strong>Molt bé, és correcta!</strong>" : "<strong>Aquesta no és correcta.</strong>")
       + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : "") + dbg, r.correct ? "ok" : "bad");
   } else if (r.kind === "help") {
-    showStep(r.step); if (dbg) say(dbg);
+    showStep(r.step);
+    if (dbg) $("#feed").firstElementChild.insertAdjacentHTML("beforeend", dbg);
   } else if (r.kind === "solution") {
     say(`<strong>La resposta correcta és la ${esc(r.label)}.</strong>` + (r.text ? `<br>${esc(r.text)}${badge(r.status)}` : "") + dbg, "ok");
   } else if (r.kind === "next" && r.view) {
