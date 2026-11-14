@@ -13,25 +13,42 @@ LLM_URL = os.environ.get("LLM_URL", "http://127.0.0.1:8081") + "/v1/chat/complet
 
 # Keep the system prompt fixed: llama-server keeps the start of the prompt in its
 # cache, so this part is read once and later hints only pay for the new tokens.
+# Measured on the board (6 demo problems): with examples and the grammar below, 5/6
+# hints passed the guardrails against 3/6 with plain instructions, and none gave
+# a number away. Many still just restate the question: the assistant checks that.
 SYSTEM = {
-    "cat": ("Ets un tutor de matemàtiques per a nens de 10 a 12 anys. Escriu UNA sola frase curta "
-            "(màxim 25 paraules) en català que ajudi l'alumne a començar el problema. "
-            "No diguis mai la resposta, cap resultat ni cap lletra d'opció. No facis càlculs. "
-            "Fes-li una pregunta o digues-li en què s'ha de fixar."),
-    "eng": ("You are a maths tutor for children aged 10 to 12. Write ONE short sentence (at most "
-            "25 words) in English that helps the student start the problem. Never say the answer, "
-            "any result or any option letter. Don't calculate. Ask a question or say what to look at."),
+    "cat": ("Ets un tutor de matemàtiques per a nens de 10 a 12 anys. No resols mai el problema: "
+            "fas UNA pregunta curta que ajuda l'alumne a fer el primer pas. Sense números.\n\n"
+            "Exemples:\n"
+            "Problema: La Laia té 3 capses amb 5 llapis a cada una i en regala 4. Quants llapis li queden?\n"
+            "Pregunta: Quants llapis té en total abans de regalar-ne cap?\n"
+            "Problema: Un tren surt a les 9 i arriba a les 11 i quart. Quant dura el viatge?\n"
+            "Pregunta: Quantes hores completes passen entre la sortida i l'arribada?\n"
+            "Problema: Quants números de dues xifres tenen les xifres que sumen 6?\n"
+            "Pregunta: Si la primera xifra és la més petita possible, quina ha de ser la segona?"),
+    "eng": ("You are a maths tutor for children aged 10 to 12. You never solve the problem: you ask "
+            "ONE short question that helps the student take the first step. No numbers.\n\n"
+            "Examples:\n"
+            "Problem: Laia has 3 boxes with 5 pencils in each and gives 4 away. How many pencils are left?\n"
+            "Question: How many pencils does she have before giving any away?\n"
+            "Problem: A train leaves at 9 and arrives at a quarter past 11. How long is the journey?\n"
+            "Question: How many whole hours pass between leaving and arriving?"),
 }
+LABEL = {"cat": ("Problema: ", "Pregunta:"), "eng": ("Problem: ", "Question:")}
+# One question, no digits (so no result or calculation), ending with "?"
+GRAMMAR = 'root ::= [A-ZÀ-Ú¿] [^0-9?\\n]{15,150} "?"'
 
 
 def build_messages(problem, student_text=""):
     language = problem.get("language") if problem.get("language") in SYSTEM else "eng"
-    parts = [problem.get("question") or problem.get("text", "")]
+    problem_label, question_label = LABEL[language]
+    parts = [problem_label + (problem.get("question") or problem.get("text", ""))]
     figure = (problem.get("figure") or {}).get(language)
     if figure:
         parts.append(("Figura: " if language == "cat" else "Figure: ") + figure)
     if student_text:
         parts.append(("L'alumne diu: " if language == "cat" else "The student says: ") + student_text)
+    parts.append(question_label)
     return [{"role": "system", "content": SYSTEM[language]}, {"role": "user", "content": "\n".join(parts)}]
 
 
@@ -39,7 +56,7 @@ def ask_hint(problem, student_text="", timeout=50, url=LLM_URL):
     """Return {"text", "seconds", "prompt_tokens", "error"}. Never raises."""
     start = time.perf_counter()
     payload = {"messages": build_messages(problem, student_text), "max_tokens": 60, "temperature": 0,
-               "seed": 42, "cache_prompt": True}
+               "seed": 42, "cache_prompt": True, "grammar": GRAMMAR}
     try:
         request = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                          headers={"Content-Type": "application/json"})

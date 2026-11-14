@@ -14,14 +14,29 @@ Every reply carries a "debug" block so the team can see what the rails decided.
 import itertools
 import re
 import threading
+import unicodedata
 
 from . import guardrails, slm, topics
-from .tutor import leaks_answer
+from .tutor import base_status, leaks_answer
 
 APP_HELP = {
     "cat": "Respon amb els botons A–E. Si et costa, demana una pista: t'aniré guiant pas a pas.",
     "eng": "Answer with the A–E buttons. If you're stuck, ask for a hint: I'll guide you step by step.",
 }
+
+
+def _words(text):
+    text = "".join(c for c in unicodedata.normalize("NFD", str(text).lower()) if unicodedata.category(c) != "Mn")
+    return set(re.findall(r"[a-z]{4,}", text))
+
+
+def restates_question(hint, problem, limit=0.6):
+    """True if the hint mostly repeats what the problem asks (its last question)."""
+    text = (problem.get("question") or problem.get("text", "")).strip()
+    sentences = [s for s in re.split(r"(?<=[.?!])\s+", text) if s]
+    asked = ([s for s in sentences if s.endswith("?")] or sentences or [""])[-1]
+    words = _words(hint)
+    return bool(words) and len(words & _words(asked)) / len(words) >= limit
 
 
 class Assistant:
@@ -79,16 +94,30 @@ class Assistant:
         ok, reason = guardrails.check(reply["text"], problem) if not reply["error"] else (False, "model_error")
         if ok and leaks_answer(reply["text"], problem):
             ok, reason = False, "tutor_leak_check"
-        text = reply["text"].strip() if ok else guardrails.TEMPLATES.get(problem.get("language"),
-                                                                         guardrails.TEMPLATES["eng"])
+        if ok and restates_question(reply["text"], problem):
+            ok, reason = False, "restates_question"
+        if ok:
+            text, status = reply["text"].strip(), "generado:qwen"
+        else:
+            text, status = self._fallback(problem)
         debug.update(model_text=reply["text"], model_error=reply["error"], rail=reason, accepted=ok,
                      seconds=reply["seconds"], prompt_tokens=reply["prompt_tokens"],
                      generated_tokens=reply.get("generated_tokens"))
-        result = {"done": True, "kind": "model_hint", "text": text,
-                  "status": "generado:qwen" if ok else "plantilla", "debug": debug,
+        result = {"done": True, "kind": "model_hint", "text": text, "status": status, "debug": debug,
                   "events": [{"event": "help_step", "value": 1, "of": 1} if ok else {"event": "letter", "value": "?"}]}
         with self.lock:
             self.jobs[job] = result
+
+    def _fallback(self, problem):
+        """When the model fails: a curated step for this problem, never a bare template if we have one."""
+        show = self.tutor.show
+        for c in problem.get("checkpoints") or []:
+            if base_status(c.get("status")) in show:
+                return c["question"], c["status"]
+        card = self.tutor.types.get(problem.get("topic")) or {}
+        if card.get("method") and base_status(card.get("status")) in show:
+            return card["method"], card["status"]
+        return guardrails.TEMPLATES.get(problem.get("language"), guardrails.TEMPLATES["eng"]), "plantilla"
 
     def job(self, job):
         with self.lock:

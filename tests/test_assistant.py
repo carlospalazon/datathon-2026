@@ -88,6 +88,18 @@ class OutputRails(unittest.TestCase):
         self.assertTrue(r["debug"]["accepted"])
         self.assertEqual(r["status"], "generado:qwen")
 
+    def test_restating_the_question_is_rejected(self):
+        r = self.run_model("Quantes pomes li queden a l'Anna?")
+        self.assertEqual(r["debug"]["rail"], "restates_question")
+
+    def test_fallback_is_a_curated_step(self):
+        tutor = Tutor([{**PROBLEM, "checkpoints": [{"question": "Quantes pomes hi ha a les bosses?", "answer": 12,
+                                                    "status": "revisado"}]}])
+        tutor.start("s1_cat")
+        a = Assistant(tutor, ask=fake_model("La resposta és la C."))
+        r = wait(a, a.model_hint())
+        self.assertEqual((r["text"], r["status"]), ("Quantes pomes hi ha a les bosses?", "revisado"))
+
     def test_model_down_never_breaks_the_lesson(self):
         r = self.run_model("", error="URLError: connection refused")
         self.assertEqual((r["debug"]["rail"], r["status"]), ("model_error", "plantilla"))
