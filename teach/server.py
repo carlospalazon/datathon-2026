@@ -70,6 +70,8 @@ class App:
                 return with_frames(self.tutor.answer(body.get("letter", "")))
             if action == "help":
                 return with_frames(self.tutor.help())
+            if action == "respond":
+                return with_frames(self.tutor.respond(body.get("qid"), body.get("value", "")))
             if action == "solution":
                 return with_frames(self.tutor.solution())
             if action == "next":

@@ -111,6 +111,60 @@ class HelpLadder(unittest.TestCase):
         self.assertEqual(sol["events"], [{"event": "letter", "value": "C"}])
 
 
+GUIDED_TYPES = {"aritmetica": {
+    "method": "Write down each quantity, then do the operations in order.", "steps": [], "status": "revisado",
+    "compare": {"question": "What do they have in common?", "choices": ["Same numbers", "Same method"], "answer": 1,
+                "explain": "The method."},
+    "guide": [{"kind": "reflect", "question": "Write down the data."},
+              {"kind": "choice", "question": "Then?", "choices": ["Check the question", "Add everything"], "answer": 0}]}}
+
+GUIDED = [
+    problem("g1_eng", 2, checkpoints=[
+        {"question": "How many apples in the bags?", "answer": 12, "error_hint": "Bags times apples.", "status": "revisado"},
+        {"question": "And at the end?", "answer": 10, "status": "revisado"},              # = final answer: dropped
+        {"question": "Draft step", "answer": 3, "status": "generado"}]),                  # not shown in a demo
+    problem("g2_eng", 1, label="A"),
+]
+
+
+class Guide(unittest.TestCase):
+    def setUp(self):
+        self.t = Tutor(GUIDED, GUIDED_TYPES, show=("revisado",))
+        self.t.start("g1_eng")
+
+    def test_order(self):
+        steps = []
+        while True:
+            step = self.t.help()
+            if step["kind"] == "none":
+                break
+            steps.append(step.get("qid") or step["kind"])
+        self.assertEqual(steps, ["similar", "compare", "method", "guide 1", "guide 2", "checkpoint 1"])
+
+    def test_questions_are_checked(self):
+        for _ in range(2):
+            self.t.help()                                   # similar, then compare
+        self.assertFalse(self.t.respond("compare", 0)["correct"])
+        self.assertTrue(self.t.respond("compare", "1")["correct"])
+        for _ in range(3):
+            self.t.help()                                   # method, guide 1, guide 2
+        self.assertIsNone(self.t.respond("guide 1", "anything")["correct"])   # reflection: no wrong answer
+        self.assertTrue(self.t.respond("guide 2", 0)["correct"])
+        step = self.t.help()
+        self.assertEqual(step["qid"], "checkpoint 1")
+        self.assertNotIn("_q", step)                        # the expected answer never reaches the page
+        wrong = self.t.respond("checkpoint 1", "11")
+        self.assertEqual((wrong["correct"], wrong["feedback"]), (False, "Bags times apples."))
+        self.assertTrue(self.t.respond("checkpoint 1", " 12 apples")["correct"])
+        with self.assertRaises(ValueError):
+            self.t.respond("checkpoint 1", "twelve")
+        with self.assertRaises(ValueError):
+            self.t.respond("checkpoint 2", "10")            # never offered: it was the final answer
+
+    def test_hidden_fields(self):
+        self.assertNotIn("checkpoints", self.t.start("g1_eng")["problem"])
+
+
 class Adaptive(unittest.TestCase):
     def test_up_after_right_down_after_wrong(self):
         t = Tutor(CATALOGUE, TYPES)

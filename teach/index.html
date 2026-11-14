@@ -152,12 +152,45 @@ $("#help").onclick = async () => {
   } else if (r.kind === "method") {
     say(`<strong>Pista 2: com s'enfoca aquest tipus de problema.</strong>${badge(r.status)}
       <br>${esc(r.text)}<ol>${(r.steps || []).map(s => `<li>${esc(s)}</li>`).join("")}</ol>`, "help");
+  } else if (r.kind === "question") {
+    ask(r);
   } else if (r.kind === "hint") {
     say(`<strong>Pista: </strong>${esc(r.text)}${badge(r.status)}`, "help");
   } else {
     say("Ja no hi ha més pistes per a aquest problema. Si vols, pots veure la solució.", "help");
   }
 };
+
+const QTITLE = { compare: "Compara", guide: "Pensa", checkpoint: "Comprova un pas" };
+function ask(q) {
+  const div = document.createElement("div");
+  div.className = "msg help";
+  const title = QTITLE[q.qid.split(" ")[0]] || "Pregunta";
+  div.innerHTML = `<strong>${esc(title)}:</strong> ${esc(q.text)}${badge(q.status)}<div class="actions"></div><small class="reply"></small>`;
+  const row = div.querySelector(".actions"), reply = div.querySelector(".reply");
+  const send = async value => {
+    const r = await api("respond", { qid: q.qid, value });
+    if (r.error) { reply.textContent = r.error === "write a number" ? "Escriu un número." : r.error; return; }
+    draw(r.frames);
+    if (r.correct === null) { reply.textContent = "Molt bé. Quan ho tinguis, demana el pas següent."; row.remove(); return; }
+    reply.textContent = (r.correct ? "Correcte! " : "Encara no. ") + (r.feedback || "");
+    reply.style.color = r.correct ? "var(--ok)" : "var(--bad)";
+    if (r.correct) row.querySelectorAll("button, input").forEach(e => e.disabled = true);
+  };
+  if (q.type === "reflect") {
+    const b = document.createElement("button"); b.textContent = "Fet"; b.onclick = () => send("fet"); row.append(b);
+  } else if (q.type === "choice") {
+    q.choices.forEach((c, i) => { const b = document.createElement("button"); b.textContent = c; b.onclick = () => send(i); row.append(b); });
+  } else {
+    const input = document.createElement("input");
+    input.inputMode = "decimal"; input.setAttribute("aria-label", "La teva resposta"); input.style.cssText = "font:inherit;width:120px;padding:6px 10px";
+    const b = document.createElement("button"); b.textContent = "Comprova";
+    b.onclick = () => send(input.value);
+    input.onkeydown = e => { if (e.key === "Enter") send(input.value); };
+    row.append(input, b);
+  }
+  $("#feed").prepend(div);
+}
 
 $("#solution").onclick = async () => {
   const r = await api("solution");

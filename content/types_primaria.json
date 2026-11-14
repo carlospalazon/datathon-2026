@@ -1,7 +1,10 @@
 {
   "_about": "Fitxes de mètode per tipus d'exercici, per a 5è i 6è de primària. Contingut propi de l'equip (no deriva de M3Kang): es pot publicar. Els exemples són inventats. Estat 'generado': esborrany escrit amb un assistent; cal que una persona el revisi abans de passar a 'revisado'.",
   "aritmetica": {
-    "name": {"cat": "Càlcul amb dades", "eng": "Arithmetic"},
+    "name": {
+      "cat": "Càlcul amb dades",
+      "eng": "Arithmetic"
+    },
     "status": "generado",
     "method": "Escriu cada dada amb el seu nom i decideix quina operació toca a cada pas. Calcula pas a pas, sense saltar-te'n cap.",
     "method_eng": "Write down each quantity with its name and decide which operation each step needs. Compute one step at a time.",
@@ -12,21 +15,74 @@
       "Abans de triar, comprova que el resultat té sentit amb la història."
     ],
     "typical_errors": [
-      {"error": "Sumar tots els números que surten, sense pensar què vol dir cadascun.", "hint": "Què representa cada número? Cal sumar-los tots, o només alguns?"},
-      {"error": "Respondre un resultat intermedi en lloc del que demanen.", "hint": "Torna a llegir la pregunta: has arribat al final o només a un pas del camí?"},
-      {"error": "Fer les operacions en un ordre equivocat (per exemple, sumar abans de multiplicar).", "hint": "Recorda: primer multiplicacions i divisions, després sumes i restes."},
-      {"error": "Oblidar una dada que només surt a la figura.", "hint": "Mira el dibuix: hi ha alguna dada que no és al text?"}
+      {
+        "error": "Sumar tots els números que surten, sense pensar què vol dir cadascun.",
+        "hint": "Què representa cada número? Cal sumar-los tots, o només alguns?"
+      },
+      {
+        "error": "Respondre un resultat intermedi en lloc del que demanen.",
+        "hint": "Torna a llegir la pregunta: has arribat al final o només a un pas del camí?"
+      },
+      {
+        "error": "Fer les operacions en un ordre equivocat (per exemple, sumar abans de multiplicar).",
+        "hint": "Recorda: primer multiplicacions i divisions, després sumes i restes."
+      },
+      {
+        "error": "Oblidar una dada que només surt a la figura.",
+        "hint": "Mira el dibuix: hi ha alguna dada que no és al text?"
+      }
     ],
     "example": {
       "text": "La Marta té 4 capses amb 6 llapis a cada capsa. En regala 5. Quants llapis li queden?",
-      "options": {"A": "15", "B": "19", "C": "24", "D": "29", "E": "10"},
+      "options": {
+        "A": "15",
+        "B": "19",
+        "C": "24",
+        "D": "29",
+        "E": "10"
+      },
       "label": "B",
       "solution": "4 capses × 6 llapis = 24 llapis. 24 − 5 = 19.",
-      "distractors": {"C": "24 són els llapis abans de regalar-ne.", "D": "29 és sumar els 5 en lloc de restar-los.", "A": "15 és sumar 4 + 6 + 5."}
-    }
+      "distractors": {
+        "C": "24 són els llapis abans de regalar-ne.",
+        "D": "29 és sumar els 5 en lloc de restar-los.",
+        "A": "15 és sumar 4 + 6 + 5."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Tenen els mateixos números",
+        "Tots dos es resolen fent els càlculs pas a pas amb les dades",
+        "Parlen de les mateixes coses",
+        "No s'assemblen gens"
+      ],
+      "answer": 1,
+      "explain": "El que comparteixen és el mètode: identificar les dades i fer les operacions una a una. Els números i la història canvien."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Escriu les dades del teu problema: quins números surten i què vol dir cadascun?"
+      },
+      {
+        "kind": "choice",
+        "question": "Has fet un càlcul i t'ha sortit un número. Què has de fer abans de triar la resposta?",
+        "choices": [
+          "Tornar a llegir la pregunta i comprovar que el número respon el que demanen",
+          "Triar l'opció que s'hi assembli més",
+          "Sumar-hi les altres dades"
+        ],
+        "answer": 0,
+        "explain": "Molts errors venen de respondre un pas intermedi. Comprova sempre que has arribat al que demanen."
+      }
+    ]
   },
   "algebra": {
-    "name": {"cat": "Buscar el número amagat (tempteig)", "eng": "Finding the unknown (trial and improvement)"},
+    "name": {
+      "cat": "Buscar el número amagat (tempteig)",
+      "eng": "Finding the unknown (trial and improvement)"
+    },
     "status": "generado",
     "method": "Hi ha un número que no saps. Prova un valor, comprova si compleix totes les condicions i ajusta'l. També pots provar les opcions una per una.",
     "method_eng": "There is a number you don't know. Try a value, check it against every condition, and adjust it. You can also test the options one by one.",
@@ -37,20 +93,70 @@
       "Si no surt, pensa si cal un número més gran o més petit, i torna a provar."
     ],
     "typical_errors": [
-      {"error": "Comprovar només una condició i no totes.", "hint": "El teu número compleix TOTES les condicions del problema? Comprova-les una per una."},
-      {"error": "Confondre 'el doble' amb 'dos més' (o 'la meitat' amb 'dos menys').", "hint": "'El doble' vol dir multiplicar per 2, no sumar 2."},
-      {"error": "Trobar el número però respondre una altra cosa (per exemple, l'edat d'una altra persona).", "hint": "Has trobat el número que et demanen o un altre de la història?"}
+      {
+        "error": "Comprovar només una condició i no totes.",
+        "hint": "El teu número compleix TOTES les condicions del problema? Comprova-les una per una."
+      },
+      {
+        "error": "Confondre 'el doble' amb 'dos més' (o 'la meitat' amb 'dos menys').",
+        "hint": "'El doble' vol dir multiplicar per 2, no sumar 2."
+      },
+      {
+        "error": "Trobar el número però respondre una altra cosa (per exemple, l'edat d'una altra persona).",
+        "hint": "Has trobat el número que et demanen o un altre de la història?"
+      }
     ],
     "example": {
       "text": "En Pau té el doble de cromos que la Laia. Junts en tenen 18. Quants cromos té en Pau?",
-      "options": {"A": "6", "B": "9", "C": "10", "D": "12", "E": "16"},
+      "options": {
+        "A": "6",
+        "B": "9",
+        "C": "10",
+        "D": "12",
+        "E": "16"
+      },
       "label": "D",
       "solution": "Si la Laia en té 6, en Pau en té 12 i junts 18. Per tant, en Pau en té 12.",
-      "distractors": {"A": "6 són els cromos de la Laia, no els d'en Pau.", "B": "9 és repartir-los a parts iguals, però en Pau en té el doble.", "C": "10 surt de pensar que en Pau en té 'dos més' (8 i 10) en lloc del doble."}
-    }
+      "distractors": {
+        "A": "6 són els cromos de la Laia, no els d'en Pau.",
+        "B": "9 és repartir-los a parts iguals, però en Pau en té el doble.",
+        "C": "10 surt de pensar que en Pau en té 'dos més' (8 i 10) en lloc del doble."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "Parlen de les mateixes persones",
+        "Tenen els mateixos números",
+        "No s'assemblen gens",
+        "En tots dos hi ha un número amagat que has de trobar provant valors"
+      ],
+      "answer": 3,
+      "explain": "Tots dos amaguen un número que compleix unes condicions. El truc és provar-ne un i comprovar-lo."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Digues amb paraules quin és el número que busques i quines condicions ha de complir."
+      },
+      {
+        "kind": "choice",
+        "question": "Has provat un número: compleix una condició però no l'altra. Què fas?",
+        "choices": [
+          "El dono per bo",
+          "Sumo totes les dades",
+          "Provo un altre número, més gran o més petit, i torno a comprovar"
+        ],
+        "answer": 2,
+        "explain": "Un número només és la solució si compleix TOTES les condicions. Si no, ajusta'l i torna a provar."
+      }
+    ]
   },
   "conteo": {
-    "name": {"cat": "Comptar de manera ordenada", "eng": "Counting"},
+    "name": {
+      "cat": "Comptar de manera ordenada",
+      "eng": "Counting"
+    },
     "status": "generado",
     "method": "Fes una llista ordenada de tots els casos possibles, seguint una regla, perquè no te'n deixis cap ni en comptis cap dues vegades.",
     "method_eng": "Make an ordered list of every possible case, following a rule, so you don't miss one or count one twice.",
@@ -61,16 +167,62 @@
       "Compta'ls al final."
     ],
     "typical_errors": [
-      {"error": "Comptar dues vegades el mateix cas.", "hint": "Hi ha algun cas a la teva llista que sigui el mateix que un altre, però escrit diferent?"},
-      {"error": "Deixar-se casos perquè la llista no segueix cap ordre.", "hint": "Has seguit un ordre fix? Prova d'escriure la llista de més petit a més gran."},
-      {"error": "Comptar els espais en lloc dels objectes (o al revés).", "hint": "Què has de comptar exactament: les coses o els espais que hi ha entre elles?"}
+      {
+        "error": "Comptar dues vegades el mateix cas.",
+        "hint": "Hi ha algun cas a la teva llista que sigui el mateix que un altre, però escrit diferent?"
+      },
+      {
+        "error": "Deixar-se casos perquè la llista no segueix cap ordre.",
+        "hint": "Has seguit un ordre fix? Prova d'escriure la llista de més petit a més gran."
+      },
+      {
+        "error": "Comptar els espais en lloc dels objectes (o al revés).",
+        "hint": "Què has de comptar exactament: les coses o els espais que hi ha entre elles?"
+      }
     ],
     "example": {
       "text": "Quants números de dues xifres tenen les xifres que sumen 4?",
-      "options": {"A": "3", "B": "4", "C": "5", "D": "6", "E": "8"},
+      "options": {
+        "A": "3",
+        "B": "4",
+        "C": "5",
+        "D": "6",
+        "E": "8"
+      },
       "label": "B",
       "solution": "Llista ordenada: 13, 22, 31, 40. N'hi ha 4. (04 no és un número de dues xifres.)",
-      "distractors": {"C": "5 surt de comptar també el 04, que no té dues xifres.", "A": "3 surt de deixar-se el 40."}
-    }
+      "distractors": {
+        "C": "5 surt de comptar també el 04, que no té dues xifres.",
+        "A": "3 surt de deixar-se el 40."
+      }
+    },
+    "compare": {
+      "question": "En què s'assemblen el problema semblant i el teu?",
+      "choices": [
+        "En tots dos s'han de comptar casos fent una llista ordenada",
+        "Tenen la mateixa resposta",
+        "Parlen dels mateixos objectes",
+        "No s'assemblen gens"
+      ],
+      "answer": 0,
+      "explain": "Tots dos es resolen fent una llista ordenada de casos, sense deixar-se'n cap ni repetir-ne."
+    },
+    "guide": [
+      {
+        "kind": "reflect",
+        "question": "Decideix un ordre per fer la llista (per exemple, de més petit a més gran) i escriu els primers casos."
+      },
+      {
+        "kind": "choice",
+        "question": "Com pots estar segur que no t'has deixat cap cas?",
+        "choices": [
+          "Perquè n'he trobat molts",
+          "Perquè el número surt a les opcions",
+          "Perquè he seguit un ordre fix i he comprovat que no n'hi ha cap de repetit"
+        ],
+        "answer": 2,
+        "explain": "Només una llista feta amb un ordre fix et garanteix que no te'n deixes cap ni en comptes cap dues vegades."
+      }
+    ]
   }
 }
