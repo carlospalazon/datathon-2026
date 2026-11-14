@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import threading
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -104,10 +105,16 @@ def make_handler(app):
             if self.path == "/":
                 with open(os.path.join(HERE, "index.html"), "rb") as f:
                     return self.send(200, f.read(), "text/html; charset=utf-8")
-            if self.path == "/api/state":
-                return self.send(200, app.call("state", {}))
-            if self.path.startswith("/image/"):
-                key = self.path[len("/image/"):]
+            parts = [urllib.parse.unquote(x) for x in self.path.split("?")[0].strip("/").split("/")]
+            if parts[0] == "api" and len(parts) >= 2:
+                names = {"answer": ["letter"], "respond": ["qid", "value"], "start": ["key"]}.get(parts[1], [])
+                body = dict(zip(names, parts[2:]))
+                try:
+                    return self.send(200, app.call(parts[1], body))
+                except (KeyError, ValueError, RuntimeError) as error:
+                    return self.send(200, {"error": str(error)})
+            if parts[0] == "img" and len(parts) == 2 and parts[1].endswith(".png"):
+                key = parts[1][:-4]
                 # Only catalogue keys reach the disk, so a request can't name any other file
                 if key in app.tutor.problems:
                     path = os.path.join(ROOT, app.args.images, key + ".png")
@@ -115,14 +122,6 @@ def make_handler(app):
                         with open(path, "rb") as f:
                             return self.send(200, f.read(), "image/png")
             return self.send(404, {"error": "not found"})
-
-        def do_POST(self):
-            action = self.path.removeprefix("/api/")
-            try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-                return self.send(200, app.call(action, body))
-            except (KeyError, ValueError) as error:
-                return self.send(400, {"error": str(error)})
 
     return Handler
 

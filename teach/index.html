@@ -91,9 +91,14 @@ function draw(frames) {
   grid.flat().forEach((v, i) => matrix.children[i].classList.toggle("on", v > 0));
 }
 
+// GET routes with the arguments in the path: the same API on the laptop server and in the App Lab app
 async function api(action, body) {
-  const r = await fetch(action === "state" ? "/api/state" : "/api/" + action,
-    action === "state" ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  body = body || {};
+  const enc = encodeURIComponent;
+  const path = action === "answer" ? `answer/${enc(body.letter)}`
+    : action === "respond" ? `respond/${enc(body.qid)}/${enc(String(body.value))}`
+    : action === "start" ? `start/${enc(body.key)}` : action;
+  const r = await fetch("api/" + path);
   return r.json();
 }
 function say(html, kind) {
@@ -109,7 +114,7 @@ function badge(status) {
 
 function show(view) {
   const p = view.problem;
-  $("#img").src = "/image/" + encodeURIComponent(p.key);
+  $("#img").src = "img/" + encodeURIComponent(p.key) + ".png";
   $("#grade").textContent = `${p.grade}è de primària · dificultat ${p.difficulty}`;
   $("#topic").textContent = TOPICS[p.topic] || p.topic;
   $("#pid").textContent = p.id;
@@ -148,7 +153,7 @@ $("#help").onclick = async () => {
     const p = r.problem;
     say(`<strong>Pista 1: un problema semblant, més fàcil.</strong>${badge("dataset")}
       <small>Del mateix tipus, ${p.grade}è de primària. Mira com es resol i pensa què té en comú amb el teu.</small>
-      <img src="/image/${encodeURIComponent(p.key)}" alt="Problema semblant ${esc(p.id)}">
+      <img src="img/${encodeURIComponent(p.key)}.png" alt="Problema semblant ${esc(p.id)}">
       <small>La resposta d'aquest problema és la ${esc(r.label)}.</small>`, "help");
   } else if (r.kind === "method") {
     say(`<strong>Pista 2: com s'enfoca aquest tipus de problema.</strong>${badge(r.status)}

@@ -1,0 +1,5 @@
+name: Tutor Cangur
+icon: 🧮
+description: A Kangaroo maths tutor for primary school, guided step by step, with feedback on the LED matrix
+bricks:
+  - arduino:web_ui
