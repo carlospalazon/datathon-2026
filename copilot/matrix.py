@@ -7,6 +7,27 @@ Standard library only: no numpy here, so the tutor runs anywhere.
 """
 ROWS, COLS, ON = 8, 13, 7
 
+# The matrix is blue and monochrome. The App Lab app shows these same events
+# in colour on the UNO Q's built-in RGB LED 1 (LED 2 indicates system status).
+RGB = {
+    "letter": (0, 0, 1),     # selected/revealed letter
+    "number": (0, 0, 1),
+    "level": (0, 0, 1),      # new problem
+    "thinking": (1, 1, 0),   # waiting for the model
+    "tick": (0, 1, 0),       # correct
+    "cross": (1, 0, 0),      # incorrect
+    "help_step": (1, 0, 1),  # hint or guide step
+    "clear": (0, 0, 0),
+}
+
+
+def rgb(event):
+    """RGB LED 1 colour for a tutor event; each channel is off (0) or on (1)."""
+    try:
+        return RGB[event["event"]]
+    except KeyError as error:
+        raise ValueError(f"unknown matrix event: {event.get('event')}") from error
+
 # 5x7 characters
 FONT = {
     "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],

@@ -20,10 +20,10 @@ os.environ.setdefault("LLM_URL", "http://msgpack-rpc-router:8081")
 
 import numpy as np  # noqa: E402
 from arduino.app_bricks.web_ui import WebUI  # noqa: E402
-from arduino.app_utils import App, Bridge, Frame  # noqa: E402
+from arduino.app_utils import App, Bridge, Frame, Leds  # noqa: E402
 
 from copilot.assistant import Assistant  # noqa: E402
-from copilot.matrix import frame  # noqa: E402
+from copilot.matrix import frame, rgb  # noqa: E402
 from copilot.tutor import Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,14 +42,16 @@ view = {"current": tutor.start(first["key"])}
 
 
 def draw(events):
-    """Show the last event on the matrix. A Bridge failure must never break the lesson."""
+    """Show the last tutor event on the blue matrix and onboard RGB LED 1."""
     if not events:
         return
     try:
-        grid = np.asarray(frame(events[-1]), dtype=np.uint8)
+        event = events[-1]
+        grid = np.asarray(frame(event), dtype=np.uint8)
         Bridge.call("draw", Frame(grid).to_board_bytes())
+        Leds.set_led1_color(*rgb(event))
     except Exception as error:  # noqa: BLE001
-        print(f"LED matrix: {error}", flush=True)
+        print(f"LED feedback: {error}", flush=True)
 
 
 def run(action, *args):
