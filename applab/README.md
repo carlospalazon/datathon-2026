@@ -40,3 +40,20 @@ Open it on the laptop over USB: `adb forward tcp:7000 tcp:7000`, then <http://12
 - The app starts, the page and the API answer on port 7000, and the logs show no Bridge errors.
 - With App Lab and both model services running: 2,765 MB of RAM available (`free -m`).
 - Not yet checked: what the matrix looks like to a person, and a demo with Wi-Fi off.
+
+## The language model from the app: board/llm_bridge.py
+
+App Lab runs the app's Python in a Docker container, where 127.0.0.1 is the container, so the model on the board's 127.0.0.1:8081 refused the connection. `board/llm_bridge.py` forwards it on the Docker interface only (172.17.0.1:8081, which the container knows as `msgpack-rpc-router`): it isn't reachable over Wi-Fi, and `predict.py` and the services don't change. The app uses `LLM_URL=http://msgpack-rpc-router:8081`.
+
+Install it once on the board, so it starts at boot (needs your sudo password):
+
+```bash
+# on the laptop
+adb push board/llm_bridge.py /home/arduino/llm_bridge.py
+adb push board/systemd/math-llm-bridge.service /tmp/
+# on the board
+sudo cp /tmp/math-llm-bridge.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now math-llm-bridge
+```
+
+First measurement through the app (one hint, 14 November 2026): 20.3 s, 163 tokens read, 36 written. The model's hint was wrong (it argued for a distractor) and the output guardrail rejected it, so the student saw the fixed template.

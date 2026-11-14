@@ -30,8 +30,12 @@ def main():
     if os.path.exists(out):
         shutil.rmtree(out)
     shutil.copytree(os.path.join(ROOT, "applab/math-tutor"), out)
-    for module in ("tutor.py", "matrix.py"):
-        shutil.copy(os.path.join(ROOT, "copilot", module), os.path.join(out, "python", module))
+    # As a package, so the modules' relative imports work. Only what the app needs:
+    # no config.env, no predict pipeline.
+    pkg = os.path.join(out, "python", "copilot")
+    os.makedirs(pkg)
+    for module in ("__init__.py", "tutor.py", "matrix.py", "assistant.py", "slm.py", "guardrails.py", "topics.py"):
+        shutil.copy(os.path.join(ROOT, "copilot", module), os.path.join(pkg, module))
     shutil.copy(os.path.join(ROOT, "content/types_primaria.json"), os.path.join(out, "python/types.json"))
     shutil.copy(os.path.join(ROOT, "teach/index.html"), os.path.join(out, "assets/index.html"))
 

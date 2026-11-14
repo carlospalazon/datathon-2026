@@ -5,7 +5,7 @@ below. The tutor runs here, with no language model: answers are checked against
 verified labels, and help comes from the catalogue. Every tutor event is drawn on
 the 8x13 matrix through the Bridge.
 
-tutor.py, matrix.py, catalog.jsonl, types.json and assets/img/ are copied in by
+copilot/ (tutor, matrix, assistant, guardrails...), catalog.jsonl, types.json and assets/img/ are copied in by
 applab/package.py; they aren't kept in Git (the catalogue holds M3Kang data).
 """
 import json
@@ -13,12 +13,18 @@ import os
 import threading
 import urllib.parse
 
-import numpy as np
-from arduino.app_bricks.web_ui import WebUI
-from arduino.app_utils import App, Bridge, Frame
+# The model service listens on the board's 127.0.0.1, out of the container's reach:
+# board/llm_bridge.py forwards it on the Docker interface, which the container
+# knows as msgpack-rpc-router. Set before copilot.slm is imported.
+os.environ.setdefault("LLM_URL", "http://msgpack-rpc-router:8081")
 
-from matrix import frame
-from tutor import Tutor
+import numpy as np  # noqa: E402
+from arduino.app_bricks.web_ui import WebUI  # noqa: E402
+from arduino.app_utils import App, Bridge, Frame  # noqa: E402
+
+from copilot.assistant import Assistant  # noqa: E402
+from copilot.matrix import frame  # noqa: E402
+from copilot.tutor import Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOW = tuple(os.environ.get("TUTOR_SHOW", "revisado,preparado,generado").split(","))
@@ -29,6 +35,7 @@ with open(os.path.join(HERE, "types.json")) as f:
     types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
 
 tutor = Tutor(problems, types, show=SHOW)
+assistant = Assistant(tutor)  # free text, guardrails and the model (port 8081), in threads
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
 view = {"current": tutor.start(first["key"])}
@@ -79,6 +86,15 @@ def next_problem():
     return run(go)
 
 
+def chat(text):
+    def go():
+        result = assistant.chat(urllib.parse.unquote(text))
+        if result["kind"] == "next" and result.get("view"):
+            view["current"] = result["view"]
+        return result
+    return run(go)
+
+
 ui = WebUI()
 ui.expose_api("GET", "/api/state", state)
 ui.expose_api("GET", "/api/start/{key}", start)
@@ -88,6 +104,10 @@ ui.expose_api("GET", "/api/respond/{qid}/{value}",
               lambda qid, value: run(tutor.respond, urllib.parse.unquote(qid), urllib.parse.unquote(value)))
 ui.expose_api("GET", "/api/solution", lambda: run(tutor.solution))
 ui.expose_api("GET", "/api/next", next_problem)
+ui.expose_api("GET", "/api/chat/{text}", chat)
+ui.expose_api("GET", "/api/modelhint",
+              lambda: run(lambda: {"kind": "job", "job": assistant.model_hint(), "events": [{"event": "thinking"}]}))
+ui.expose_api("GET", "/api/job/{job}", lambda job: run(assistant.job, job))
 
 draw(view["current"]["events"])
 App.run()

@@ -1,0 +1,14 @@
+[Unit]
+Description=Math on the Edge: let App Lab apps reach the language model (172.17.0.1:8081 -> 127.0.0.1:8081)
+After=docker.service math-llm.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=arduino
+ExecStart=/usr/bin/python3 /home/arduino/llm_bridge.py --listen 172.17.0.1:8081 --target 127.0.0.1:8081
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

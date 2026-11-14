@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from copilot.assistant import Assistant  # noqa: E402
 from copilot.matrix import frame  # noqa: E402
 from copilot.tutor import STATUSES, Tutor  # noqa: E402
 
@@ -59,6 +60,7 @@ class App:
         with open(os.path.join(ROOT, args.types)) as f:
             types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
         self.tutor = Tutor(self.problems, types, show=set(args.show.split(",")))
+        self.assistant = Assistant(self.tutor)
         self.lock = threading.Lock()
         first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
         self.view = self.tutor.start(first["key"])
@@ -81,6 +83,16 @@ class App:
                     return {"error": "no queden problemes"}
                 self.view = view
                 return with_frames(view)
+            if action == "chat":
+                result = self.assistant.chat(body.get("text", ""))
+                if result["kind"] == "next" and result.get("view"):
+                    self.view = result["view"]
+                return with_frames(result)
+            if action == "modelhint":
+                return with_frames({"kind": "job", "job": self.assistant.model_hint(),
+                                    "events": [{"event": "thinking"}]})
+            if action == "job":
+                return with_frames(self.assistant.job(body.get("id", 0)))
             if action == "start" and body.get("key") in self.tutor.problems:
                 self.view = self.tutor.start(body["key"])
                 return with_frames(self.view)
@@ -107,7 +119,8 @@ def make_handler(app):
                     return self.send(200, f.read(), "text/html; charset=utf-8")
             parts = [urllib.parse.unquote(x) for x in self.path.split("?")[0].strip("/").split("/")]
             if parts[0] == "api" and len(parts) >= 2:
-                names = {"answer": ["letter"], "respond": ["qid", "value"], "start": ["key"]}.get(parts[1], [])
+                names = {"answer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
+                         "chat": ["text"], "job": ["id"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))
