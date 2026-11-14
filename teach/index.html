@@ -103,7 +103,8 @@ function say(html, kind) {
   $("#feed").prepend(div);
 }
 function badge(status) {
-  return status ? `<span class="badge ${esc(status)}">${esc(STATUS[status] || status)}</span>` : "";
+  const base = String(status || "").split(":")[0];
+  return base ? `<span class="badge ${esc(base)}">${esc(STATUS[base] || base)}</span>` : "";
 }
 
 function show(view) {

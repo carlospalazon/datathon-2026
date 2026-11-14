@@ -65,6 +65,32 @@ def difficulty(problem_id, level, exam_size):
             "difficulty": level * 3 + block}
 
 
+def load_content(path):
+    return {row["id"]: row for row in load(path)} if os.path.exists(path) else {}
+
+
+def apply_content(record, fig, cp):
+    """Lay prepared content over a catalogue record, keeping each item's status.
+
+    fig: options read from the image and a figure description (both languages).
+    cp: a Catalan solution, checkpoints and distractor explanations, so only
+    Catalan rows get them.
+    """
+    if fig:
+        record["options"] = fig["options"]
+        record["options_status"] = fig["options_status"]
+        record["ocr_flags"] = []
+        if fig.get("figure_cat"):
+            record["figure"] = {"cat": fig["figure_cat"], "eng": fig["figure_eng"], "status": fig["figure_status"]}
+        if fig.get("needs_figure") is not None:
+            record["needs_figure"] = fig["needs_figure"]
+    if cp and record["language"] == "cat":
+        status = cp["content_status"]
+        record["solution"] = {"text": cp["solution"], "status": status}
+        record["checkpoints"] = [{**c, "status": status} for c in cp["checkpoints"]]
+        record["distractors"] = {k: {"text": v, "status": status} for k, v in cp["distractors"].items()}
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data", default="data")
@@ -98,6 +124,11 @@ def main():
     for x in problems:
         exam_size[x["level"]] = max(exam_size.get(x["level"], 0), question_number(x["id"]))
 
+    # Teaching content prepared separately (see apply_content), keyed by problem id
+    content = os.path.join(args.out, "content")
+    figures = load_content(os.path.join(content, "figures.jsonl"))
+    checkpoints = load_content(os.path.join(content, "checkpoints.jsonl"))
+
     os.makedirs(args.out, exist_ok=True)
     out_path = os.path.join(args.out, "problems.jsonl")
     with open(out_path, "w") as f:
@@ -130,6 +161,7 @@ def main():
                 "hints": [],
                 "distractors": {},
             }
+            apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]))
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     types_path = os.path.join(args.out, "types.json")

@@ -161,6 +161,16 @@ class Guide(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.t.respond("checkpoint 2", "10")            # never offered: it was the final answer
 
+    def test_status_with_author(self):
+        t = Tutor([problem("s1_eng", 1, distractors={"A": {"text": "You added.", "status": "generado:claude-opus"}})],
+                  show=("generado",))
+        t.start("s1_eng")
+        self.assertEqual(t.answer("A")["feedback"]["text"], "You added.")
+        t = Tutor([problem("s1_eng", 1, distractors={"A": {"text": "You added.", "status": "generado:claude-opus"}})],
+                  show=("revisado",))
+        t.start("s1_eng")
+        self.assertIsNone(t.answer("A")["feedback"])
+
     def test_hidden_fields(self):
         self.assertNotIn("checkpoints", self.t.start("g1_eng")["problem"])
 

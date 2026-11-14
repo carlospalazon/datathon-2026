@@ -68,6 +68,11 @@ def leaks_answer(text, problem):
     return None
 
 
+def base_status(status):
+    """'generado:claude-opus' -> 'generado': the part after the colon only says who made it."""
+    return str(status or "").split(":", 1)[0]
+
+
 def correct_value(problem):
     """The correct option as a number, if it is one."""
     options = problem.get("options") or {}
@@ -128,7 +133,7 @@ class Tutor:
     def _plan(self, problem):
         """Every step this problem can offer, in order. Built once, when the problem starts."""
         card = self.types.get(problem["topic"]) or {}
-        card_ok = card.get("status") in self.show
+        card_ok = base_status(card.get("status")) in self.show
         steps = []
         similar = self._similar(problem)
         if similar:
@@ -144,7 +149,7 @@ class Tutor:
                 steps.append(self._question(f"guide {i}", q["kind"], q, card["status"], f"type {problem['topic']}"))
         final = correct_value(problem)
         for i, c in enumerate(problem.get("checkpoints") or [], 1):
-            if c.get("status") not in self.show or _number(c.get("answer")) is None:
+            if base_status(c.get("status")) not in self.show or _number(c.get("answer")) is None:
                 continue
             if final is not None and _number(c["answer"]) == final:  # a checkpoint must be a step, not the answer
                 continue
@@ -207,7 +212,7 @@ class Tutor:
         s["solution_shown"] = True
         self._remember(problem, False)
         item = problem.get("solution")
-        if item and item.get("status") in self.show:
+        if item and base_status(item.get("status")) in self.show:
             text, status = item["text"], item["status"]
         else:
             text, status = None, None
@@ -216,7 +221,7 @@ class Tutor:
 
     def _visible(self, item, problem, source):
         """A content item the student may see, or None. Never shows a hint that leaks."""
-        if not item or item.get("status") not in self.show or not item.get("text"):
+        if not item or base_status(item.get("status")) not in self.show or not item.get("text"):
             return None
         if leaks_answer(item["text"], problem):
             self._session()["rejected"].append(source)
@@ -238,13 +243,13 @@ class Tutor:
             pool.sort(key=lambda p: (abs(problem["level"] - 1 - p["level"]), not p.get("options"),
                                      _rank(problem["key"] + p["key"])))
         best = pool[0]
-        solution = best.get("solution") if (best.get("solution") or {}).get("status") in self.show else None
+        solution = best.get("solution") if base_status((best.get("solution") or {}).get("status")) in self.show else None
         return {"kind": "similar", "text": None, "status": "dataset", "source": "M3Kang",
                 "problem": self.public(best), "label": best["label"], "solution": solution}
 
     def _method(self, problem):
         card = self.types.get(problem["topic"]) or {}
-        if card.get("status") not in self.show or not card.get("method"):
+        if base_status(card.get("status")) not in self.show or not card.get("method"):
             return None
         if leaks_answer(card["method"], problem):
             return None
