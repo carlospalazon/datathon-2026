@@ -86,7 +86,6 @@
       <button id="help" class="primary">Una pista</button>
       <button id="solution">Veure la solució</button>
       <button id="next">Següent problema</button>
-      <button id="modelhint">Pista del model (Qwen)</button>
     </div>
     <form id="chat" class="actions" autocomplete="off">
       <input id="chattext" maxlength="200" placeholder="Escriu al tutor: «no ho entenc», «crec que és la B»…" aria-label="Escriu al tutor"
@@ -237,11 +236,6 @@ async function waitJob(job, debugBefore) {
     return;
   }
 }
-$("#modelhint").onclick = async () => {
-  const r = await api("modelhint");
-  draw(r.frames);
-  if (r.job) waitJob(r.job);
-};
 $("#chat").onsubmit = async e => {
   e.preventDefault();
   const text = $("#chattext").value.trim();
