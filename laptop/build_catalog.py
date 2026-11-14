@@ -86,9 +86,11 @@ def apply_content(record, fig, cp):
             record["needs_figure"] = fig["needs_figure"]
     if cp and record["language"] == "cat":
         status = cp["content_status"]
-        record["solution"] = {"text": cp["solution"], "status": status}
-        record["checkpoints"] = [{**c, "status": status} for c in cp["checkpoints"]]
-        record["distractors"] = {k: {"text": v, "status": status} for k, v in cp["distractors"].items()}
+        # A person's review can set the status of each item; otherwise the whole entry's
+        record["solution"] = {"text": cp["solution"], "status": cp.get("solution_status", status)}
+        record["checkpoints"] = [{**c, "status": c.get("status", status)} for c in cp["checkpoints"]]
+        record["distractors"] = {k: {"text": v, "status": cp.get("distractors_status", status)}
+                                 for k, v in cp["distractors"].items()}
 
 
 def main():
