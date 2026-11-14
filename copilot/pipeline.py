@@ -35,8 +35,11 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
         remaining = time_limit - (time.perf_counter() - start) - MARGIN
         letter, timings = answer_letter(problem, examples, timeout=max(remaining, 1.0),
                                         image_b64=image_b64, url=llm_url)
-        result["answer"] = letter
         result["prompt_tokens"] = timings.get("prompt_n", 0)
+        if len(letter) == 1 and letter in "ABCDE":
+            result["answer"] = letter
+        else:
+            result["status"] = f"error: not a letter A to E: {letter[:20]!r}"
     except (socket.timeout, TimeoutError):
         result["status"] = "timeout"
     except urllib.error.URLError as error:
@@ -44,5 +47,9 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
             result["status"] = "timeout"
         else:
             result["status"] = f"error: {error.reason}"
+    except Exception as error:  # noqa: BLE001
+        # A server killed mid-request, a malformed reply, a bug: the official run
+        # must still write one letter for this problem and go on to the next one.
+        result["status"] = f"error: {type(error).__name__}: {error}"[:200]
     result["seconds"] = round(time.perf_counter() - start, 2)
     return result
