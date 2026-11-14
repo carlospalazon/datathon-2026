@@ -107,6 +107,16 @@
       <div class="similar" id="similar"></div>
     </section>
 
+    <!-- NUEVO PANEL SOCRÁTICO INTEGRADO -->
+    <section id="copilot-panel">
+      <h2>🧠 Kangaroo Socratic Coach</h2>
+      <p id="copilot-message" style="font-style: italic; color: var(--muted); margin-bottom: 12px;">Click a button below to get guided assistance.</p>
+      <div class="row">
+        <button onclick="requestSocraticHint()" class="primary" style="background: #2e7d32;">💡 Next Socratic Hint</button>
+        <button onclick="requestAIWildcard()" class="primary" style="background: #ed6c02;">🤖 AI Wildcard Hint</button>
+      </div>
+    </section>
+    
     <section class="row">
       <button class="primary" id="next">Next problem</button>
       <span class="hint">Keys: <kbd>A</kbd>–<kbd>E</kbd> answer · <kbd>M</kbd> ask the model · <kbd>N</kbd> next · <kbd>R</kbd> random</span>
@@ -148,6 +158,7 @@ function renderList() {
 async function open(key) {
   current = await api("/api/problem?key=" + encodeURIComponent(key));
   myChoice = null;
+  currentStep = 0;
   $("meta").textContent = `${current.id} · ${current.language} · level ${current.level}${current.year ? " · " + current.year : ""}`;
   $("img").style.display = current.image ? "" : "none";
   if (current.image) { $("img").src = "/image/" + encodeURIComponent(current.key); $("img").alt = "Problem " + current.id; }
@@ -254,6 +265,33 @@ async function main() {
   all = await api("/api/problems");
   renderList();
   if (shown.length) open(shown[0].key);
+}
+
+let currentStep = 0;
+
+function requestSocraticHint() {
+    console.log("Client requested local socratic hint, step:", currentStep);
+    fetch('/api/socratic?step=' + currentStep)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('copilot-message').innerText = data.content;
+            if (data.next_step !== null) {
+                currentStep = data.next_step;
+            }
+        })
+        .catch(err => console.error("Error fetching socratic hint:", err));
+}
+
+function requestAIWildcard() {
+    console.log("Client requested LLM wildcard fallback");
+    document.getElementById('copilot-message').innerText = "Consulting local AI copilot (please wait ~5s)...";
+    
+    fetch('/api/wildcard', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('copilot-message').innerText = data.content;
+        })
+        .catch(err => console.error("Error fetching AI wildcard:", err));
 }
 
 $("list").addEventListener("click", e => { const d = e.target.closest("div[data-key]"); if (d) open(d.dataset.key); });
