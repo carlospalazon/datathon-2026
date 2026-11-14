@@ -262,3 +262,46 @@ class SearchDedup(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReasonMode(unittest.TestCase):
+    """ANSWER_MODE=reason: one line of working, then the letter; a plain letter if that fails."""
+
+    def post(self, replies):
+        calls = []
+
+        def f(url, payload, timeout):
+            calls.append(payload)
+            reply = replies[len(calls) - 1]
+            if isinstance(reply, Exception):
+                raise reply
+            return {"choices": [{"message": {"content": reply}}], "timings": {"prompt_n": 7, "predicted_n": 9}}
+        return f, calls
+
+    def test_letter_comes_from_the_answer_line(self):
+        post, calls = self.post(["Two and two make four, so B is not it.\nAnswer: C"])
+        out = run(post, {"ANSWER_MODE": "reason"})
+        self.assertEqual((out["answer"], out["status"], len(calls)), ("C", "ok", 1))
+        self.assertGreater(calls[0]["max_tokens"], 1)
+        self.assertIn("Answer: ", calls[0]["grammar"])
+
+    def test_no_answer_line_asks_for_a_plain_letter(self):
+        post, calls = self.post(["working that never ends", "E"])
+        out = run(post, {"ANSWER_MODE": "reason"})
+        self.assertEqual((out["answer"], out["status"], len(calls)), ("E", "ok", 2))
+        self.assertEqual(calls[1]["max_tokens"], 1)
+
+    def test_timeout_while_reasoning_asks_for_a_plain_letter(self):
+        post, calls = self.post([TimeoutError(), "A"])
+        out = run(post, {"ANSWER_MODE": "reason"})
+        self.assertEqual((out["answer"], out["status"]), ("A", "ok"))
+
+    def test_without_options_it_asks_for_a_plain_letter(self):
+        post, calls = self.post(["D"])
+        out = run(post, {"ANSWER_MODE": "reason"}, problem={**PROBLEM, "options": {}})
+        self.assertEqual((out["answer"], len(calls), calls[0]["max_tokens"]), ("D", 1, 1))
+
+    def test_off_by_default(self):
+        post, calls = self.post(["B"])
+        out = run(post)
+        self.assertEqual((out["answer"], calls[0]["max_tokens"]), ("B", 1))

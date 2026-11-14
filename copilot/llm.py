@@ -94,3 +94,22 @@ def answer_scores(problem, examples=(), timeout=60, image_b64=None, url=URL):
     if scores is None:
         scores = {c: (0.0 if c == letter else -20.0) for c in "ABCDE"}
     return letter, scores, response.get("timings", {})
+
+
+REASON_GRAMMAR = 'root ::= [^\\n]+ "\\nAnswer: " [A-E]'
+
+
+def answer_reasoned(problem, examples=(), timeout=60, image_b64=None, url=URL, max_tokens=160):
+    """Return (letter or "", timings, text): one line of working, then "Answer: <letter>".
+
+    For a model fine-tuned to write its working first. The letter is "" when the
+    model ran out of tokens before the answer line: the caller decides what to do.
+    """
+    payload = _payload(problem, examples, image_b64)
+    payload["grammar"] = REASON_GRAMMAR
+    payload["max_tokens"] = int(max_tokens)
+    response = post(url, payload, timeout=timeout)
+    text = response["choices"][0]["message"]["content"]
+    tail = text.rsplit("\nAnswer: ", 1)
+    letter = tail[1].strip() if len(tail) == 2 else ""
+    return (letter if len(letter) == 1 and letter in "ABCDE" else ""), response.get("timings", {}), text
