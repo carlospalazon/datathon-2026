@@ -34,7 +34,7 @@ def main():
     # no config.env, no predict pipeline.
     pkg = os.path.join(out, "python", "copilot")
     os.makedirs(pkg)
-    for module in ("__init__.py", "tutor.py", "diagnose.py", "matrix.py", "assistant.py", "slm.py", "guardrails.py", "topics.py"):
+    for module in ("__init__.py", "tutor.py", "diagnose.py", "matrix.py", "assistant.py", "match.py", "slm.py", "guardrails.py", "topics.py"):
         shutil.copy(os.path.join(ROOT, "copilot", module), os.path.join(pkg, module))
     shutil.copy(os.path.join(ROOT, "content/types_primaria.json"), os.path.join(out, "python/types.json"))
     shutil.copy(os.path.join(ROOT, "teach/index.html"), os.path.join(out, "assets/index.html"))

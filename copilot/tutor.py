@@ -128,13 +128,13 @@ class Tutor:
     # --- What the student sees -------------------------------------------------
 
     def public(self, problem):
-        hidden = {"label", "solution", "hints", "distractors", "checkpoints"}
+        hidden = {"label", "solution", "hints", "distractors", "checkpoints", "anatomy"}
         return {k: v for k, v in problem.items() if k not in hidden}
 
     def start(self, key):
         problem = self.problems[key]
         self.current = {"problem": problem, "attempts": [], "rejected": [], "errors": [], "solution_shown": False,
-                        "queue": self._plan(problem), "done": 0, "questions": {}}
+                        "queue": self._plan(problem), "done": 0, "questions": {}, "said": set()}
         self.seen.add(key)
         self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
         return {"problem": self.public(problem),
@@ -219,23 +219,46 @@ class Tutor:
     def help(self):
         """The next step of the guide that has something to show."""
         s = self._session()
-        problem = s["problem"]
         while s["queue"]:
-            step = s["queue"].pop(0)
-            if step["kind"] == "hint":  # checked against leaks when it's about to be shown
-                step = self._visible(step["item"], problem, source=step["source"])
-                if step is None:
-                    continue
-            s["done"] += 1
-            total = s["done"] + len(s["queue"])
-            shown = {k: v for k, v in step.items() if not k.startswith("_")}
-            if step["kind"] == "question":
-                s["questions"][step["qid"]] = step
-            shown["step"] = s["done"]
-            shown["events"] = [{"event": "help_step", "value": s["done"], "of": total}]
-            return shown
+            shown = self._show(s["queue"].pop(0))
+            if shown:
+                return shown
         return {"kind": "none", "text": None, "step": s["done"],
                 "events": [{"event": "letter", "value": "?"}]}
+
+    def take(self, source):
+        """Show one step of the guide out of order: the one that fits what the student typed.
+
+        source: "hint 2", "checkpoint 1"... It leaves the queue, so the hint button never repeats it.
+        Returns None if that step isn't waiting, or can't be shown.
+        """
+        s = self._session()
+        for i, step in enumerate(s["queue"]):
+            if step.get("source") == source:
+                return self._show(s["queue"].pop(i))
+        return None
+
+    def waiting(self):
+        """The steps still in the guide, in order, as (source, text): for whoever picks one."""
+        return [(step["source"], step["item"]["text"] if step["kind"] == "hint" else step.get("text"))
+                for step in self._session()["queue"] if step.get("source")]
+
+    def _show(self, step):
+        """Count a step as given and return what the page needs, or None for a hint that leaks."""
+        s = self._session()
+        problem = s["problem"]
+        if step["kind"] == "hint":  # checked against leaks when it's about to be shown
+            step = self._visible(step["item"], problem, source=step["source"])
+            if step is None:
+                return None
+        s["done"] += 1
+        total = s["done"] + len(s["queue"])
+        shown = {k: v for k, v in step.items() if not k.startswith("_")}
+        if step["kind"] == "question":
+            s["questions"][step["qid"]] = step
+        shown["step"] = s["done"]
+        shown["events"] = [{"event": "help_step", "value": s["done"], "of": total}]
+        return shown
 
     def respond(self, qid, value):
         """Check the student's answer to a guide question. Reflection questions have no wrong answer."""

@@ -83,18 +83,23 @@ class Routing(unittest.TestCase):
                      "em rendeixo"):
             self.assertEqual(topics.classify(text, PROBLEM), "solucion", text)
         r = self.a.chat("crec que la resposta és 12")
-        self.assertEqual(r["kind"], "job")
+        self.assertEqual(r["kind"], "reply")                  # 12 is an option: neither confirmed nor denied
+        self.assertNotIn("label", r)
 
     def test_hint_goes_to_the_ladder(self):
         r = self.a.chat("dona'm una pista")
         self.assertEqual((r["kind"], r["step"]["kind"]), ("help", "similar"))
 
-    def test_maths_question_goes_to_the_model(self):
-        r = self.a.chat("quantes pomes hi ha en total?")
+    def test_a_question_about_meaning_goes_to_the_model(self):
+        r = self.a.chat("què vol dir bossa?")
         self.assertEqual(r["kind"], "job")
         done = wait(self.a, r["job"])
         self.assertTrue(done["debug"]["accepted"])
         self.assertEqual(done["text"], "Quantes pomes hi ha a cada bossa?")
+
+    def test_other_questions_never_reach_the_model(self):
+        r = self.a.chat("quantes pomes hi ha en total?")    # nothing written fits: the next step of the guide
+        self.assertEqual(r["kind"], "help")
 
     def test_three_off_topic_messages_lock_free_text(self):
         for _ in range(3):
@@ -142,7 +147,8 @@ class OutputRails(unittest.TestCase):
         tutor.start("s1_cat")
         a = Assistant(tutor, ask=fake_model("La resposta és la C."))
         r = wait(a, a.model_hint())
-        self.assertEqual((r["text"], r["status"]), ("Quantes pomes hi ha a les bosses?", "revisado"))
+        self.assertEqual((r["kind"], r["step"]["text"]), ("help", "Quantes pomes hi ha a les bosses?"))
+        self.assertEqual(wait(a, a.model_hint())["status"], "plantilla")   # that step is never given twice
 
     def test_model_down_never_breaks_the_lesson(self):
         r = self.run_model("", error="URLError: connection refused")

@@ -211,13 +211,14 @@ function showStep(r) {
 // --- Free text and the model: input guardrails, the model in the background, output guardrails ---
 const INTENT = { pista: "demana una pista", repetir: "vol que es repeteixi", siguiente: "vol el següent problema",
   solucion: "vol la solució", progreso: "pregunta pel progrés", ayuda_app: "pregunta com funciona", eleccion: "respon amb una lletra",
-  math: "pregunta de mates → model", social: "salutació", offtopic: "fora de tema", injection: "intent de manipulació" };
+  math: "pregunta sobre el problema", social: "salutació", offtopic: "fora de tema", injection: "intent de manipulació" };
 function debugBlock(d) {
   if (!d) return "";
   const lines = [`Entrada: ${d.input ?? "(botó)"}`, `Guarda d'entrada: ${INTENT[d.intent] || d.intent || "—"}`];
+  if (d.matched) lines.push(`Ajuda escrita triada: ${d.matched}${d.kind_of_question ? " (pregunta de tipus «" + d.kind_of_question + "»)" : ""}`);
   if ("accepted" in d) {
     lines.push(`Model (${d.seconds} s, ${d.prompt_tokens ?? "?"} tokens llegits, ${d.generated_tokens ?? "?"} escrits): ${d.model_error || JSON.stringify(d.model_text)}`);
-    lines.push(`Guarda de sortida: ${d.accepted ? "acceptat" : "rebutjat (" + d.rail + "), es mostra la plantilla"}`);
+    lines.push(`Guarda de sortida: ${d.accepted ? "acceptat" : "rebutjat (" + d.rail + "), es mostra el pas següent de la guia"}`);
   }
   return `<details class="debug"><summary>Detalls de prova</summary><pre>${esc(lines.join("\n"))}</pre></details>`;
 }
@@ -232,7 +233,14 @@ async function waitJob(job, debugBefore) {
     const r = await api("job", { id: job });
     if (!r.done) { div.querySelector("small").textContent = `El model de la placa triga uns segons… (${Math.round((Date.now() - started) / 1000)} s)`; continue; }
     draw(r.frames);
-    div.innerHTML = `<strong>Pista: </strong>${esc(r.text || r.error)}${badge(r.status)}${debugBlock(r.debug)}`;
+    if (r.kind === "help" && r.step) {  // the model's answer was rejected: the next step of the guide
+      div.remove();
+      showStep(r.step);
+      const dbg = debugBlock(r.debug);
+      if (dbg) $("#feed").firstElementChild.insertAdjacentHTML("beforeend", dbg);
+      return;
+    }
+    div.innerHTML = `<strong>Tutor: </strong>${esc(r.text || r.error || "")}${badge(r.status)}${debugBlock(r.debug)}`;
     return;
   }
 }
@@ -252,7 +260,10 @@ $("#chat").onsubmit = async e => {
   } else if (r.kind === "answer") {
     say((r.correct ? "<strong>Molt bé, és correcta!</strong>" : "<strong>Aquesta no és correcta.</strong>")
       + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : "") + dbg, r.correct ? "ok" : "bad");
+  } else if (r.kind === "reply") {  // written help picked for this question, outside the guide
+    say(`${esc(r.text)}${badge(r.status)}${dbg}`, r.tone === "ok" ? "ok" : "help");
   } else if (r.kind === "help") {
+    if (r.before) say(esc(r.before), "help");
     showStep(r.step);
     if (dbg) $("#feed").firstElementChild.insertAdjacentHTML("beforeend", dbg);
   } else if (r.kind === "solution") {

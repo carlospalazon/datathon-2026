@@ -1,4 +1,4 @@
-"""Ask the small language model (Qwen, llama-server on port 8081) for a one-sentence hint.
+"""Ask the small language model (Qwen, llama-server on port 8081) for a one-sentence answer.
 
 Standard library only, and no import of config.env, so the App Lab app can use it
 as is. The caller must check the text with copilot.guardrails before a student
@@ -11,39 +11,29 @@ import urllib.request
 
 LLM_URL = os.environ.get("LLM_URL", "http://127.0.0.1:8081") + "/v1/chat/completions"
 
-# Keep the system prompt fixed: llama-server keeps the start of the prompt in its
-# cache, so this part is read once and later hints only pay for the new tokens.
-# Measured on the board (6 demo problems): with examples and the grammar below, 5/6
-# hints passed the guardrails against 3/6 with plain instructions, and none gave
-# a number away. Many still just restate the question: the assistant checks that.
+# What the model is asked to do, and why only that. Measured with the model on 48 questions that
+# children would type about 6 problems (data/newproblem/chat):
+#  - Asked to invent a hint, it restated the question or wrote nonsense.
+#  - Given the teacher's notes on the problem, it explains what a word or a phrase of the statement
+#    means well enough: 6 of 6 answers passed the guardrails and read as sensible.
+#  - On "what do I do now?", "is 8 right?" or "why not?" it states false things with confidence
+#    ("No, Berta isn't the 8th"), and the guardrails can check leaks and format, not truth.
+# So the assistant sends it questions about meaning only, and answers the rest with written help.
 SYSTEM = {
-    "cat": ("Ets un tutor de matemàtiques per a nens de 10 a 12 anys. No resols mai el problema: "
-            "fas UNA pregunta curta que ajuda l'alumne a fer el primer pas. Sense números.\n\n"
-            "Exemples:\n"
-            "Problema: La Laia té 3 capses amb 5 llapis a cada una i en regala 4. Quants llapis li queden?\n"
-            "Pregunta: Quants llapis té en total abans de regalar-ne cap?\n"
-            "Problema: Un tren surt a les 9 i arriba a les 11 i quart. Quant dura el viatge?\n"
-            "Pregunta: Quantes hores completes passen entre la sortida i l'arribada?\n"
-            "Problema: Quants números de dues xifres tenen les xifres que sumen 6?\n"
-            "Pregunta: Si la primera xifra és la més petita possible, quina ha de ser la segona?"),
-    "eng": ("You are a maths tutor for children aged 10 to 12. You never solve the problem: you ask "
-            "ONE short question that helps the student take the first step. No numbers.\n\n"
-            "Examples:\n"
-            "Problem: Laia has 3 boxes with 5 pencils in each and gives 4 away. How many pencils are left?\n"
-            "Question: How many pencils does she have before giving any away?\n"
-            "Problem: A train leaves at 9 and arrives at a quarter past 11. How long is the journey?\n"
-            "Question: How many whole hours pass between leaving and arriving?"),
+    "cat": ("Ets un tutor de matemàtiques per a nens de 10 a 12 anys. Respon la pregunta de l'alumne amb UNA "
+            "frase curta i clara, en català. Fes servir les notes del professor. No diguis mai el resultat "
+            "del problema."),
+    "eng": ("You are a maths tutor for children aged 10 to 12. Answer the student's question in ONE short, "
+            "clear sentence. Use the teacher's notes. Never say the result of the problem."),
 }
-LABEL = {"cat": ("Problema: ", "Pregunta:"), "eng": ("Problem: ", "Question:")}
-# One question, no digits (so no result or calculation), ending with "?"
-GRAMMAR = 'root ::= [A-ZÀ-Ú¿] [^0-9?\\n]{15,150} "?"'
-
-
+LABEL = {"cat": ("Problema: ", "Notes del professor: ", "L'alumne pregunta: ", "Què vol dir l'enunciat?"),
+         "eng": ("Problem: ", "Teacher's notes: ", "The student asks: ", "What does the problem say?")}
 READ = {"cat": "Llegit.", "eng": "Read."}
+NOTES = ("key_data", "key_condition")  # from the problem's anatomy: never the first step or the solution
 
 
 def build_messages(problem, student_text=""):
-    """The request for a hint: the statement as a first turn, what the student wrote as a second one.
+    """The request: the statement and the teacher's notes as a first turn, the student's words as a second.
 
     The statement is a turn of its own on purpose. llama-server can only go back to what it had read
     at the end of a message, so with the statement and the student's words in one message it read the
@@ -51,16 +41,18 @@ def build_messages(problem, student_text=""):
     6 seconds instead of 12.
     """
     language = problem.get("language") if problem.get("language") in SYSTEM else "eng"
-    problem_label, question_label = LABEL[language]
+    problem_label, notes_label, ask_label, default = LABEL[language]
     statement = problem_label + (problem.get("question") or problem.get("text", ""))
     figure = (problem.get("figure") or {}).get(language)
     if figure:
         statement += ("\nFigura: " if language == "cat" else "\nFigure: ") + figure
-    ask = question_label
-    if student_text:
-        ask = ("L'alumne diu: " if language == "cat" else "The student says: ") + student_text + "\n" + ask
+    anatomy = problem.get("anatomy") or {}
+    notes = " ".join(str(anatomy[k]) for k in NOTES if anatomy.get(k))
+    if notes:
+        statement += "\n" + notes_label + notes
     return [{"role": "system", "content": SYSTEM[language]}, {"role": "user", "content": statement},
-            {"role": "assistant", "content": READ[language]}, {"role": "user", "content": ask}]
+            {"role": "assistant", "content": READ[language]},
+            {"role": "user", "content": ask_label + (student_text or default)}]
 
 
 def warm(problem, timeout=60, url=LLM_URL):
@@ -89,7 +81,7 @@ def ask_hint(problem, student_text="", timeout=50, url=LLM_URL):
     """Return {"text", "seconds", "prompt_tokens", "error"}. Never raises."""
     start = time.perf_counter()
     payload = {"messages": build_messages(problem, student_text), "max_tokens": 60, "temperature": 0,
-               "seed": 42, "cache_prompt": True, "grammar": GRAMMAR}
+               "seed": 42, "cache_prompt": True, "stop": ["\n"]}
     try:
         request = urllib.request.Request(url, data=json.dumps(payload).encode(),
                                          headers={"Content-Type": "application/json"})

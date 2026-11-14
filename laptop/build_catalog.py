@@ -69,14 +69,18 @@ def load_content(path):
     return {row["id"]: row for row in load(path)} if os.path.exists(path) else {}
 
 
-def apply_content(record, fig, cp, hints=None):
+def apply_content(record, fig, cp, hints=None, anatomy=None):
     """Lay prepared content over a catalogue record, keeping each item's status.
 
     fig: options read from the image and a figure description (both languages).
     cp: a Catalan solution, checkpoints and distractor explanations, so only
     Catalan rows get them.
     hints: graded Catalan hints about this problem, from laptop/merge_hints.py.
+    anatomy: key data, key condition, strategy and first step, from laptop/merge_anatomy.py.
     """
+    if anatomy and record["language"] == "cat":  # what decides the problem, read from its solution
+        record["anatomy"] = {k: anatomy.get(k) for k in ("key_data", "key_condition", "first_step", "strategy")}
+        record["anatomy"]["status"] = anatomy.get("content_status", "generado")
     if hints and record["language"] == "cat":
         record["hints"] = [{"text": text, "status": hints["content_status"]} for text in hints["hints"]]
     if fig:
@@ -134,6 +138,7 @@ def main():
     figures = load_content(os.path.join(content, "figures.jsonl"))
     checkpoints = load_content(os.path.join(content, "checkpoints.jsonl"))
     hints = load_content(os.path.join(content, "hints.jsonl"))  # from laptop/merge_hints.py
+    anatomy = load_content(os.path.join(content, "anatomy.jsonl"))  # from laptop/merge_anatomy.py
     neighbours = load_content(os.path.join(content, "neighbours.jsonl"))  # from board/embed_neighbours.py
 
     os.makedirs(args.out, exist_ok=True)
@@ -168,7 +173,8 @@ def main():
                 "hints": [],
                 "distractors": {},
             }
-            apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]), hints.get(x["id"]))
+            apply_content(record, figures.get(x["id"]), checkpoints.get(x["id"]), hints.get(x["id"]),
+                          anatomy.get(x["id"]))
             if x["id"] in neighbours:  # nearest problems by meaning (bge-small, English text), best first
                 record["similar_ids"] = [i for i, _score in neighbours[x["id"]]["neighbours"]]
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
