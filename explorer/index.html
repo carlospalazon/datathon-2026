@@ -1,276 +1,319 @@
 <!doctype html>
-<html lang="en">
+<html lang="ca">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>M3Kang explorer</title>
+<title>Cangur tutor</title>
 <style>
-  :root { --ink: #1d2433; --muted: #5c667a; --line: #dfe3ea; --bg: #f5f7fa; --card: #fff;
-          --ok: #1b7f3b; --ok-bg: #e6f4ea; --bad: #b3261e; --bad-bg: #fce8e6; --accent: #1f5fbf; }
+  /* Design inspired by Duolingo: rounded shapes, bold colours, chunky 3D buttons */
+  :root { --ink: #4b4b4b; --muted: #777777; --line: #e5e5e5; --bg: #ffffff; --card: #ffffff; --accent: #1cb0f6; --accent-dark: #1899d6;
+          --green: #58cc02; --green-dark: #58a700;
+          --ok: #58a700; --ok-bg: #d7ffb8; --bad: #ea2b2b; --bad-bg: #ffdfe0; --warn: #b87300; --warn-bg: #fff3cc;
+          --soft: #f7f7f7; --led-off: #2b3a44; --led-on: #1cb0f6; --board: #131f24; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink: #f1f7fb; --muted: #afafaf; --line: #37464f; --bg: #131f24; --card: #131f24; --soft: #202f36;
+          --accent: #49c0f8; --accent-dark: #1899d6; --ok: #89e219; --ok-bg: #202f36; --bad: #ff7878; --bad-bg: #202f36; --warn: #ffc800; --warn-bg: #3a3210; --board: #0b1418; }
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 18px; margin: 0 12px 0 0; }
-  .pill { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
-  .pill.up { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
-  .pill.down { color: var(--bad); background: var(--bad-bg); border-color: transparent; }
-  .score { margin-left: auto; font-weight: 600; }
-  main { display: grid; grid-template-columns: 260px 1fr; gap: 20px; padding: 20px; max-width: 1400px; margin: 0 auto; }
-  aside, section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
-  aside { padding: 12px; height: calc(100vh - 110px); position: sticky; top: 20px; display: flex; flex-direction: column; gap: 8px; }
-  aside label { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-  select, button { font: inherit; }
-  select { padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  #list { overflow-y: auto; flex: 1; border-top: 1px solid var(--line); margin-top: 4px; }
-  #list div { padding: 4px 6px; cursor: pointer; font-size: 13px; border-radius: 4px; display: flex; justify-content: space-between; }
-  #list div:hover { background: var(--bg); }
-  #list div.on { background: #e8f0fe; font-weight: 600; }
-  #list .mark { width: 34px; text-align: right; }
-  .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-  section { padding: 16px 20px; }
-  section h2 { font-size: 15px; margin: 0 0 10px; }
-  .meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-  .problem-img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  .text { white-space: pre-wrap; margin: 12px 0; }
-  .ocr { font-size: 13px; color: var(--muted); }
-  .ocr b { color: var(--ink); }
-  .letters { display: flex; gap: 10px; margin: 8px 0; }
-  .letters button { width: 56px; height: 48px; font-size: 20px; font-weight: 700; border: 2px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; }
-  .letters button:hover:not(:disabled) { border-color: var(--accent); }
-  .letters button.right { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
-  .letters button.wrong { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
-  .letters button.model { outline: 3px dashed var(--accent); outline-offset: 2px; }
-  .verdict { font-weight: 600; min-height: 1.5em; }
-  .verdict.ok { color: var(--ok); } .verdict.bad { color: var(--bad); }
-  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
-  .primary { padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-  .primary:disabled { opacity: .5; cursor: default; }
-  .secondary { padding: 8px 16px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
-  table { border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-  td { padding: 3px 14px 3px 0; } td:first-child { color: var(--muted); }
-  details { margin-top: 10px; } summary { cursor: pointer; color: var(--accent); }
-  pre { white-space: pre-wrap; background: var(--bg); padding: 10px; border-radius: 6px; font-size: 12px; max-height: 360px; overflow: auto; }
-  .similar { display: grid; gap: 12px; }
-  .sim { border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
-  .sim img { max-width: 100%; max-height: 160px; display: block; margin-top: 6px; }
-  .hint { color: var(--muted); font-size: 13px; }
-  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 12px; background: #fff; }
-  @media (max-width: 800px) { main { grid-template-columns: 1fr; } aside { position: static; height: 300px; } }
+  body { margin: 0; font: 17px/1.5 "Nunito", "DIN Round Pro", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 600; color: var(--ink); background: var(--bg); }
+  header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 24px; background: var(--card); border-bottom: 2px solid var(--line); position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 26px; font-weight: 800; margin: 0 14px 0 0; color: var(--green); letter-spacing: -.3px; }
+  header h1::before { content: "🦘 "; }
+  .pill { font-size: 13px; font-weight: 800; padding: 4px 14px; border-radius: 999px; border: 2px solid var(--line); color: var(--muted); background: var(--card); text-transform: uppercase; letter-spacing: .5px; }
+  #grade { color: var(--accent); border-color: var(--accent); }
+  #topic { color: var(--green-dark); border-color: var(--green); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; padding: 24px; max-width: 1240px; margin: 0 auto; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  section, aside > div { background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 20px 22px; }
+  aside { display: flex; flex-direction: column; gap: 20px; }
+  aside strong { font-weight: 800; font-size: 18px; color: var(--ink); }
+  .problem-img { width: 100%; height: auto; background: #fff; border: 2px solid var(--line); border-radius: 16px; }
+  .letters { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0 10px; }
+  .letters button { width: 72px; height: 62px; font: inherit; font-size: 26px; font-weight: 800; border: 2px solid var(--line); border-bottom-width: 5px; border-radius: 16px; background: var(--card); color: var(--ink); cursor: pointer; transition: transform .05s; }
+  .letters button:hover:not(:disabled) { background: var(--soft); border-color: var(--accent); color: var(--accent); }
+  .letters button:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 2px; }
+  .letters button:focus-visible, .actions button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .letters button.right { background: var(--ok-bg); border-color: var(--green); color: var(--ok); }
+  .letters button.wrong { background: var(--bad-bg); border-color: #ff4b4b; color: var(--bad); }
+  .letters button:disabled { cursor: default; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: center; }
+  .actions button { font: inherit; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .6px; padding: 12px 20px; border-radius: 16px; border: 2px solid var(--line); border-bottom-width: 5px; background: var(--card); color: var(--accent); cursor: pointer; transition: transform .05s; }
+  .actions button:hover:not(:disabled) { background: var(--soft); }
+  .actions button:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 2px; }
+  .actions button:disabled { opacity: .5; cursor: default; }
+  .actions button.primary { background: var(--green); border-color: var(--green-dark); color: #fff; }
+  .actions button.primary:hover:not(:disabled) { background: #61d800; }
+  #chat button[type="submit"] { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  #chat button[type="submit"]:hover { background: #3cc0ff; }
+  #chattext { border: 2px solid var(--line) !important; border-radius: 16px !important; padding: 12px 16px !important; background: var(--soft) !important; font-weight: 600; }
+  #chattext:focus { outline: none; border-color: var(--accent) !important; background: var(--card) !important; }
+  #feed { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+  .msg { border: 2px solid var(--line); border-left-width: 2px; padding: 12px 16px; background: var(--soft); border-radius: 16px; }
+  .msg.ok { border-color: var(--green); background: var(--ok-bg); }
+  .msg.bad { border-color: #ff4b4b; background: var(--bad-bg); }
+  .msg.help { border-color: var(--accent); background: var(--card); }
+  .msg strong { font-weight: 800; }
+  .msg small { display: block; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .msg input { border: 2px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); }
+  .badge { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 2px 10px; border-radius: 999px; margin-left: 6px; background: var(--warn-bg); color: var(--warn); }
+  .badge.revisado { background: var(--ok-bg); color: var(--ok); }
+  .msg img { max-width: 100%; margin-top: 8px; background: #fff; border-radius: 12px; }
+  .matrix { display: grid; grid-template-columns: repeat(13, 1fr); gap: 4px; padding: 14px; background: var(--board); border-radius: 16px; }
+  .matrix span { aspect-ratio: 1; border-radius: 50%; background: var(--led-off); }
+  .matrix span.on { background: var(--led-on); box-shadow: 0 0 8px var(--led-on); }
+  .muted { color: var(--muted); font-size: 14px; }
+  label.muted { display: flex; gap: 8px; align-items: center; font-weight: 700; }
+  input[type="checkbox"] { accent-color: var(--green); width: 18px; height: 18px; }
+  details.debug { margin-top: 6px; font-size: 13px; color: var(--muted); }
+  details.debug summary { cursor: pointer; font-weight: 800; color: var(--accent); }
+  details.debug pre { white-space: pre-wrap; margin: 4px 0 0; font: 12px/1.4 ui-monospace, monospace; }
+  body.nodebug details.debug { display: none; }
+  ol { padding-left: 22px; margin: 6px 0 0; }
 </style>
 </head>
 <body>
 <header>
-  <h1>M3Kang explorer</h1>
-  <span id="s-llm" class="pill">language model</span>
-  <span id="s-embed" class="pill">embeddings</span>
-  <span id="s-vision" class="pill">vision</span>
-  <span id="s-data" class="pill"></span>
-  <span class="score" id="score">You 0/0 · Model 0/0</span>
+  <h1>Tutor Cangur</h1>
+  <span class="pill" id="grade"></span>
+  <span class="pill" id="topic"></span>
+  <span class="pill" id="pid"></span>
 </header>
 <main>
+  <section>
+    <img class="problem-img" id="img" alt="Enunciat del problema">
+    <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
+    <div class="actions">
+      <button id="help" class="primary">Una pista</button>
+      <button id="solution">Veure la solució</button>
+      <button id="next">Següent problema</button>
+      <button id="modelhint">Pista del model (Qwen)</button>
+    </div>
+    <form id="chat" class="actions" autocomplete="off">
+      <input id="chattext" maxlength="200" placeholder="Escriu al tutor: «no ho entenc», «crec que és la B»…" aria-label="Escriu al tutor"
+        style="flex:1;min-width:220px;font:inherit;color:var(--ink)">
+      <button type="submit">Envia</button>
+    </form>
+    <div id="feed" aria-live="polite"></div>
+  </section>
   <aside>
-    <label>Language <select id="f-lang"><option value="">all</option></select></label>
-    <label>Level <select id="f-level"><option value="">all</option></select></label>
-    <label><input type="checkbox" id="f-options"> Only problems with OCR options</label>
-    <button class="secondary" id="random">Random problem</button>
-    <div id="list"></div>
+    <div>
+      <strong>Matriu LED de la placa</strong>
+      <p class="muted">Simulada a la pantalla: el mateix que es veurà a la UNO Q.</p>
+      <div class="matrix" id="matrix" aria-hidden="true"></div>
+    </div>
+    <label class="muted"><input type="checkbox" id="debugtoggle" checked> Mostra els detalls de prova (guardes i model)</label>
+    <div class="muted">
+      Les respostes es corregeixen amb la solució verificada del Cangur, no amb el model.
+      Cada ajuda indica d'on surt i si una persona l'ha revisada.
+    </div>
   </aside>
-  <div class="col">
-    <section>
-      <div class="meta" id="meta">Loading…</div>
-      <img id="img" class="problem-img" alt="">
-      <div class="text" id="text"></div>
-      <div class="ocr" id="ocr"></div>
-    </section>
-
-    <section>
-      <h2>1. Your answer</h2>
-      <div class="letters" id="mine"></div>
-      <div class="verdict" id="my-verdict"></div>
-    </section>
-
-    <section>
-      <h2>2. Ask the model</h2>
-      <div class="row">
-        <label>Solved examples (RAG)
-          <select id="rag"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
-        <label><input type="checkbox" id="vision"> Send the image (vision server, slow)</label>
-        <button class="primary" id="ask">Ask the model</button>
-        <span class="hint" id="asking"></span>
-      </div>
-      <div id="model"></div>
-    </section>
-
-    <section>
-      <h2>3. Similar solved problems (embeddings)</h2>
-      <div class="hint" id="sim-hint"></div>
-      <div class="similar" id="similar"></div>
-    </section>
-
-    <section class="row">
-      <button class="primary" id="next">Next problem</button>
-      <span class="hint">Keys: <kbd>A</kbd>–<kbd>E</kbd> answer · <kbd>M</kbd> ask the model · <kbd>N</kbd> next · <kbd>R</kbd> random</span>
-    </section>
-  </div>
 </main>
 <script>
-const $ = id => document.getElementById(id);
-const api = async (path, body) => {
-  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)} : {});
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || r.statusText);
-  return data;
+const TOPICS = { aritmetica: "Càlcul amb dades", algebra: "Número amagat (tempteig)", conteo: "Comptar", numeros: "Propietats dels números",
+  logica: "Lògica", patrones: "Patrons", geometria_plana: "Geometria plana", geometria_espacial: "Geometria de l'espai",
+  medida: "Mesura", visual: "Raonament visual", otros: "Altres" };
+const STATUS = { revisado: "revisat", preparado: "preparat", generado: "esborrany, no revisat", dataset: "problema del Cangur" };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const matrix = $("#matrix");
+for (let i = 0; i < 8 * 13; i++) matrix.append(document.createElement("span"));
+function draw(frames) {
+  if (!frames || !frames.length) return;
+  const grid = frames[frames.length - 1];
+  grid.flat().forEach((v, i) => matrix.children[i].classList.toggle("on", v > 0));
+}
+
+// GET routes with the arguments in the path: the same API on the laptop server and in the App Lab app
+async function api(action, body) {
+  body = body || {};
+  const enc = encodeURIComponent;
+  const path = action === "answer" ? `answer/${enc(body.letter)}`
+    : action === "respond" ? `respond/${enc(body.qid)}/${enc(String(body.value))}`
+    : action === "start" ? `start/${enc(body.key)}`
+    : action === "chat" ? `chat/${enc(body.text)}`
+    : action === "job" ? `job/${enc(body.id)}` : action;
+  const r = await fetch("api/" + path);
+  return r.json();
+}
+function say(html, kind) {
+  const div = document.createElement("div");
+  div.className = "msg " + (kind || "");
+  div.innerHTML = html;
+  $("#feed").prepend(div);
+}
+function badge(status) {
+  if (status === "generado:qwen") return `<span class="badge">generat pel model (Qwen), validat per les guardes</span>`;
+  if (status === "plantilla") return `<span class="badge">plantilla fixa</span>`;
+  const base = String(status || "").split(":")[0];
+  return base ? `<span class="badge ${esc(base)}">${esc(STATUS[base] || base)}</span>` : "";
+}
+
+function show(view) {
+  const p = view.problem;
+  $("#img").src = "img/" + encodeURIComponent(p.key) + ".png";
+  $("#grade").textContent = `${p.grade}è de primària · dificultat ${p.difficulty}`;
+  $("#topic").textContent = TOPICS[p.topic] || p.topic;
+  $("#pid").textContent = p.id;
+  $("#feed").innerHTML = "";
+  const box = $("#letters");
+  box.innerHTML = "";
+  for (const letter of "ABCDE") {
+    const b = document.createElement("button");
+    b.textContent = letter;
+    b.setAttribute("aria-label", `Resposta ${letter}: ${p.options[letter] ?? ""}`);
+    b.onclick = () => answer(letter, b);
+    box.append(b);
+  }
+  draw(view.frames);
+}
+
+async function answer(letter, button) {
+  const r = await api("answer", { letter });
+  if (r.error) return say(esc(r.error), "bad");
+  button.classList.add(r.correct ? "right" : "wrong");
+  if (r.correct) {
+    say(`<strong>Molt bé! La ${letter} és correcta.</strong>`, "ok");
+    document.querySelectorAll(".letters button").forEach(b => b.disabled = true);
+  } else {
+    button.disabled = true;
+    say(`<strong>La ${letter} no és correcta.</strong> Torna-ho a provar o demana una pista.`
+      + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : ""), "bad");
+  }
+  draw(r.frames);
+}
+
+$("#help").onclick = async () => {
+  const r = await api("help");
+  draw(r.frames);
+  showStep(r);
 };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 
-let info, all = [], shown = [], current = null, myChoice = null;
-const results = {};  // key -> {me: bool, model: bool}
-
-function setPill(id, up, text) { const el = $(id); el.textContent = text; el.className = "pill " + (up ? "up" : "down"); }
-
-function score() {
-  const v = Object.values(results);
-  const me = v.filter(r => "me" in r), model = v.filter(r => "model" in r);
-  $("score").textContent = `You ${me.filter(r => r.me).length}/${me.length} · Model ${model.filter(r => r.model).length}/${model.length}`;
-}
-
-function renderList() {
-  const lang = $("f-lang").value, level = $("f-level").value, opts = $("f-options").checked;
-  shown = all.filter(p => (!lang || p.language === lang) && (level === "" || String(p.level) === level) && (!opts || p.options));
-  $("list").innerHTML = shown.map(p => {
-    const r = results[p.key] || {};
-    const mark = ("me" in r ? (r.me ? "✓" : "✗") : "") + ("model" in r ? (r.model ? " ✓" : " ✗") : "");
-    return `<div data-key="${esc(p.key)}" class="${current && p.key === current.key ? "on" : ""}">
-      <span>L${p.level} · ${esc(p.id.replace(/^lvl-\d_/, ""))} · ${esc(p.language)}</span><span class="mark">${mark}</span></div>`;
-  }).join("");
-}
-
-async function open(key) {
-  current = await api("/api/problem?key=" + encodeURIComponent(key));
-  myChoice = null;
-  $("meta").textContent = `${current.id} · ${current.language} · level ${current.level}${current.year ? " · " + current.year : ""}`;
-  $("img").style.display = current.image ? "" : "none";
-  if (current.image) { $("img").src = "/image/" + encodeURIComponent(current.key); $("img").alt = "Problem " + current.id; }
-  $("text").textContent = current.text;
-  const o = current.options || {};
-  $("ocr").innerHTML = Object.keys(o).length
-    ? "Options read by OCR (what the model sees): " + "ABCDE".split("").map(l => `<b>${l})</b> ${esc(o[l])}`).join(" &nbsp; ")
-    : "OCR couldn't read the options. Without the image, the model sees only the question.";
-  $("mine").innerHTML = "ABCDE".split("").map(l => `<button data-l="${l}">${l}</button>`).join("");
-  $("my-verdict").textContent = ""; $("my-verdict").className = "verdict";
-  $("model").innerHTML = ""; $("asking").textContent = "";
-  renderList();
-  const row = document.querySelector(`#list div[data-key="${CSS.escape(key)}"]`);
-  if (row) row.scrollIntoView({block: "nearest"});
-  loadSimilar();
-}
-
-async function answer(letter) {
-  if (!current || myChoice) return;
-  myChoice = letter;
-  const r = await api("/api/check", {key: current.key, choice: letter});
-  (results[current.key] ||= {}).me = r.correct;
-  document.querySelectorAll("#mine button").forEach(b => {
-    b.disabled = true;
-    if (b.dataset.l === r.label) b.classList.add("right");
-    else if (b.dataset.l === letter) b.classList.add("wrong");
-  });
-  $("my-verdict").textContent = r.correct ? "Correct!" : `Not this time: the answer is ${r.label}.`;
-  $("my-verdict").className = "verdict " + (r.correct ? "ok" : "bad");
-  score(); renderList();
-}
-
-async function ask() {
-  if (!current) return;
-  const key = current.key, start = Date.now();
-  $("ask").disabled = true;
-  const tick = setInterval(() => $("asking").textContent = `Thinking… ${((Date.now() - start) / 1000).toFixed(0)} s`, 250);
-  try {
-    const r = await api("/api/ask", {key, rag: +$("rag").value, vision: $("vision").checked});
-    if (!current || current.key !== key) return;
-    (results[key] ||= {}).model = r.correct;
-    const limit = info.time_limit, over = r.seconds > limit;
-    document.querySelectorAll("#mine button").forEach(b => b.classList.toggle("model", b.dataset.l === r.answer));
-    $("model").innerHTML = `
-      <div class="verdict ${r.correct ? "ok" : "bad"}">The model says ${esc(r.answer)}: ${r.correct ? "correct" : "wrong, the answer is " + esc(r.label)}.</div>
-      <table>
-        <tr><td>Time</td><td>${r.seconds} s ${over ? `<b style="color:var(--bad)">over the ${limit} s limit</b>` : `(limit ${limit} s)`}</td></tr>
-        <tr><td>Prompt tokens</td><td>${r.prompt_tokens}</td></tr>
-        <tr><td>Status</td><td>${esc(r.status)}</td></tr>
-        ${r.examples.length ? `<tr><td>Examples used</td><td>${r.examples.map(e => `${esc(e.id)} (${e.score}, answer ${esc(e.label)})`).join(", ")}</td></tr>` : ""}
-      </table>
-      <p class="hint">Next: ${nextStep(r)}</p>
-      <details><summary>Prompt sent to the model</summary><pre>${esc(r.prompt)}</pre></details>`;
-    score(); renderList();
-  } catch (e) {
-    $("model").innerHTML = `<div class="verdict bad">${esc(e.message)}</div>`;
-  } finally {
-    clearInterval(tick); $("asking").textContent = ""; $("ask").disabled = false;
+function showStep(r) {
+  if (r.kind === "similar") {
+    const p = r.problem;
+    say(`<strong>Pista 1: un problema semblant, més fàcil.</strong>${badge("dataset")}
+      <small>Del mateix tipus, ${p.grade}è de primària. Mira com es resol i pensa què té en comú amb el teu.</small>
+      <img src="img/${encodeURIComponent(p.key)}.png" alt="Problema semblant ${esc(p.id)}">
+      <small>La resposta d'aquest problema és la ${esc(r.label)}.</small>`, "help");
+  } else if (r.kind === "method") {
+    say(`<strong>Pista 2: com s'enfoca aquest tipus de problema.</strong>${badge(r.status)}
+      <br>${esc(r.text)}<ol>${(r.steps || []).map(s => `<li>${esc(s)}</li>`).join("")}</ol>`, "help");
+  } else if (r.kind === "question") {
+    ask(r);
+  } else if (r.kind === "hint") {
+    say(`<strong>Pista: </strong>${esc(r.text)}${badge(r.status)}`, "help");
+  } else {
+    say("Ja no hi ha més pistes per a aquest problema. Si vols, pots veure la solució.", "help");
   }
 }
 
-function nextStep(r) {
-  if (r.status !== "ok") return "the model ran out of time. Use fewer examples, or a shorter prompt in copilot/llm.py.";
-  if (r.seconds > info.time_limit) return "the answer came too late to count. Images are for exploring, not for the official run.";
-  if (!current.options || !Object.keys(current.options).length)
-    return "the options are only in the picture, so the model is guessing. Try sending the image, or skip these problems.";
-  if (!r.correct && !r.examples.length && info.index) return "try again with 1 to 3 solved examples (RAG) and compare.";
-  if (!r.correct) return "open the prompt below and ask yourself what the model is missing. Then change copilot/llm.py and measure with eval.py.";
-  return "one right answer can be luck. Run eval.py on the whole validation set to see if a change really helps.";
+// --- Free text and the model: input guardrails, the model in the background, output guardrails ---
+const INTENT = { pista: "demana una pista", repetir: "vol que es repeteixi", siguiente: "vol el següent problema",
+  solucion: "vol la solució", progreso: "pregunta pel progrés", ayuda_app: "pregunta com funciona", eleccion: "respon amb una lletra",
+  math: "pregunta de mates → model", social: "salutació", offtopic: "fora de tema", injection: "intent de manipulació" };
+function debugBlock(d) {
+  if (!d) return "";
+  const lines = [`Entrada: ${d.input ?? "(botó)"}`, `Guarda d'entrada: ${INTENT[d.intent] || d.intent || "—"}`];
+  if ("accepted" in d) {
+    lines.push(`Model (${d.seconds} s, ${d.prompt_tokens ?? "?"} tokens llegits, ${d.generated_tokens ?? "?"} escrits): ${d.model_error || JSON.stringify(d.model_text)}`);
+    lines.push(`Guarda de sortida: ${d.accepted ? "acceptat" : "rebutjat (" + d.rail + "), es mostra la plantilla"}`);
+  }
+  return `<details class="debug"><summary>Detalls de prova</summary><pre>${esc(lines.join("\n"))}</pre></details>`;
+}
+async function waitJob(job, debugBefore) {
+  const div = document.createElement("div");
+  div.className = "msg help";
+  div.innerHTML = `<strong>El tutor està pensant…</strong><small>El model de la placa triga uns segons.</small>`;
+  $("#feed").prepend(div);
+  const started = Date.now();
+  while (true) {
+    await new Promise(res => setTimeout(res, 1000));
+    const r = await api("job", { id: job });
+    if (!r.done) { div.querySelector("small").textContent = `El model de la placa triga uns segons… (${Math.round((Date.now() - started) / 1000)} s)`; continue; }
+    draw(r.frames);
+    div.innerHTML = `<strong>Pista: </strong>${esc(r.text || r.error)}${badge(r.status)}${debugBlock(r.debug)}`;
+    return;
+  }
+}
+$("#modelhint").onclick = async () => {
+  const r = await api("modelhint");
+  draw(r.frames);
+  if (r.job) waitJob(r.job);
+};
+$("#chat").onsubmit = async e => {
+  e.preventDefault();
+  const text = $("#chattext").value.trim();
+  if (!text) return;
+  $("#chattext").value = "";
+  say(`<strong>Tu:</strong> ${esc(text)}`);
+  const r = await api("chat", { text });
+  draw(r.frames);
+  const dbg = debugBlock(r.debug);
+  if (r.error) return say(esc(r.error), "bad");
+  if (r.kind === "rail") {
+    say(`${esc(r.text)}${dbg}`, "help");
+    if (r.locked) { $("#chattext").disabled = true; $("#chattext").placeholder = "Fem servir els botons."; }
+  } else if (r.kind === "answer") {
+    say((r.correct ? "<strong>Molt bé, és correcta!</strong>" : "<strong>Aquesta no és correcta.</strong>")
+      + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : "") + dbg, r.correct ? "ok" : "bad");
+  } else if (r.kind === "help") {
+    showStep(r.step); if (dbg) say(dbg);
+  } else if (r.kind === "solution") {
+    say(`<strong>La resposta correcta és la ${esc(r.label)}.</strong>` + (r.text ? `<br>${esc(r.text)}${badge(r.status)}` : "") + dbg, "ok");
+  } else if (r.kind === "next" && r.view) {
+    show(r.view);
+  } else if (r.kind === "job") {
+    waitJob(r.job);
+  }
+};
+$("#debugtoggle").onchange = e => document.body.classList.toggle("nodebug", !e.target.checked);
+
+const QTITLE = { compare: "Compara", guide: "Pensa", checkpoint: "Comprova un pas" };
+function ask(q) {
+  const div = document.createElement("div");
+  div.className = "msg help";
+  const title = QTITLE[q.qid.split(" ")[0]] || "Pregunta";
+  div.innerHTML = `<strong>${esc(title)}:</strong> ${esc(q.text)}${badge(q.status)}<div class="actions"></div><small class="reply"></small>`;
+  const row = div.querySelector(".actions"), reply = div.querySelector(".reply");
+  const send = async value => {
+    const r = await api("respond", { qid: q.qid, value });
+    if (r.error) { reply.textContent = r.error === "write a number" ? "Escriu un número." : r.error; return; }
+    draw(r.frames);
+    if (r.correct === null) { reply.textContent = "Molt bé. Quan ho tinguis, demana el pas següent."; row.remove(); return; }
+    reply.textContent = (r.correct ? "Correcte! " : "Encara no. ") + (r.feedback || "");
+    reply.style.color = r.correct ? "var(--ok)" : "var(--bad)";
+    if (r.correct) row.querySelectorAll("button, input").forEach(e => e.disabled = true);
+  };
+  if (q.type === "reflect") {
+    const b = document.createElement("button"); b.textContent = "Fet"; b.onclick = () => send("fet"); row.append(b);
+  } else if (q.type === "choice") {
+    q.choices.forEach((c, i) => { const b = document.createElement("button"); b.textContent = c; b.onclick = () => send(i); row.append(b); });
+  } else {
+    const input = document.createElement("input");
+    input.inputMode = "decimal"; input.setAttribute("aria-label", "La teva resposta"); input.style.cssText = "font:inherit;width:120px;padding:6px 10px";
+    const b = document.createElement("button"); b.textContent = "Comprova";
+    b.onclick = () => send(input.value);
+    input.onkeydown = e => { if (e.key === "Enter") send(input.value); };
+    row.append(input, b);
+  }
+  $("#feed").prepend(div);
 }
 
-async function loadSimilar() {
-  $("similar").innerHTML = "";
-  if (!info.index) { $("sim-hint").textContent = "No retrieval index yet. Build it with: python3 build_index.py --only-with-options"; return; }
-  if (!info.embed) { $("sim-hint").textContent = "The embedding server is down (port 8082)."; return; }
-  const key = current.key;
-  $("sim-hint").textContent = "Searching…";
-  const hits = await api(`/api/similar?key=${encodeURIComponent(key)}&k=3`);
-  if (current.key !== key) return;
-  $("sim-hint").textContent = "The training problems whose embeddings are closest to this one. A score near 1 means very similar. With RAG, the model sees the top ones as solved examples.";
-  $("similar").innerHTML = hits.map(h => `
-    <div class="sim"><b>${h.score}</b> · ${esc(h.id)} · level ${h.level} · answer <b>${esc(h.label)}</b>
-      ${h.image ? `<img loading="lazy" src="/image/${encodeURIComponent(h.key)}" alt="Similar problem ${esc(h.id)}">` : `<div class="text">${esc(h.text)}</div>`}
-    </div>`).join("");
-}
+$("#solution").onclick = async () => {
+  const r = await api("solution");
+  draw(r.frames);
+  say(`<strong>La resposta correcta és la ${esc(r.label)}.</strong>`
+    + (r.text ? `<br>${esc(r.text)}${badge(r.status)}` : `<small>Encara no tenim una solució explicada per a aquest problema.</small>`), "ok");
+};
 
-function next(randomly) {
-  if (!shown.length) return;
-  const i = shown.findIndex(p => current && p.key === current.key);
-  const j = randomly ? Math.floor(Math.random() * shown.length) : (i + 1) % shown.length;
-  open(shown[j].key);
-}
+$("#next").onclick = async () => {
+  const r = await api("next");
+  if (r.error) return say(esc(r.error));
+  show(r);
+};
 
-async function main() {
-  info = await api("/api/info");
-  setPill("s-llm", info.llm, "language model " + (info.llm ? "up" : "down"));
-  setPill("s-embed", info.embed, "embeddings " + (info.embed ? "up" : "down"));
-  setPill("s-vision", info.vision, "vision " + (info.vision ? "up" : "off"));
-  $("s-data").textContent = `${info.count} problems · ${info.images} images · ${info.index} in index`;
-  $("vision").disabled = !info.vision;
-  $("rag").disabled = !info.index;
-  info.languages.forEach(l => $("f-lang").insertAdjacentHTML("beforeend", `<option>${esc(l)}</option>`));
-  info.levels.forEach(l => $("f-level").insertAdjacentHTML("beforeend", `<option>${l}</option>`));
-  all = await api("/api/problems");
-  renderList();
-  if (shown.length) open(shown[0].key);
-}
-
-$("list").addEventListener("click", e => { const d = e.target.closest("div[data-key]"); if (d) open(d.dataset.key); });
-$("mine").addEventListener("click", e => { if (e.target.dataset.l) answer(e.target.dataset.l); });
-["f-lang", "f-level", "f-options"].forEach(id => $(id).addEventListener("change", renderList));
-$("ask").addEventListener("click", ask);
-$("next").addEventListener("click", () => next(false));
-$("random").addEventListener("click", () => next(true));
-document.addEventListener("keydown", e => {
-  if (e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
-  const k = e.key.toUpperCase();
-  if ("ABCDE".includes(k) && k.length === 1) answer(k);
-  else if (k === "M") ask();
-  else if (k === "N") next(false);
-  else if (k === "R") next(true);
-});
-main();
+api("state").then(show);
 </script>
 </body>
 </html>

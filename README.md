@@ -1148,6 +1148,8 @@ The error analysis is part of what you publish. `eval.py` already prints accurac
 
 M3Kang has no topic field, so you'll need to add one: cluster the embeddings, look for keywords, or label 50 problems by hand. Then look at 10 wrong answers one by one, in the [explorer](#optional-explore-the-problems-in-your-browser), and write down why the model got them wrong.
 
+Once the teaching catalogue has topic labels, run [`error_report.py`](error_report.py) on an `eval.py` CSV for a local report by topic, language, difficulty, and option quality, plus a small manual-review queue. [`analyze_errors.py`](analyze_errors.py) prints accuracy tables with confidence intervals and compares two runs problem by problem (`--compare`). See [the error-analysis guide](docs/error-analysis.md) for commands and interpretation.
+
 ### 14.4 Add the LED matrix and a web page
 
 The datathon uses no external modules: the board's 8x13 LED matrix is the only hardware you add. Students answer on a web page, and the board answers on the matrix: a letter, a tick or a cross, a level, or vote counts.

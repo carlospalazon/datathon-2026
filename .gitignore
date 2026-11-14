@@ -19,3 +19,4 @@ __pycache__/
 
 # App Lab build: holds M3Kang data
 applab/build/
+venv/

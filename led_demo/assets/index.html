@@ -5,11 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Math Copilot LED demo</title>
   <style>
-    body { font: 18px system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #18324c; }
-    button { font: inherit; min-width: 54px; min-height: 50px; margin: 5px; cursor: pointer; }
-    #status { min-height: 54px; padding: 12px; background: #eef5f5; border-radius: 8px; }
+    /* Design inspired by Duolingo */
+    :root { --ink: #4b4b4b; --muted: #777; --line: #e5e5e5; --bg: #fff; --soft: #f7f7f7; --accent: #1cb0f6; --accent-dark: #1899d6; --green: #58cc02; }
+    @media (prefers-color-scheme: dark) { :root { --ink: #f1f7fb; --muted: #afafaf; --line: #37464f; --bg: #131f24; --soft: #202f36; --accent: #49c0f8; } }
+    body { font: 18px/1.5 "Nunito", "DIN Round Pro", ui-rounded, "SF Pro Rounded", system-ui, sans-serif; font-weight: 600; max-width: 640px; margin: 40px auto; padding: 0 20px; color: var(--ink); background: var(--bg); }
+    h1 { font-size: 28px; font-weight: 800; color: var(--green); margin-bottom: 4px; }
+    h1::before { content: "\1F998  "; }
+    button { font: inherit; font-weight: 800; font-size: 16px; min-width: 64px; min-height: 52px; margin: 6px 8px 6px 0; padding: 8px 20px; cursor: pointer; border: 2px solid var(--line); border-bottom-width: 5px; border-radius: 16px; background: var(--bg); color: var(--ink); transition: transform .05s; }
+    button:hover { background: var(--soft); border-color: var(--accent); color: var(--accent); }
+    button:active { transform: translateY(3px); border-bottom-width: 2px; }
+    #hint { background: var(--green); border-color: #58a700; color: #fff; text-transform: uppercase; letter-spacing: .6px; }
+    #hint:hover { background: #61d800; color: #fff; border-color: #58a700; }
+    #reset { color: var(--accent); text-transform: uppercase; letter-spacing: .6px; }
+    #status { min-height: 54px; padding: 14px 18px; background: #ddf4ff; border: 2px solid var(--accent); border-radius: 16px; color: #1899d6; font-weight: 700; }
+    @media (prefers-color-scheme: dark) { #status { background: #202f36; color: var(--accent); } }
     .choices { display: flex; flex-wrap: wrap; }
-    small { display: block; color: #53616b; margin-top: 24px; }
+    small { display: block; color: var(--muted); margin-top: 24px; font-size: 14px; }
   </style>
 </head>
 <body>
