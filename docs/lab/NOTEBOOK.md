@@ -280,11 +280,17 @@ never problem text (M3Kang is research-use only).
           --input data/val.jsonl --languages eng,cat --limit 0 --prefix v3 --report v3_models.md
 
   Leave `REASON_MAX_TOKENS`, `PRESOLVE`, `OPTION_ORDERS` unset. For the untuned model use
-  `ANSWER_MODE=think`. Prefer plain `eval.py` for the number shown to the owner: `compare_models.py`
-  always passes a zero `LETTER_BIAS_FILE`, so its last-resort letter goes through the logprobs call,
-  not the call `predict.py` makes. For the board, the same three settings go in `config.env`.
-  Accept the run only if the CSV says `working = budget` on every row with options; `fixed` rows mean
-  the server did not count and the run is not the token-budget number. Board time per problem is
+  `ANSWER_MODE=think`. **Use plain `eval.py` for the number shown to the owner, on validation too**
+  (`--input data/val.jsonl --languages eng,cat --limit 0` against a server you started):
+  `compare_models.py` always passes a zero `LETTER_BIAS_FILE`, so every problem without options (223 of
+  the 562) and every last-resort letter goes through the logprobs call, not the call `predict.py`
+  makes. It also puts all `--models` in one `SAVE_TEXTS` file with no model name: one model per run.
+  The board's settings file gets the same three settings, and the laptop run must use the same two
+  speeds as the board: the budget, and so the letters, change with them.
+  **Accept a run only if** every row with options has `working = budget` (`fixed` = the server did not
+  count the prompt) **and no row has `letter_from = direct`** (no "letter from direct" line in eval's
+  summary). `direct` on a row with options means the working or the forced letter failed or timed
+  out: the clock decided, which is what M2 excludes. Board time per problem is
   `prompt_tokens / 11 + written_tokens / 6` from the CSV (eval's own seconds are this computer's).
 - **Not verified without a model server:**
   1. That `/apply-template` renders the same prompt the chat endpoint builds with `--reasoning off`
@@ -293,8 +299,9 @@ never problem text (M3Kang is research-use only).
   2. That the board's llama-server build has `/apply-template` and `/tokenize`. If not, every row says
      `fixed` and the letter is never forced as a continuation.
   3. The speeds 11 and 6 on the board for the tuned file. If the board is slower, the timeout fires at
-     57 s, the working is lost and only 3 s remain for the plain letter: set the two speeds at or
-     below what is measured, and look at the worst `seconds` of a board run.
+     57 s, the working is lost and only 3 s remain for the plain letter. A full budget is planned to
+     end about 1/6 s before that timeout, so there is no slack: set the two speeds below what is
+     measured, and look at the worst `seconds` and for `direct` rows in a board run.
   4. Two real runs giving 100 identical letters (M2's own test), and that the forced letter reuses the
      server's prompt cache (it should: same prefix).
   5. `find_letter` on real texts (think mode); the saved texts make this a CPU job.

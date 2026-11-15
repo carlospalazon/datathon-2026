@@ -189,6 +189,8 @@ class EvalMain(unittest.TestCase):
             r = {"answer": "A", "seconds": 1.5, "status": "ok", "prompt_tokens": 7, "retrieved": ""}
             if has_lp:
                 r.update(logprobs={"A": -0.1, "B": -2, "C": -3, "D": -4, "E": -5}, passes=2)
+                r.update(budget_tokens=282, written_tokens=40, finished=True, working="budget",
+                         letter_from="working")
             return r
 
         cwd = os.getcwd()
@@ -217,7 +219,11 @@ class EvalMain(unittest.TestCase):
             self.assertEqual(list(rows[0])[11:], ["topic", "needs_figure", "passes"] +
                              [f"lp_{l}" for l in "ABCDE"] +
                              ["budget_tokens", "written_tokens", "finished", "working", "letter_from"])
-            self.assertEqual({r["working"] for r in rows}, {""})  # no working mode: all empty
+            worked = {(r["id"], r["language"]): r for r in rows}
+            self.assertEqual([worked[("q1", "eng")][c] for c in list(rows[0])[-5:]],
+                             ["282", "40", "1", "budget", "working"])
+            self.assertEqual([worked[("q2", "eng")][c] for c in list(rows[0])[-5:]], [""] * 5)
+            self.assertIn("letter from working", text)
             by_id = {(r["id"], r["language"]): r for r in rows}
             self.assertEqual(by_id[("q1", "eng")]["topic"], "conteo")
             self.assertEqual(by_id[("q1", "eng")]["lp_A"], "-0.1")
