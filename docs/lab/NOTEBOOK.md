@@ -211,3 +211,20 @@ never problem text (M3Kang is research-use only).
   closes brainstorm A idea 4). More training data comes only from code: the generators in
   `laptop/synthetic_problems.py` (answers and working computed by the program), new generators, and
   openly licensed public datasets. The owner may decide otherwise in the morning.
+
+### 2026-11-15 02:24 · Coordinator (as Engineer) · Mixed training started
+- **Tried:** the first Engineer agent did nothing for 30 minutes and was stopped; the coordinator made
+  its changes. Commit 49c69b8: the reasoning target now ends "<value> is option X.\nAnswer: X"; the
+  builder's leak guards cover `data/val.jsonl` and `data/demo/train.jsonl` (331 ids, 1,313 texts,
+  both assertions passed on the rebuilt `data/training_v2`).
+- **Running:** `v3_mix`, Qwen3.5 0.8B, 2,500 steps, batch 2 with accumulation 2, rank 8 on 12 layers,
+  lr 1e-4, checkpoints every 250 in `~/unoq-local/ft/adapters_v3_mix`, log `~/unoq-local/ft/logs/v3_mix.log`.
+  Set (`~/unoq-local/ft/v3_mix`): 10,883 rows = Cangur with checked solution 3,883 (eng 1,925, cat 1,958),
+  synthetic 6,000 (eng/cat/esp, 57 generators), AQuA 1,000; dev = 264 held-out Cangur rows.
+  Started 02:23, about 22 steps a minute, so it should end near 04:15.
+- **Next round, when it ends:** pick the checkpoint with the lowest dev loss in the log; convert with
+  `~/unoq-local/train-venv/bin/python laptop/adapter_to_gguf.py --adapter ~/unoq-local/ft/adapters_v3_mix
+  --checkpoint N --name ft-v3-mix-sN`; print 5 raw outputs; score through the predict path
+  (`ANSWER_MODE=reason`, `eval.py`/`compare_models.py`) on demo and on validation, and with
+  `bench_exam.py ... :11:6:tuned` for the board-time view.
+- **GPU is busy until then:** nothing that starts a model.
