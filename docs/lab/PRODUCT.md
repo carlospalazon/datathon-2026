@@ -9,14 +9,17 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 1 | **"One like this, but yours."** After a wrong answer (or on request), generate a fresh problem of the same kind with smaller numbers, solvable in a minute, then return to the original. | Practice on the exact skill that failed, never the same problem twice, nothing to memorise. | synthetic generators (computed answers, worked solutions, 3 languages), topic of the current problem | **built** (2026-11-15; smallest of 8 draws rather than purpose-made small numbers) |
 | 2 | **Mistake names on generated problems.** Each wrong option of a generated problem is the result of a known slip: say which ("you added the prices but forgot the quantities"), without giving the answer. | Feedback that is specific, instant and needs no model. | generators' wrong-option formulas, `copilot/diagnose.py` | **built** (2026-11-15; 16 generators, slips worked out again from `params`) |
 | 3 | **Cangur exam mode.** A timed paper built from the catalogue by level, with the real scoring (3/4/5 points, a quarter of the points lost per wrong answer, blank is free), a countdown on the LED matrix, and a review at the end that leads into the tutor. | The real competition experience; shows when leaving a blank is the right call. | catalogue levels, LED matrix, student memory | **built** (2026-11-15; scoring settings need checking; the student memory is not fed) |
-| 4 | **Skill map.** One screen (and a matrix view) of the student's topics by level: tried, mastered, shaky, with "what to try next". A teacher view of the class as a heat map, by pseudonym. | Students see progress; teachers see where the class is stuck. | SQLite student memory, topics | open |
+| 4 | **Skill map.** One screen (and a matrix view) of the student's topics by level: tried, mastered, shaky, with "what to try next". A teacher view of the class as a heat map, by pseudonym. | Students see progress; teachers see where the class is stuck. | SQLite student memory, topics | **built** (2026-11-15; students take turns at one board; not seen in a real browser) |
 | 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | open |
 | 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked solution and two wrong methods that also give that number). | Checks understanding, not luck. | checked solutions, generators' typical mistakes | open |
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | open |
-| 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | open |
+| 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | half built (2026-11-15: the skill map records it and names a slip that comes back; the tutor's own choice of help and of next problem does not use it yet) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
-| 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | open |
+| 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | half built (2026-11-15: the skill map records every question of a paper handed in; the queue is not built) |
+| 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | open |
+| 15 | **The class from several boards.** Each board saves its map file; the teacher's laptop reads the files of all the boards into one class view, and prints it. | A class has more than one board, and the teacher wants it on paper. | `copilot/skillmap.py` tables in the profile file | open |
+| 16 | **Come back as the same animal after a restart on the board.** The App Lab app keeps the map in a file on the board, and each animal's tutor memory with it. | Today the board forgets the class when the app restarts. | `copilot/skillmap.py`, `applab/math-tutor/python/main.py` | open |
 | 13 | **Printable paper and answer sheet for the class.** The teacher starts one paper, every device gets the same questions, and the board shows the shared countdown. | A whole class sits the same mock exam with one board. | `copilot/exam.py` (seeded papers), LED matrix | open |
 | 8 | **Class duel.** Two students (or two halves of the class) answer the same problem on two devices; the matrix shows the vote split before the answer is revealed. | Makes the board the centre of a classroom debate. | LED matrix, web page | open |
 
@@ -137,3 +140,61 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   One paper at a time for the whole server, as with the tutor's session. No Spanish; the Catalan
   needs a native read.
 - **Commit:** see `git log -1 -- copilot/exam.py`
+
+
+### 2026-11-15 06:40 · Skill map (backlog 4, and half of 9 and 12)
+- **What:** "El meu mapa": one screen with every topic of 5th and 6th of primary as a tile that says
+  "Per provar", "Començat", "Per reforçar" or "Segur", with a dot per recent Cangur problem (filled
+  when it was right the first time), the practice problems and exam blanks counted beside them, and
+  a slip that came back twice named in a sentence. On top, up to three "Què pots provar ara" cards
+  (the topic that goes worst first, as the tutor's own rule does) whose button opens a problem of
+  that topic in the tutor. New module `copilot/skillmap.py`: one record per problem, written by the
+  tutor (every answer and every solution shown, through a new optional `observer` on `Tutor`), by
+  the practice card (the first click only) and by the exam (each question of a paper handed in,
+  by the student or by the clock, once). A problem missed in an exam and then solved with the
+  tutor stays one record that improves. A topic is "Segur" only with 3 first-time right answers
+  among the last 5 Cangur problems; practice never makes it so. **Students take turns at the
+  board:** "Alumne nou" gives the next one the name of an animal (Guineu, Mussol, Dofí...), a tutor,
+  practice card and exam of their own and an empty map; the buttons with the animals bring one
+  back with their problem still on screen. **"Vista de la classe"** is one row per animal and one
+  column per topic, in seating order, with no marks and no ranking, and a list of where the class
+  is stuck; "Classe d'exemple" shows the same view with eight made-up students, marked as invented
+  and kept nowhere. **LED matrix:** a column per topic, taller the more solid, and a dot on the top
+  row over what to try next (for the class: taller the more students have it solid, the dot over
+  the topic where most are stuck). Five endpoints (`skillmap`, `classmap`, `classsample`,
+  `studentnew`, `student/<n>`) in `teach/server.py` and in the App Lab app. With `--profile` the
+  map and the pseudonyms are kept in two tables of their own in that file.
+- **Why:** the student sees that the work adds up and gets a next step that is theirs; the
+  teacher sees in one look which topic to take to the blackboard, without a single name or mark.
+  Practice and exam now leave a trace, which rounds 1 and 2 did not.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650. Answer the first
+  problem wrong once, click **"Prova'n un de semblant, però teu"** and one option, then click the
+  green **"El meu mapa"** (top right): the "Mesura" tile is no longer dashed and the matrix under
+  the page shows a column. Click **"Prova'n un"** on a card to get a problem of that topic. Back
+  on the map: **"Alumne nou"** (the map empties and the name changes), then the first animal's
+  button to come back. **"Vista de la classe"**, then **"Classe d'exemple"** for a full table.
+  For the exam: "Mode examen", a "Tast", hand it in, "Torna al tutor", "El meu mapa".
+- **Tests / checks run:** `python3 -m pytest -q`: 302 passed, none skipped (26 new in
+  `tests/test_skillmap.py` on a made-up catalogue: the words, the three sources, once per practice
+  problem and per paper, a blank is not a miss, one record per problem, what to try next, nothing
+  with a text, a solution or a right letter in what is sent, pseudonyms, the class view, the sample
+  marked, a restart with a profile file, the matrix frames, and the server's turn-taking; the page
+  harness now clicks 9 steps, two of them through the map, a new student and the class view).
+  Real catalogue, server started from a Python script on a free port, with and without
+  `--profile`: empty map with three suggestions, tutor, practice and exam counted as expected, no
+  `label`, `options`, `text`, `solution` or `hints` in the map, a suggestion opened, a new student
+  and back, the sample class, a change of student refused while a paper runs, help, solution and
+  exam still answering, the map restored after a restart; server stopped. `node --check` on the
+  page script (run from Python): OK. `applab/package.py` built into a scratch folder and the app's
+  `main.py` imported there with stand-ins for the board's libraries: the same flow through its 26
+  routes, and the matrix drawn.
+- **Not done:** not seen in a real browser (the harness sees no CSS or layout) and not run on the
+  board. The tutor does not use the map: `next_problem` and the help ladder still read only the
+  tutor's own memory (backlog 14). On the board the map is in memory and is lost when the app
+  restarts (16); on the laptop only the first student's tutor memory goes to the profile file, the
+  others keep theirs until the server stops (their maps are saved). One class per board (15).
+  Anyone at the board can pick any animal: there is no lock, and the class view is not hidden from
+  students. A practice card left open while another student sits down is not counted. The model's
+  read-ahead on the board starts again for each new student. No Spanish or English page text; the
+  Catalan (and the animal names as pseudonyms) needs a native read.
+- **Commit:** see `git log -1 -- copilot/skillmap.py`

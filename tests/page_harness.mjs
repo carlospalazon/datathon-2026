@@ -2,7 +2,7 @@
 //
 // A small, strict stand-in for the DOM (enough for this page, and it throws on anything it
 // does not know), the page's own script run against a live teach/server.py, and a click path
-// through the tutor, the practice card and the exam. It fails on a script error, an unhandled
+// through the tutor, the practice card, the exam and the skill map. It fails on a script error, an unhandled
 // rejection, or "undefined", "NaN" or "null" on screen. It cannot see CSS, layout, images or focus.
 // Run by tests/test_page.py on a made-up catalogue.
 
@@ -262,6 +262,52 @@ if (doc.querySelector("#exambtn")) await step("exam: the result, the review with
   check(pane.querySelectorAll(".paperpick button").length >= 1, "another paper can be chosen");
   await click(pane.querySelector(".eleave"));
   check(!$("#tutorpane").hidden && /Mode examen/.test($("#exambtn").textContent), "back to the tutor");
+});
+
+if (doc.querySelector("#mapbtn")) await step("the skill map: what was done, what to try next, and the class", async () => {
+  await click($("#mapbtn"));
+  const map = $("#mappane");
+  check($("#tutorpane").hidden && !map.hidden && $("#exambtn").hidden && $("#mapbtn").hidden, "the map takes the place of the tutor");
+  check(map.querySelectorAll(".tile").length >= 1, "a tile per topic");
+  check(map.querySelectorAll(".tile").some(t => !t.classList.contains("new")), "the tutor's answers reached the map");
+  check(/a la primera/.test(map.textContent), "a count of first-time answers");
+  check(/de pràctica/.test(map.textContent), "the practice card reached the map");
+  check(lit() > 0, "the map on the matrix");
+  check(map.querySelectorAll(".nexts button").length >= 1, "something to try next");
+  await click(map.querySelector(".mclass"));
+  check(map.querySelectorAll(".heat tbody tr").length === 1, "one student in the class so far");
+  check(map.querySelectorAll(".heat thead th").length >= 2, "a column per topic");
+  await click(map.querySelector(".mother"));
+  check(map.querySelector(".csample") && map.querySelectorAll(".heat tbody tr").length > 3, "a sample class, marked as made up");
+  await click(map.querySelector(".mother"));
+  check(!map.querySelector(".csample") && map.querySelectorAll(".heat tbody tr").length === 1, "and back to the real class");
+  await click(map.querySelector(".mback"));
+  check(map.querySelectorAll(".tile").length >= 1, "back to the map");
+});
+
+if (doc.querySelector("#mapbtn")) await step("the map: a new student, back to the first one, and a problem picked from the map", async () => {
+  const map = $("#mappane");
+  const me = map.querySelector(".mname").textContent, mine = $("#img").src;
+  map.querySelector(".seatnew").click(); map.querySelector(".seatnew").click();  // a double click
+  await settle();
+  check(map.querySelector(".mname").textContent !== me, "another pseudonym");
+  check(map.querySelectorAll(".seats button").length === 3, "a double click seats one new student");
+  check(map.querySelectorAll(".tile").every(t => t.classList.contains("new")), "an empty map for the new student");
+  check(!map.hidden && $("#tutorpane").hidden, "still on the map");
+  await click(map.querySelector(".mclass"));
+  check(map.querySelectorAll(".heat tbody tr").length === 2, "two students in the class");
+  check(map.querySelectorAll(".heat tr.me").length === 1, "the one at the board is marked");
+  await click(map.querySelector(".mback"));
+  await click(map.querySelectorAll(".seats button")[0]);
+  check(map.querySelector(".mname").textContent === me, "the first student is back");
+  check(map.querySelectorAll(".tile").some(t => !t.classList.contains("new")), "with their map");
+  check($("#img").src === mine, "and their problem");
+  await click(map.querySelector(".nexts button"));
+  check(map.hidden && (!$("#tutorpane").hidden || !$("#exampane").hidden), "the suggestion leaves the map");
+  if (!$("#tutorpane").hidden) {
+    check(!$("#mapbtn").hidden && letters().length === 5 && letters().every(b => !b.disabled), "a problem ready to answer");
+    check(/mapa/.test($("#feed").firstElementChild.textContent), "and a line saying where it came from");
+  }
 });
 
 for (const t of timers) clearInterval(t);

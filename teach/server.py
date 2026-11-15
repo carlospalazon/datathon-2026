@@ -24,6 +24,7 @@ from copilot.assistant import Assistant  # noqa: E402
 from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
+from copilot.skillmap import SkillMap, sample_class  # noqa: E402
 from copilot.tutor import STATUSES, Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,69 +63,104 @@ class App:
         self.problems = load_problems(args)
         with open(os.path.join(ROOT, args.types)) as f:
             types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
-        self.tutor = Tutor(self.problems, types, show=set(args.show.split(",")),
-                           profile_path=args.profile or None)
-        self.assistant = Assistant(self.tutor)
-        self.practice = Practice(args.language)  # "one like this, but yours": apart from the tutor's session
-        self.exam = Exam(self.problems)  # exam mode: a timed paper, also apart from the tutor's session
+        self.types = types
+        # The skill map: fed by the tutor, the practice card and the exam; kept in the profile file if there is one
+        self.skills = SkillMap(self.problems, path=args.profile or None, language=args.language)
+        self.seats = {}  # pseudonym -> that student's own tutor, practice card, exam and problem on screen
         self.lock = threading.Lock()
-        first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
-        self.view = self.tutor.start(first["key"])
+        self.sit(self.skills.student)
+
+    def sit(self, student):
+        """Hand the board to a student: each has a tutor, a practice card and an exam of their own."""
+        if getattr(self, "seat", None):
+            self.seat["view"] = self.view
+        if student not in self.seats:
+            # The profile file keeps the tutor's memory of the first student; the others live in memory
+            tutor = Tutor(self.problems, self.types, show=set(self.args.show.split(",")),
+                          profile_path=(self.args.profile or None) if not self.seats else None)
+            tutor.observer = lambda kind, problem, detail=None: self.skills.tutor_event(kind, problem, detail, student)
+            first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
+            self.seats[student] = {"tutor": tutor, "assistant": Assistant(tutor),
+                                   "practice": Practice(self.args.language),  # "one like this, but yours"
+                                   "exam": Exam(self.problems),               # exam mode: a timed paper
+                                   "view": tutor.start(first["key"])}
+        self.seat = self.seats[student]
+        self.tutor, self.assistant = self.seat["tutor"], self.seat["assistant"]
+        self.practice, self.exam, self.view = self.seat["practice"], self.seat["exam"], self.seat["view"]
+
+    def map(self):
+        return with_frames(self.skills.view(seen=self.tutor.seen, home=self.tutor.current["problem"]["level"]))
 
     def call(self, action, body):
         with self.lock:
-            if action == "state":
-                return with_frames({**self.view, "events": self.view["events"]})
-            if action == "answer":
-                return with_frames(self.tutor.answer(body.get("letter", "")))
-            if action == "help":
-                return with_frames(self.tutor.help())
-            if action == "respond":
-                return with_frames(self.tutor.respond(body.get("qid"), body.get("value", "")))
-            if action == "solution":
-                return with_frames(self.tutor.solution())
-            if action == "next":
-                view = self.tutor.next_problem()
-                if view is None:
-                    return {"error": "no queden problemes"}
-                self.view = view
-                return with_frames(view)
-            if action == "chat":
-                result = self.assistant.chat(body.get("text", ""))
-                if result["kind"] == "next" and result.get("view"):
-                    self.view = result["view"]
-                return with_frames(result)
-            if action == "modelhint":
-                return with_frames({"kind": "job", "job": self.assistant.model_hint(),
-                                    "events": [{"event": "thinking"}]})
-            if action == "job":
-                return with_frames(self.assistant.job(body.get("id", 0)))
-            if action == "practiceok":  # can the page offer a practice problem for the one on screen?
-                return {"available": self.practice.available(self.tutor.current["problem"]["topic"])}
-            if action == "practice":
-                view = self.practice.new(self.tutor.current["problem"]["topic"])
-                return with_frames(view) if view else {"error": "no practice for this kind of problem"}
-            if action == "practiceanswer":
-                return with_frames(self.practice.answer(body.get("letter", "")))
-            if action == "practicesolution":
-                return with_frames(self.practice.solution())
-            if action == "examinfo":
-                return self.exam.info()
-            if action == "examstart":
-                return with_frames(self.exam.start(body.get("level"), body.get("paper", "")))
-            if action == "examstate":
-                return with_frames(self.exam.state())
-            if action == "examanswer":
-                return with_frames(self.exam.answer(body.get("n"), body.get("letter", "")))
-            if action == "examtick":
-                return with_frames(self.exam.tick())
-            if action == "examfinish":
-                return with_frames(self.exam.finish())
-            if action == "examclose":
-                return with_frames(self.exam.close())
-            if action == "start" and body.get("key") in self.tutor.problems:
-                self.view = self.tutor.start(body["key"])
-                return with_frames(self.view)
+            result = self.act(action, body)
+            self.skills.after(action, self.tutor, self.practice, self.exam, result)
+            return result
+
+    def act(self, action, body):
+        if action == "state":
+            return with_frames({**self.view, "events": self.view["events"]})
+        if action == "answer":
+            return with_frames(self.tutor.answer(body.get("letter", "")))
+        if action == "help":
+            return with_frames(self.tutor.help())
+        if action == "respond":
+            return with_frames(self.tutor.respond(body.get("qid"), body.get("value", "")))
+        if action == "solution":
+            return with_frames(self.tutor.solution())
+        if action == "next":
+            view = self.tutor.next_problem()
+            if view is None:
+                return {"error": "no queden problemes"}
+            self.view = view
+            return with_frames(view)
+        if action == "chat":
+            result = self.assistant.chat(body.get("text", ""))
+            if result["kind"] == "next" and result.get("view"):
+                self.view = result["view"]
+            return with_frames(result)
+        if action == "modelhint":
+            return with_frames({"kind": "job", "job": self.assistant.model_hint(),
+                                "events": [{"event": "thinking"}]})
+        if action == "job":
+            return with_frames(self.assistant.job(body.get("id", 0)))
+        if action == "practiceok":  # can the page offer a practice problem for the one on screen?
+            return {"available": self.practice.available(self.tutor.current["problem"]["topic"])}
+        if action == "practice":
+            view = self.practice.new(self.tutor.current["problem"]["topic"])
+            return with_frames(view) if view else {"error": "no practice for this kind of problem"}
+        if action == "practiceanswer":
+            return with_frames(self.practice.answer(body.get("letter", "")))
+        if action == "practicesolution":
+            return with_frames(self.practice.solution())
+        if action == "examinfo":
+            return self.exam.info()
+        if action == "examstart":
+            return with_frames(self.exam.start(body.get("level"), body.get("paper", "")))
+        if action == "examstate":
+            return with_frames(self.exam.state())
+        if action == "examanswer":
+            return with_frames(self.exam.answer(body.get("n"), body.get("letter", "")))
+        if action == "examtick":
+            return with_frames(self.exam.tick())
+        if action == "examfinish":
+            return with_frames(self.exam.finish())
+        if action == "examclose":
+            return with_frames(self.exam.close())
+        if action == "skillmap":
+            return self.map()
+        if action == "classmap":
+            return with_frames(self.skills.classroom())
+        if action == "classsample":  # a made-up class, marked as such, to see the view
+            return with_frames(sample_class(self.problems, self.args.language))
+        if action in ("studentnew", "student"):  # the next student at the board, or one who comes back
+            if self.exam.status() == "running":
+                raise ValueError("an exam is running")
+            self.sit(self.skills.new_student() if action == "studentnew" else self.skills.switch(body.get("n")))
+            return self.map()
+        if action == "start" and body.get("key") in self.tutor.problems:
+            self.view = self.tutor.start(body["key"])
+            return with_frames(self.view)
         raise KeyError(action)
 
 
@@ -150,7 +186,7 @@ def make_handler(app):
             if parts[0] == "api" and len(parts) >= 2:
                 names = {"answer": ["letter"], "practiceanswer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
                          "chat": ["text"], "job": ["id"], "examstart": ["level", "paper"],
-                         "examanswer": ["n", "letter"]}.get(parts[1], [])
+                         "examanswer": ["n", "letter"], "student": ["n"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))

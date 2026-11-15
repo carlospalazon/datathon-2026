@@ -121,6 +121,7 @@ class Tutor:
         self.errors = {}   # (topic, code) -> problems where it was diagnosed
         self.review = []   # [key, problems left before it comes back]; in memory only
         self.current = None
+        self.observer = None  # observer(kind, problem, detail): told of answers, solutions and slips
         self.profile_path = profile_path
         if profile_path:
             self._load_profile()
@@ -156,8 +157,13 @@ class Tutor:
                                      source=f"distractor {letter}") or self._diagnosis(problem, letter)
         if correct or s["solution_shown"]:
             self._remember(problem, correct and len(s["attempts"]) == 1)
+        self._tell("answer", problem, {"correct": correct})
         return {"correct": correct, "attempts": len(s["attempts"]), "feedback": feedback,
                 "events": [{"event": "tick" if correct else "cross"}]}
+
+    def _tell(self, kind, problem, detail=None):
+        if self.observer:
+            self.observer(kind, problem, detail)
 
     def _diagnosis(self, problem, letter):
         """Feedback worked out by rules from the wrong option (copilot/diagnose.py), or None."""
@@ -171,6 +177,7 @@ class Tutor:
             s, pair = self._session(), (problem.get("topic"), found["code"])
             if found["code"] not in s["errors"]:  # once per problem
                 s["errors"].append(found["code"])
+                self._tell("slip", problem, {"code": found["code"]})
                 self.errors[pair] = self.errors.get(pair, 0) + 1
                 self._save("INSERT INTO errors (topic, code, n) VALUES (?, ?, 1)"
                            " ON CONFLICT (topic, code) DO UPDATE SET n = n + 1", pair)
@@ -286,6 +293,7 @@ class Tutor:
         problem = s["problem"]
         s["solution_shown"] = True
         self._remember(problem, False)
+        self._tell("solution", problem)
         item = problem.get("solution")
         if item and base_status(item.get("status")) in self.show:
             text, status = item["text"], item["status"]

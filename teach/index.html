@@ -82,12 +82,12 @@
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* Exam mode: a timed paper in the tutor's place, no hints, the competition's scoring */
-  #exambtn { margin-left: auto; font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: #fff; cursor: pointer; }
+  #exambtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: #fff; cursor: pointer; }
   #exambtn:hover { background: #3cc0ff; }
   #exambtn:focus-visible, .chips button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
-  #exampane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
-  #exampane h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
-  #exampane .rules { margin: 8px 0 0; padding-left: 22px; }
+  #exampane h2, #mappane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
+  #exampane h3, #mappane h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  #exampane .rules, #mappane .rules { margin: 8px 0 0; padding-left: 22px; }
   .actions button.picked { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
   .ebar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .timer { font: 800 34px/1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; padding: 8px 16px; border-radius: 16px; border: 2px solid var(--line); }
@@ -109,6 +109,39 @@
   .review li .delta { font-variant-numeric: tabular-nums; font-weight: 800; }
   .review li button { font: inherit; font-weight: 800; font-size: 14px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
   .review li button:hover { background: var(--soft); }
+  /* The skill map: topics by level (new, tried, shaky, solid), what to try next, and the class by pseudonym */
+  .hbtns { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+  #mapbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--green-dark); border-bottom-width: 4px; background: var(--green); color: #fff; cursor: pointer; }
+  #mapbtn:hover { background: #61d800; }
+  #mapbtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .who { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-top: 10px; }
+  .nexts { display: flex; flex-direction: column; gap: 10px; }
+  .nexts .msg { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; }
+  .nexts .msg .inline { margin-top: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 2px solid var(--line); border-left-width: 8px; border-radius: 16px; }
+  .tile.new { border-style: dashed; color: var(--muted); }
+  .tile.tried { border-color: var(--accent); }
+  .tile.shaky { border-color: var(--warn); background: var(--warn-bg); }
+  .tile.solid { border-color: var(--green); background: var(--ok-bg); }
+  .tile .st { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+  .tile .dots { letter-spacing: 3px; min-height: 1.5em; }
+  .tile small { color: var(--muted); font-size: 13px; }
+  .tile.shaky small, .tile.solid small { color: var(--ink); }
+  .heatwrap { overflow-x: auto; margin-top: 8px; }
+  .heat { border-collapse: separate; border-spacing: 4px; font-size: 13px; }
+  .heat th { text-align: left; font-weight: 800; padding: 4px 8px; white-space: nowrap; }
+  .heat thead th { vertical-align: bottom; white-space: normal; min-width: 76px; font-size: 12px; color: var(--muted); }
+  .heat td { min-width: 52px; height: 36px; text-align: center; border-radius: 8px; border: 2px dashed var(--line); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .heat td.tried { border: 2px solid var(--accent); }
+  .heat td.shaky { border: 2px solid var(--warn); background: var(--warn-bg); color: var(--warn); }
+  .heat td.solid { border: 2px solid var(--green); background: var(--ok-bg); color: var(--ok); }
+  .heat tr.me th { color: var(--accent); }
+  .key { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 13px; }
+  .key span { padding: 2px 10px; border-radius: 8px; border: 2px dashed var(--line); }
+  .key .tried { border: 2px solid var(--accent); }
+  .key .shaky { border: 2px solid var(--warn); background: var(--warn-bg); }
+  .key .solid { border: 2px solid var(--green); background: var(--ok-bg); }
 </style>
 </head>
 <body>
@@ -117,10 +150,14 @@
   <span class="pill" id="grade"></span>
   <span class="pill" id="topic"></span>
   <span class="pill" id="pid"></span>
-  <button id="exambtn">Mode examen</button>
+  <span class="hbtns">
+    <button id="mapbtn">El meu mapa</button>
+    <button id="exambtn">Mode examen</button>
+  </span>
 </header>
 <main>
   <section id="exampane" hidden></section>
+  <section id="mappane" hidden></section>
   <section id="tutorpane">
     <img class="problem-img" id="img" alt="Enunciat del problema">
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
@@ -177,7 +214,8 @@ async function api(action, body) {
     : action === "job" ? `job/${enc(body.id)}`
     : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}`
     : action === "examstart" ? `examstart/${enc(body.level)}/${enc(body.paper)}`
-    : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}` : action;
+    : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}`
+    : action === "student" ? `student/${enc(body.n)}` : action;
   const r = await fetch("api/" + path);
   return r.json();
 }
@@ -448,12 +486,17 @@ function examButton() {  // the header button: into the exam, back to its result
   $("#exambtn").hidden = inExam;
   $("#exambtn").textContent = exam.status === "finished" ? "Resultats de l'examen" : "Mode examen";
 }
-function showPane(examSide) {
+function showPane(side) {  // false: the tutor; true: the exam; "map": the skill map
+  const examSide = side === true, mapSide = side === "map";
   pane.hidden = !examSide;
-  $("#tutorpane").hidden = examSide;
-  for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = examSide;  // they describe the tutor's problem
+  $("#mappane").hidden = !mapSide;
+  $("#tutorpane").hidden = examSide || mapSide;
+  for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = examSide || mapSide;  // they describe the tutor's problem
   examButton();
+  $("#mapbtn").hidden = examSide || mapSide;  // the map is reached from the tutor, never in the middle of a paper
+  if (mapSide) $("#exambtn").hidden = true;
   if (examSide) pane.scrollIntoView({ block: "start" });
+  if (mapSide) $("#mappane").scrollIntoView({ block: "start" });
 }
 function stopClock() { if (examClock !== null) { clearInterval(examClock); examClock = null; } }
 async function examCall(action, body) {  // one request at a time: a fast double click cannot hand in twice
@@ -677,6 +720,142 @@ function examDone(r) {
   pane.querySelector(".eleave").onclick = () => showPane(false);
   showPane(true);
 }
+
+// --- The skill map: what has been tried, by topic and level, and what to try next ---
+// The words describe a topic, never a student. Students go by the name of an animal.
+const STATE = { new: "Per provar", tried: "Començat", shaky: "Per reforçar", solid: "Segur" };
+const WHY = { shaky: "encara es resisteix. Un problema fàcil d'aquest tema t'hi ajudarà.",
+  tried: "l'has començat. Amb un altre problema veuràs com va.", new: "encara no l'has provat." };
+const mapPane = $("#mappane");
+const topicName = t => TOPICS[t] || t;
+const gradeName = (grade, level) => grade ? `${grade}è de primària` : `Nivell ${level}`;
+let mapBusy = false;
+async function mapCall(action, body) {  // one request at a time: a double click cannot seat two new students
+  if (mapBusy) return null;
+  mapBusy = true;
+  try { return await api(action, body); } catch (e) { return { error: "no answer" }; } finally { mapBusy = false; }
+}
+function tileNote(c) {
+  const bits = [];
+  if (c.tries) bits.push(`${c.clean} de ${c.tries} a la primera`);
+  if (c.practice) bits.push(plural(c.practice, "problema de pràctica", "problemes de pràctica"));
+  if (c.blank) bits.push(`${c.blank} en blanc a l'examen`);
+  if (!bits.length) bits.push(plural(c.problems, "problema per descobrir", "problemes per descobrir"));
+  return bits.join(" · ");
+}
+function mapShow(r) {
+  draw(r.frames);
+  mapPane.innerHTML = `<h2>El meu mapa</h2>
+    <p>Què has provat i com va cada tema. Es fa sol, amb el que respons al tutor, als problemes semblants i als exàmens.</p>
+    <div class="who"><span>Aquest mapa és de: <strong class="mname">${esc(r.student)}</strong></span>
+      <span class="muted">Sense noms reals: cada alumne té un nom d'animal.</span></div>
+    <div class="actions seats"></div>
+    <h3>Què pots provar ara</h3>
+    <div class="nexts"></div>
+    <div class="mlevels"></div>
+    <p class="muted">Un tema passa a «Segur» quan encertes a la primera almenys 3 dels últims 5 problemes del Cangur que n'has fet.
+      Els problemes de pràctica hi compten com a feina feta. A la matriu LED hi ha una columna per tema, més alta com més segur,
+      i el punt de dalt marca què pots provar ara.</p>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary mleave">Torna al tutor</button>
+      <button class="mclass">Vista de la classe</button>
+    </div><p class="muted mmsg" aria-live="polite"></p>`;
+  const seats = mapPane.querySelector(".seats");
+  r.students.forEach((name, n) => {
+    const b = document.createElement("button");
+    b.textContent = name;
+    b.classList.toggle("picked", name === r.student);
+    b.setAttribute("aria-pressed", String(name === r.student));
+    b.onclick = () => { if (name !== r.student) mapSeat("student", { n }); };
+    seats.append(b);
+  });
+  const fresh = document.createElement("button");
+  fresh.className = "seatnew";
+  fresh.textContent = "Alumne nou";
+  fresh.onclick = () => mapSeat("studentnew");
+  seats.append(fresh);
+  const nexts = mapPane.querySelector(".nexts");
+  for (const n of r.next) {
+    const div = document.createElement("div");
+    div.className = "msg help";
+    div.innerHTML = `<span><strong>${esc(topicName(n.topic))}</strong> (${esc(gradeName(n.grade, n.level))}): ${WHY[n.state]}</span>
+      <button class="inline">Prova'n un</button>`;
+    div.querySelector("button").onclick = async () => {
+      const view = await mapCall("start", { key: n.key });
+      if (!view || view.error) return;
+      show(view);
+      showPane(false);
+      say(`<strong>Triat des del teu mapa:</strong> un problema de «${esc(topicName(n.topic))}». Quan l'acabis, torna al mapa i mira com ha canviat.`, "help");
+    };
+    nexts.append(div);
+  }
+  if (!r.next.length) {
+    nexts.innerHTML = `<div class="msg ok"><span>Tot el que has provat va bé. Vols posar-te a prova amb un examen?</span>
+      <button class="inline">Mode examen</button></div>`;
+    nexts.querySelector("button").onclick = async () => { await examSetup(); showPane(true); };
+  }
+  const levels = mapPane.querySelector(".mlevels");
+  for (const l of r.levels) {
+    const h = document.createElement("h3");
+    h.textContent = gradeName(l.grade, l.level);
+    const grid = document.createElement("div");
+    grid.className = "tiles";
+    for (const c of l.cells) {
+      const tile = document.createElement("div");
+      tile.className = "tile " + c.state;
+      tile.innerHTML = `<b>${esc(topicName(c.topic))}</b><span class="st">${STATE[c.state]}</span>
+        <span class="dots" aria-hidden="true">${"●".repeat(c.clean)}${"○".repeat(c.tries - c.clean)}</span>
+        <small>${esc(tileNote(c))}</small>${c.slip ? `<small>Un error que ha tornat: ${esc(c.slip)}</small>` : ""}`;
+      grid.append(tile);
+    }
+    levels.append(h, grid);
+  }
+  mapPane.querySelector(".mleave").onclick = () => showPane(false);
+  mapPane.querySelector(".mclass").onclick = async () => { const c = await mapCall("classmap"); if (c && !c.error) classShow(c); };
+}
+async function mapSeat(action, body) {  // the board goes to another student: their problem, their exam, their map
+  const r = await mapCall(action, body);
+  if (!r) return;
+  if (r.error) { mapPane.querySelector(".mmsg").textContent = "Ara mateix no es pot canviar d'alumne."; return; }
+  show(await api("state"));
+  const e = await api("examstate");
+  exam = e.status === "finished" ? e : { status: "none" };
+  mapShow(r);
+  showPane("map");
+}
+function classShow(r) {
+  draw(r.frames);
+  const label = c => `${topicName(c.topic)}: ${STATE[c.state].toLowerCase()}${c.tries ? `, ${c.clean} de ${c.tries} a la primera` : ""}`;
+  const rows = r.students.map(s => `<tr class="${s.current ? "me" : "other"}"><th>${esc(s.name)}${s.current ? " (ara a la placa)" : ""}</th>${s.cells.map(c =>
+    `<td class="${c.state}" aria-label="${esc(label(c))}">${c.tries ? `${c.clean}/${c.tries}` : c.state === "new" ? "" : "·"}</td>`).join("")}</tr>`).join("");
+  mapPane.innerHTML = `<h2>Vista de la classe</h2>
+    <p>Per a mestres. Cada fila és un alumne amb un nom d'animal, mai el seu nom real. No hi ha notes ni classificació: només on cal ajuda.</p>
+    ${r.sample ? `<div class="confirm csample">Classe d'exemple: dades inventades per veure com queda la vista. No són de cap alumne.</div>` : ""}
+    <h3>On s'encalla la classe</h3>
+    <ul class="rules stuck">${r.stuck.map(s => `<li><strong>${esc(topicName(s.topic))}</strong>: per reforçar per a ${s.shaky} de ${plural(s.tried, "alumne que l'ha provat", "alumnes que l'han provat")}.</li>`).join("")
+      || "<li>Encara no hi ha cap tema per reforçar.</li>"}</ul>
+    <h3>Tema per tema</h3>
+    <div class="heatwrap"><table class="heat"><thead><tr><th>Alumne</th>${r.topics.map(t => `<th>${esc(topicName(t))}</th>`).join("")}</tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="key"><span class="solid">Segur</span><span class="tried">Començat</span><span class="shaky">Per reforçar</span><span>Per provar</span></div>
+    <p class="muted">Els números són els problemes del Cangur encertats a la primera dels últims que ha fet cada alumne (fins a 5 per tema).
+      Un punt vol dir que només hi ha pràctica o preguntes en blanc. A la matriu LED, cada columna és un tema: més alta com més alumnes el tenen segur.</p>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary mback">El meu mapa</button>
+      <button class="mother">${r.sample ? "La classe d'aquesta placa" : "Classe d'exemple"}</button>
+      <button class="mleave">Torna al tutor</button>
+    </div>`;
+  mapPane.querySelector(".mback").onclick = openMap;
+  mapPane.querySelector(".mother").onclick = async () => { const c = await mapCall(r.sample ? "classmap" : "classsample"); if (c && !c.error) classShow(c); };
+  mapPane.querySelector(".mleave").onclick = () => showPane(false);
+}
+async function openMap() {
+  const r = await mapCall("skillmap");
+  if (!r || r.error) return;
+  mapShow(r);
+  showPane("map");
+}
+$("#mapbtn").onclick = openMap;
 
 $("#exambtn").onclick = async () => {
   if (exam.status === "finished") return examDone(exam);

@@ -18,6 +18,7 @@ RGB = {
     "cross": (1, 0, 0),      # incorrect
     "help_step": (1, 0, 1),  # hint or guide step
     "clock": (0, 0, 1),      # exam countdown
+    "skills": (0, 0, 1),     # the skill map
     "clear": (0, 0, 0),
 }
 
@@ -110,6 +111,15 @@ def frame(event):
         of = event.get("of") or left
         for c in range(min(COLS, -(-COLS * left // of)) if of else 0):
             grid[7][c] = ON
+        return grid
+    if kind == "skills":  # the skill map: a column per topic, taller the more solid; a dot on top: try this next
+        values = list(event["value"])[:COLS]
+        grid, left = blank(), (COLS - len(values)) // 2
+        for i, height in enumerate(values):
+            for r in range(max(0, min(int(height), ROWS - 2))):
+                grid[ROWS - 1 - r][left + i] = ON
+        if event.get("next") is not None and 0 <= event["next"] < len(values):
+            grid[0][left + event["next"]] = ON
         return grid
     if kind == "clear":
         return blank()

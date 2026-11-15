@@ -17,6 +17,7 @@ The organizers' setup guide, steps 0 to 15, is in [DATATHON.md](DATATHON.md). Th
 | Answers wrong | Explains the likely mistake behind that option | Red, and a cross |
 | Answers right | Picks the next problem: harder, or another topic after three in a row | Green, and a tick |
 | Types a question | Routes it: a hint, an answer, off topic, or a question for the model | Yellow while the model works |
+| Opens "El meu mapa" | Shows each topic by level (new, tried, shaky, solid) from the tutor, the practice problems and the exams, and what to try next; a class view by animal pseudonym for the teacher | A column per topic, taller the more solid, and a dot over what to try next |
 
 The solution is shown only when the student asks for it.
 

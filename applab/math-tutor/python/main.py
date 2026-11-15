@@ -26,6 +26,7 @@ from copilot.assistant import Assistant  # noqa: E402
 from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame, rgb  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
+from copilot.skillmap import SkillMap, sample_class  # noqa: E402
 from copilot.tutor import Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,13 +37,30 @@ with open(os.path.join(HERE, "catalog.jsonl")) as f:
 with open(os.path.join(HERE, "types.json")) as f:
     types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
 
-tutor = Tutor(problems, types, show=SHOW)
-practice = Practice(problems[0]["language"])  # practice problems made on the spot, apart from the tutor
-exam = Exam(problems)  # exam mode: a timed paper; the page's clock requests move the matrix countdown
-assistant = Assistant(tutor)  # free text, guardrails and the model (port 8081), in threads
+LANGUAGE = problems[0]["language"]
+skills = SkillMap(problems, language=LANGUAGE)  # the skill map: fed by the tutor, the practice card and the exam
+seats = {}  # pseudonym -> that student's own tutor, practice card, exam and problem on screen
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
-view = {"current": tutor.start(first["key"])}
+
+
+def sit(student):
+    """Hand the board to a student: each has a tutor, a practice card and an exam of their own."""
+    global tutor, practice, exam, assistant, view
+    if student not in seats:
+        own = Tutor(problems, types, show=SHOW)
+        own.observer = lambda kind, problem, detail=None: skills.tutor_event(kind, problem, detail, student)
+        seats[student] = {"tutor": own,
+                          "practice": Practice(LANGUAGE),  # practice problems made on the spot, apart from the tutor
+                          "exam": Exam(problems),  # a timed paper; the page's clock requests move the matrix countdown
+                          "assistant": Assistant(own),  # free text, guardrails and the model (port 8081), in threads
+                          "view": {"current": own.start(first["key"])}}
+    seat = seats[student]
+    tutor, practice, exam = seat["tutor"], seat["practice"], seat["exam"]
+    assistant, view = seat["assistant"], seat["view"]
+
+
+sit(skills.student)
 assistant.warm()
 
 
@@ -94,6 +112,27 @@ def next_problem():
     return run(go)
 
 
+def hooked(name, action):
+    """An action of the practice card or the exam, with the skill map told of its result."""
+    def go(*args):
+        result = action(*args)
+        skills.after(name, tutor, practice, exam, result)
+        return result
+    return go
+
+
+def skill_map():
+    return skills.view(seen=tutor.seen, home=tutor.current["problem"]["level"])
+
+
+def change_student(n=None):
+    """The next student at the board (n is None), or one who comes back."""
+    if exam.status() == "running":
+        raise ValueError("an exam is running")
+    sit(skills.new_student() if n is None else skills.switch(n))
+    return skill_map()
+
+
 def chat(text):
     def go():
         result = assistant.chat(urllib.parse.unquote(text))
@@ -116,17 +155,25 @@ ui.expose_api("GET", "/api/chat/{text}", chat)
 ui.expose_api("GET", "/api/practiceok",
               lambda: run(lambda: {"available": practice.available(tutor.current["problem"]["topic"])}))
 ui.expose_api("GET", "/api/practice",
-              lambda: run(lambda: practice.new(tutor.current["problem"]["topic"])
-                          or {"error": "no practice for this kind of problem"}))
-ui.expose_api("GET", "/api/practiceanswer/{letter}", lambda letter: run(practice.answer, letter))
+              lambda: run(hooked("practice", lambda: practice.new(tutor.current["problem"]["topic"])
+                                 or {"error": "no practice for this kind of problem"})))
+ui.expose_api("GET", "/api/practiceanswer/{letter}",
+              lambda letter: run(hooked("practiceanswer", lambda x: practice.answer(x)), letter))
 ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
 ui.expose_api("GET", "/api/examinfo", lambda: run(exam.info))
 ui.expose_api("GET", "/api/examstart/{level}/{paper}", lambda level, paper: run(exam.start, level, paper))
-ui.expose_api("GET", "/api/examstate", lambda: run(exam.state))
-ui.expose_api("GET", "/api/examanswer/{n}/{letter}", lambda n, letter: run(exam.answer, n, letter))
-ui.expose_api("GET", "/api/examtick", lambda: run(exam.tick))
-ui.expose_api("GET", "/api/examfinish", lambda: run(exam.finish))
+# Every exam request that finds the paper handed in (by the student or by the clock) feeds the skill map, once
+ui.expose_api("GET", "/api/examstate", lambda: run(hooked("examstate", lambda: exam.state())))
+ui.expose_api("GET", "/api/examanswer/{n}/{letter}",
+              lambda n, letter: run(hooked("examanswer", lambda a, b: exam.answer(a, b)), n, letter))
+ui.expose_api("GET", "/api/examtick", lambda: run(hooked("examtick", lambda: exam.tick())))
+ui.expose_api("GET", "/api/examfinish", lambda: run(hooked("examfinish", lambda: exam.finish())))
 ui.expose_api("GET", "/api/examclose", lambda: run(exam.close))
+ui.expose_api("GET", "/api/skillmap", lambda: run(skill_map))
+ui.expose_api("GET", "/api/classmap", lambda: run(skills.classroom))
+ui.expose_api("GET", "/api/classsample", lambda: run(sample_class, problems, LANGUAGE))
+ui.expose_api("GET", "/api/studentnew", lambda: run(change_student))
+ui.expose_api("GET", "/api/student/{n}", lambda n: run(change_student, n))
 ui.expose_api("GET", "/api/modelhint",
               lambda: run(lambda: {"kind": "job", "job": assistant.model_hint(), "events": [{"event": "thinking"}]}))
 ui.expose_api("GET", "/api/job/{job}", lambda job: run(assistant.job, job))
