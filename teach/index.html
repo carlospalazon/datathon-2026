@@ -308,7 +308,8 @@ async function practise() {
         reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong><p>${esc(a.solution)}</p>
           <p>Ara torna al teu problema: què tenen en comú tots dos?</p>`;
       } else {
-        reply.innerHTML = `<strong>La ${letter} no és correcta.</strong> ${esc(a.mistake.text)}${badge(a.mistake.status)}`;
+        reply.innerHTML = `<strong>La ${letter} no és correcta.</strong> ${esc(a.mistake.text)}${badge(a.mistake.status)}`
+          + (a.again ? `<p class="again">Aquest error ja havia sortit en un altre problema de pràctica.${a.method_next ? " Quan tornis al teu problema, la propera pista serà com s'enfoca aquest tipus de problema." : ""}</p>` : "");
       }
     };
     box.append(b);

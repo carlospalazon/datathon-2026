@@ -159,6 +159,10 @@ class SkillMap:
             practice.current.setdefault("level", tutor.current["problem"]["level"])
         elif action == "practiceanswer":
             self.practice_answered(practice.current, result)
+            code = (result.get("mistake") or {}).get("code")
+            if practice.current and result.get("attempts") == 1 and code:  # the first click, as on the map
+                told = tutor.practice_slip(practice.current["topic"], practice.current["problem"]["generator"], code)
+                result["again"], result["method_next"] = told["repeated"], told["method"]
         elif action.startswith("exam"):
             self.exam_checked(exam.paper)
             tutor.exam_checked(exam.paper)  # the tutor's own memory: by topic, and the misses come back

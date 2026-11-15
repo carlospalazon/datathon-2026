@@ -196,6 +196,30 @@ class FromPracticeAndTheExam(unittest.TestCase):
         self.practice(skills, False, code="no such slip")  # an unknown code says nothing rather than breaking
         self.assertIsNone(cell(skills.view(), 0, "aritmetica")["slip"])
 
+    def test_a_practice_slip_reaches_the_tutors_memory_on_the_first_click_only(self):
+        from types import SimpleNamespace
+        skills, tutor = desk()
+        tutor.start(keys(skills, 0, "aritmetica")[0])
+        card = SimpleNamespace(current={"topic": "aritmetica", "level": 0, "problem": {"generator": "shopping"}})
+        wrong = lambda attempts, code="spent_not_change": {"correct": False, "attempts": attempts, "mistake": {"code": code}}
+        first = wrong(1)
+        skills.after("practiceanswer", tutor, card, None, first)
+        self.assertEqual((first["again"], first["method_next"]), (False, False))
+        later = wrong(2)                                   # a second click on the same card: reading the slips
+        skills.after("practiceanswer", tutor, card, None, later)
+        self.assertNotIn("again", later)
+        unnamed = wrong(1, code=None)                      # a wrong option no slip explains
+        skills.after("practiceanswer", tutor, card, None, unnamed)
+        self.assertNotIn("again", unnamed)
+        right = {"correct": True, "attempts": 1, "mistake": None}
+        skills.after("practiceanswer", tutor, card, None, right)
+        self.assertNotIn("again", right)
+        self.assertEqual(tutor.errors, {("aritmetica", "practice:shopping:spent_not_change"): 1})
+        again = wrong(1)                                   # another card, the same slip
+        skills.after("practiceanswer", tutor, card, None, again)
+        self.assertTrue(again["again"])
+        self.assertEqual(tutor.errors, {("aritmetica", "practice:shopping:spent_not_change"): 2})
+
     def test_a_practice_card_with_no_level_is_left_out(self):
         skills, _ = desk()
         skills.practice_answered({"topic": "aritmetica", "problem": {"generator": "shopping"}},

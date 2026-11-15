@@ -336,5 +336,73 @@ class ExamFeedsTheMemory(unittest.TestCase):
         self.assertEqual(tutor.review, [])
 
 
+class PracticeFeedsTheMemory(unittest.TestCase):
+    """A slip named on a practice problem: in errors, the method card the second time, the next problem."""
+
+    def test_the_second_time_the_method_is_the_next_help_step(self):
+        tutor = Tutor(CATALOGUE, TYPES)
+        tutor.start("p1_eng")
+        self.assertEqual(tutor.practice_slip("aritmetica", "shopping", "spent_not_change"),
+                         {"repeated": False, "method": False})
+        self.assertEqual(tutor.practice_slip("aritmetica", "shopping", "price_only"),
+                         {"repeated": False, "method": False})          # another slip: not the same one twice
+        self.assertEqual(tutor.practice_slip("aritmetica", "shopping", "spent_not_change"),
+                         {"repeated": True, "method": True})
+        self.assertEqual(tutor.help()["kind"], "method")
+        self.assertEqual(tutor.help()["kind"], "hint")                   # the rest of the guide follows
+        self.assertEqual(tutor.practice_slip("aritmetica", "shopping", "spent_not_change"),
+                         {"repeated": True, "method": False})            # the method was already shown
+
+    def test_a_slip_of_another_topic_does_not_touch_the_guide_on_screen(self):
+        tutor = Tutor(CATALOGUE, TYPES)
+        tutor.start("p1_eng")
+        for _ in range(2):
+            told = tutor.practice_slip("geometria_plana", "rect_area", "perimeter")
+        self.assertEqual(told, {"repeated": True, "method": False})
+        self.assertEqual(tutor.help()["kind"], "hint")
+
+    def test_practice_codes_are_kept_apart_from_the_tutors_own_and_saved(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "profile.sqlite")
+            tutor = Tutor(CATALOGUE, TYPES, profile_path=path)
+            tutor.start("p1_eng")
+            tutor.practice_slip("aritmetica", "shopping", "sum_all")
+            tutor.practice_slip("aritmetica", "shopping", "sum_all")
+            self.assertEqual(tutor.errors, {("aritmetica", "practice:shopping:sum_all"): 2})
+            self.assertEqual(Tutor(CATALOGUE, TYPES, profile_path=path).errors, tutor.errors)
+
+    def catalogue(self):
+        return ([problem(f"a{i}_eng", 1) for i in range(6)]
+                + [problem(f"g{i}_eng", 1, topic="geometria_plana") for i in range(3)]
+                + [problem(f"m{i}_eng", 1, topic="medida") for i in range(3)])
+
+    def test_a_slip_keeps_the_tutor_in_the_topic(self):
+        tutor = Tutor(self.catalogue())
+        tutor.start("a0_eng")
+        for _ in range(3):                     # three right the first time: the tutor would change topic
+            tutor.answer("C")
+            last = tutor.current["problem"]["key"]
+            if tutor.skill["aritmetica"]["streak"] < 3:
+                tutor.next_problem()
+        self.assertEqual(tutor.skill["aritmetica"]["streak"], 3)
+        tutor.practice_slip("aritmetica", "shopping", "sum_all")
+        self.assertEqual(tutor.skill["aritmetica"]["streak"], 0)
+        self.assertEqual(tutor.next_problem()["problem"]["topic"], "aritmetica")
+        self.assertNotEqual(tutor.current["problem"]["key"], last)
+
+    def test_a_topic_where_a_slip_came_back_is_taken_first(self):
+        for slipped in ("geometria_plana", "medida"):
+            tutor = Tutor(self.catalogue())
+            tutor.practice_slip(slipped, "rect_area", "perimeter")
+            tutor.practice_slip(slipped, "rect_area", "perimeter")
+            tutor.start("a0_eng")
+            for n in range(3):
+                tutor.answer("C")
+                if n < 2:
+                    tutor.next_problem()
+            self.assertEqual(tutor.next_problem()["problem"]["topic"], slipped)
+
+
 if __name__ == "__main__":
     unittest.main()

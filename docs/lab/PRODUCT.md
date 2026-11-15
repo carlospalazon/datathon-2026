@@ -13,7 +13,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | open |
 | 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked solution and two wrong methods that also give that number). | Checks understanding, not luck. | checked solutions, generators' typical mistakes | open |
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | open |
-| 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | half built (2026-11-15: the skill map records it and names a slip that comes back; the tutor's own choice of help and of next problem does not use it yet) |
+| 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
 | 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | **built** (2026-11-15; the queue is forgotten with "Un altre examen"; not seen in a real browser) |
@@ -293,3 +293,41 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   answers do not name a slip (no diagnosis is run on them). On the board the tutor's memory is
   in memory only. The Catalan needs a native read.
 - **Commit:** see `git log -1 -- copilot/exam.py`
+
+
+### 2026-11-15 · Practice feeds the memory (backlog 9)
+- **What:** a slip named on the first click of a practice problem now counts in the tutor's own
+  memory (`Tutor.practice_slip`, in the same `errors` table, under a code of its own:
+  `practice:<generator>:<slip>`, so it can never be mixed up with the tutor's rules). Three uses:
+  **(1) help:** the second time the same slip comes up, the method card of the topic becomes the
+  next help step of the Cangur problem on screen, and the practice card says so ("Aquest error ja
+  havia sortit en un altre problema de pràctica. Quan tornis al teu problema, la propera pista
+  serà com s'enfoca aquest tipus de problema."); **(2) next problem:** a slip ends the topic's
+  streak, so the tutor does not leave a topic right after a slip in it; **(3) next topic:** when
+  the tutor does change topic, one where a slip came back (twice or more, with the tutor or on
+  practice) is taken first, before the map's order and the tutor's own. Later clicks on the same
+  card (the student reading the slip behind each option) count nowhere, as on the map. With
+  `--profile` it is saved. The hook is `SkillMap.after`, so the App Lab app has it too.
+- **Why:** practice was the one place where the tutor learnt nothing about the student. Now the
+  same mistake made twice on practice problems changes what the tutor does next, without a word
+  about the student.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650. The first
+  problem is a measure problem. Click **"Un de semblant"**, then a wrong option; **"Un altre"**
+  and a wrong option again, a few times: when the sentence about the slip is one already seen
+  (for the film problems, the one about being an hour off comes up within three or four cards),
+  the extra line appears under it. "Torna al meu problema", then **"Una pista"**: the first hint
+  is "com s'enfoca aquest tipus de problema" instead of the first hint of the problem.
+- **Tests / checks run:** `python3 -m pytest -q`: 327 passed (5 new in `tests/test_tutor.py`:
+  the method card on the second time and only then, a slip of another topic leaves the guide
+  alone, codes kept apart and saved in the profile file, the streak ended, the topic with a slip
+  that came back taken first; 1 new in `tests/test_skillmap.py`: the first click only, nothing
+  for an option no slip explains or for a right answer). Real catalogue, server started from a
+  Python script: practice cards answered until a slip repeated (the third card), `again` true
+  exactly then, the next `help` was the method card; server stopped. The App Lab build imported
+  with stand-ins: the same.
+- **Not done:** not seen in a real browser, not run on the board. The page harness does not
+  click this (a practice card's slip is random). A practice problem solved right the first time
+  counts on the map but not in the tutor's memory. A slip on practice does not change the help
+  of the *next* Cangur problems of the topic, only of the one on screen. The new line needs a
+  native read.
+- **Commit:** see `git log -1 -- tests/test_tutor.py` at this date ("Practice feeds the memory")

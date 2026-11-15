@@ -22,6 +22,7 @@ What the tutor remembers about the student, and the rules that use it:
   errors[topic, code]  problems where a rule diagnosed that mistake. The second time, the next
                        help step is the method of the topic, not one more detail of the problem.
   review               problems that went wrong come back REVIEW_AFTER problems later.
+A slip named on a practice problem counts in errors too (practice_slip), under a code of its own.
 An exam handed in counts too (exam_checked): its questions by topic in skill, the wrong ones in review.
 
 The guide, in order, skipping steps that have no content or aren't safe to show.
@@ -355,7 +356,8 @@ class Tutor:
 
         1. a problem that went wrong REVIEW_AFTER problems ago comes back;
         2. after MASTERED first-try right answers in a row, another topic: the one that goes worst,
-           an untried one before one that goes well. With a skill map (self.planner) the topic is
+           an untried one before one that goes well, and before both a topic where a slip came
+           back (twice or more, with the tutor or on practice problems). With a skill map (self.planner) the topic is
            the first one the map says to try, and a topic the map calls solid is left after a
            first-try right answer even before the streak;
         3. else the same topic, one step up the difficulty scale after a first-try right answer,
@@ -388,11 +390,35 @@ class Tutor:
             if skill:
                 skill["streak"] = 0
                 self._save_skill(topic)
-            topic = wanted[0] if wanted else min(others, key=self._mastery)
+            topic = min(others, key=lambda t: (not self._slipped(t), wanted.index(t) if t in wanted else len(wanted),
+                                               self._mastery(t)))
             target = _difficulty(problem)
         pool.sort(key=lambda p: (p["topic"] != topic, abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))
         return self.start(pool[0]["key"])
+
+    def practice_slip(self, topic, generator, code):
+        """A slip named on a practice problem counts in the memory, like one the tutor's rules name:
+        the topic's streak ends (the tutor does not leave the topic right after a slip), and the
+        second time the method of the topic becomes the next help step of the problem on screen.
+        Returns {"repeated", "method"}: has it come back, and is the method card now next."""
+        pair = (topic, f"practice:{generator}:{code}")
+        self.errors[pair] = self.errors.get(pair, 0) + 1
+        self._save("INSERT INTO errors (topic, code, n) VALUES (?, ?, 1)"
+                   " ON CONFLICT (topic, code) DO UPDATE SET n = n + 1", pair)
+        if topic in self.skill and self.skill[topic]["streak"]:
+            self.skill[topic]["streak"] = 0
+            self._save_skill(topic)
+        repeated, method = self.errors[pair] >= 2, False
+        if repeated and self.current and self.current["problem"]["topic"] == topic:
+            queue = self.current["queue"]
+            queue.sort(key=lambda step: step["kind"] != "method")
+            method = bool(queue) and queue[0]["kind"] == "method"
+        return {"repeated": repeated, "method": method}
+
+    def _slipped(self, topic):
+        """Has a slip come back in this topic (twice or more)?"""
+        return any(n >= 2 for (t, _), n in self.errors.items() if t == topic)
 
     def exam_checked(self, paper):
         """An exam handed in feeds the memory, once per paper: each question answered counts in its
