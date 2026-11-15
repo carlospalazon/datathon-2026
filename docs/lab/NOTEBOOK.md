@@ -339,3 +339,90 @@ never problem text (M3Kang is research-use only).
 - **For Ideas:** the model can learn a problem family it has seen thousands of. Is there an honest
   way to get Cangur-like coverage from code alone (many more generator families modelled on the
   TRAINING problems' types), and how many families would the demo-style test need?
+
+### 2026-11-15 10:30 · Ideas · Round 3: the 55% is real but it is template learning until shown otherwise; calculator and value matching are worth nothing
+- **Read:** the three `v3mix-s2250` CSVs (demo 100, validation 562, fresh generated 300), the 339 + 100
+  saved workings, `~/unoq-local/ft/v3_mix/train.jsonl`, the catalogue restricted to training ids.
+  CPU only. Demo and validation were measured, never used to design anything.
+- **Is the 55% a leak? No.** Of the 300 fresh problems, 28 have exactly the question text of a
+  training row (18 right) and 48 have the same sentence and the same numbers with another name (31
+  right). Without them: **146/272 (54%)** and **133/252 (53%)**. So it is learning inside the family,
+  not recall of rows. Three corrections to how it is described:
+  - It is not "thousands of examples": the mix has a median of **111 rows per generator** (16 to 132,
+    three languages together).
+  - It is uneven: 19 of the 57 generators are at 80% or more, 14 at 25% or less (5 or 6 problems
+    each, so each one is noisy; easy 88/140 and hard 76/160 as reported).
+  - It is close to the training text: every fresh problem shares at least 73% of its words with some
+    training row, and a sentence pattern that never occurs in training scores 17/42 (40%) against
+    147/258 (57%). What was measured is "same template, new numbers". Whether the model can do the
+    same maths in other words has not been measured by anyone.
+- **Is the Cangur number fair? Yes.** The Engineer's own acceptance rule holds on both files: every row
+  with options has `working = budget`, no `direct` row, worst board time 57.0 s. The same code path
+  gives 55% on generated problems, so the file and the prompt are not broken. Finished workings are
+  right 19/83 (demo) and 55/276 (validation, 20%); forced letters 1/17 and 12/63. The E habit comes
+  from two places: forced letters (E 53 of 63) and the problems without options (A 107, E 96 of 223,
+  36 right; always D would be right 58 times). The two languages give the same letter on 7 of 50 demo
+  problems: the answers still behave like noise.
+- **The working, in numbers (validation, 339 with options; 248 have five distinct numeric options):**
+  - 276 finished, all with the "<value> is option X" line; 63 hit the budget, none of them got there.
+  - Value is one of the options: **158 of 276 (57%)**. The named letter holds that value in 156 of
+    158: the value-to-letter step taught by the new target works. It is the correct option in
+    **33 of 158 (21%)**: landing on an option is not a sign of being right.
+  - Value on no option: **118 of 276 (43%)**. The model writes "<value> is option X" anyway (E 40,
+    D 26, A 22, C 17, B 13) and is right 23 times (19%). The value equals the last computed number
+    in 175 of 238.
+  - Loops (a 25-character piece three times or more): 59 of 339; 46 of the 63 unfinished ones.
+    Demo: 15 of 100, 11 of the 17 unfinished.
+  - Sums `a op b = c` (checker: 0 false alarms on 6,947 code-computed sums in the training targets,
+    24 of 4,044 on Cangur targets): 332 written, **76 wrong (23%)**. A wrong sum is in 32 of 272
+    wrong answers (12%) and in 10 of 67 right ones (15%): no difference.
+  - **Calculator pass, post-hoc:** redoing every sum and carrying the corrections forward changes the
+    final value in 21 workings; the new value is an option in 1; that one goes from right to wrong.
+    **Net −1 of 339.** Demo: 5 changed values, 0 land on an option.
+  - **Value matched to the options by code:** changes 2 answers, 1 becomes right. **Net +1 of 339.**
+    Nearest option when the value is on none: right 8 of 83, against 16 as written. Demo: 0 changes.
+  - English against Catalan: right 31/167 and 36/172; value on an option 80/141 and 78/135; wrong
+    sums 31/140 and 45/192; unfinished 26 and 37. Demo: 11/50 and 9/50, unfinished 2 and 15. No
+    language is better; Catalan loops more.
+  The wall is the same as in round 1: the model sets the problem up wrong, then computes and reads
+  off the letter consistently. Nothing after the working can repair that.
+- **How many families would a demo-style test need?** Score = 20% + c × (a − 20%), c the share of test
+  problems inside a learned family, a the score inside one. For 45%: c = 71% at a = 55%, 58% at the
+  easy generators' 63%, 89% at the hard ones' 48%. From the 497 text-only training problems with
+  options that have labels (topic and strategy labels are model-written; a third of these are medium confidence):
+  80 topic × strategy cells, 20 of them hold 73%. But a cell is not a family: 483 of the 497 method
+  descriptions share under half their words with any other, 35% of problems sit in a four-label cell
+  that occurs once, and round 2 found no problem with a twin in another year. So covering 71% means
+  **several hundred families**, each as specific as a generator, and the test is new problems. The
+  57 existing families cover at most 13% of the validation problems with options (from the upper
+  end of 67/339; the point estimate is 0).
+- **Estimate for the owner.** The 0.8B on demo-like problems: **20–25%** today and by every route
+  measured since yesterday (free working 23, Cangur tune 16, mix tune 20 of 100; letter only
+  22.8% on validation).
+  A week of generators, if T1 below passes: 22–30% (each 10% of coverage is worth 3.5 points).
+  **45% would need all of:** the model solving a known kind of problem in unseen wording at 55% or
+  more (unmeasured; the evidence so far is zero transfer); about 70% of the hidden test falling in
+  families somebody coded in advance (the training problems say no); and one small adapter holding
+  several hundred families at the accuracy it has on 57. I do not think this model reaches 45%, and
+  nothing measured says otherwise.
+- **Answers to the Engineer (02:45):** presolve: turn the value copies on (10 of 10 on validation,
+  harmless on the demo set); letter copies only with `NO_OPTIONS_PRIOR`, which should be on (58 of
+  223 against the model's 36). Together about +5 points on validation and nothing on the demo set, so
+  it does not count towards the owner's target. Value matching in `find_letter`: no, measured above.
+- **Backlog:** `IDEAS.md` re-ranked. Dropped with numbers: Python does the sums, value matching,
+  stop loops (as a way to score), Catalan repair, two-language agreement, teacher problems. New: T1,
+  G1 (waits for T1), P1.
+- **Prototype (no model):** `laptop/reworded_problems.py` + `tests/test_reworded_problems.py` (4 tests:
+  answers recomputed from the parameters, under 40% of words shared with the trained template). Nine
+  families the tuned model gets right 46 of 50 times in their trained wording, told as another story
+  with the same numbers and the same wrong options, next to the trained wording as a control. It is
+  a test set: never train on it.
+- **For the Engineer:** run T1 before anything else, about 4 minutes with the tuned file loaded:
+  `python3 laptop/reworded_problems.py --n 10 --seed 7 --out <outside git>/reworded.jsonl`, then
+  `ANSWER_MODE=reason BOARD_READ_TPS=11 BOARD_WRITE_TPS=6 python3 eval.py --input <that file> --limit 0
+  --name reworded-v3mix-s2250`, and count right answers by the id prefix (`rew-` and `orig-`, 180 each).
+  Decided beforehand: `orig` must be over 80% or the run is void. `rew` ≥ 70%: the maths is learned,
+  write 30 families next (G1) and measure on held-out years. `rew` ≤ 40%: the model learned
+  sentences; stop the generator and training routes, try B3 once, and tell the owner the 0.8B stays
+  at 20–25%. In between: 20 more per family before deciding.
+
