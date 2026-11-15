@@ -23,10 +23,15 @@ from copilot.config import CONFIG
 from copilot.pipeline import TIME_LIMIT, solve
 
 LETTERS = "ABCDE"
-EXPERIMENT_ENV = ("NO_OPTIONS_PRIOR", "LETTER_BIAS_FILE", "OPTION_ORDERS")
+EXPERIMENT_ENV = ("NO_OPTIONS_PRIOR", "LETTER_BIAS_FILE", "OPTION_ORDERS", "ANSWER_MODE", "REASON_MAX_TOKENS",
+                  "BOARD_READ_TPS", "BOARD_WRITE_TPS", "PRESOLVE", "PRESOLVE_DATA", "SAVE_TEXTS")
 DETAIL_COLUMNS = ["id", "language", "level", "has_options", "label", "answer", "correct", "seconds",
                   "status", "prompt_tokens", "retrieved", "topic", "needs_figure", "passes",
-                  *[f"lp_{l}" for l in LETTERS]]
+                  *[f"lp_{l}" for l in LETTERS],
+                  # Working modes only (ANSWER_MODE): the token budget, what was written, whether the working
+                  # reached its answer, how the budget was set (budget/fixed) and where the letter came from
+                  # (working/forced/direct).
+                  "budget_tokens", "written_tokens", "finished", "working", "letter_from"]
 ABLATION_COLUMNS = ["time", "name", "commit", "input", "languages", "n", "rag_k", "accuracy", "mean_s",
                     "worst_s", "over_limit", "ci_low", "ci_high", "env"]
 
@@ -134,7 +139,10 @@ def main(argv=None):
                              problem["label"], result["answer"], int(correct), result["seconds"],
                              result["status"], result["prompt_tokens"], result["retrieved"],
                              topic, needs_figure, result.get("passes", ""),
-                             *[logprobs[l] if l in logprobs else "" for l in LETTERS]])
+                             *[logprobs[l] if l in logprobs else "" for l in LETTERS],
+                             result.get("budget_tokens", ""), result.get("written_tokens", ""),
+                             int(result["finished"]) if "finished" in result else "",
+                             result.get("working", ""), result.get("letter_from", "")])
             out.flush()
             running = 100 * sum(r["correct"] for r in rows) / len(rows)
             print(f"[{n}/{len(problems)}] {problem['id']} {problem['language']}: "
@@ -156,6 +164,18 @@ def main(argv=None):
     print(f"Latency: mean {statistics.mean(seconds):.1f} s, median {statistics.median(seconds):.1f} s, "
           f"worst {max(seconds):.1f} s, over {TIME_LIMIT:.0f} s: {over}")
     print(f"Status: {dict(Counter(r['status'] for r in rows))}")
+    for source in ("working", "forced", "direct"):  # working modes only
+        part = [r["correct"] for r in rows if r.get("letter_from") == source]
+        if part:
+            print(f"  letter from {source:8} {sum(part):4}/{len(part):<4} {100 * sum(part) / len(part):5.1f}%")
+    worked = [r for r in rows if r.get("working")]
+    if worked:
+        print(f"  working: budget set from the prompt's tokens in {sum(r['working'] == 'budget' for r in worked)}"
+              f"/{len(worked)}, mean written {statistics.mean(r.get('written_tokens', 0) for r in worked):.0f} "
+              f"of {statistics.mean(r.get('budget_tokens', 0) for r in worked):.0f} tokens")
+    copied = [r["correct"] for r in rows if r["status"] == "presolve"]
+    if copied:
+        print(f"  presolve (no model): {sum(copied)}/{len(copied)} right")
 
     for field, title in (("language", "By language"), ("level", "By level"),
                          ("has_options", "By whether OCR found the options"), ("topic", "By topic")):

@@ -74,7 +74,7 @@ def run_model(name, path, args, bias_file, log_dir):
                 print(f"{name}: the server never became healthy; see {log_path}", file=sys.stderr)
                 return None
             env = {**os.environ, "LLM_PORT": str(args.port), "LETTER_BIAS_FILE": bias_file}
-            ev = subprocess.Popen([sys.executable, "eval.py", "--input", "data/val.jsonl",
+            ev = subprocess.Popen([sys.executable, "eval.py", "--input", args.input,
                                    "--languages", args.languages, "--limit", str(args.limit),
                                    "--name", f"{args.prefix}-{name}"],
                                   cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -107,6 +107,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--models", nargs="+", required=True, metavar="NAME=PATH.gguf")
     p.add_argument("--limit", type=int, default=0, help="0 means every problem")
+    p.add_argument("--input", default="data/val.jsonl", help="problems to score, e.g. data/demo/train.jsonl")
     p.add_argument("--languages", default="eng")
     p.add_argument("--port", type=int, default=8181)
     p.add_argument("--server", default=DEFAULT_SERVER, help="path to llama-server")
@@ -155,7 +156,7 @@ def main(argv=None):
     print("\n" + table)
     os.makedirs(os.path.join(ROOT, "results"), exist_ok=True)
     with open(os.path.join(ROOT, "results", args.report), "w") as f:
-        f.write(f"# Models on {args.languages or 'all'} validation problems "
+        f.write(f"# Models on {args.languages or 'all'} problems of {args.input} "
                 f"(seconds are from this computer, not the board)\n\n{table}\n")
     print(f"\nWritten: results/{args.report}")
 

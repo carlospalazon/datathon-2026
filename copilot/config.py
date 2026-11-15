@@ -13,7 +13,16 @@ DEFAULTS = {
     "OPTION_ORDERS": "1",     # 1..5 cyclic option orders to ask, time permitting
     "ANSWER_MODE": "",        # "reason": one line of working, then the letter (a model tuned for it);
                               # "think": free step-by-step working, then the letter (an untuned model)
-    "REASON_MAX_TOKENS": "160",
+    "REASON_MAX_TOKENS": "",  # an extra cap on the working, in tokens; empty means the token budget alone
+                              # (and 160 when the server cannot count the prompt)
+    # The board's speeds for the model in use, in tokens per second. In the two modes above the working
+    # may use (TIME_LIMIT_SECONDS - 3 - prompt_tokens / READ) * WRITE tokens: tokens, not a clock.
+    "BOARD_READ_TPS": "11",
+    "BOARD_WRITE_TPS": "6",
+    "SAVE_TEXTS": "",         # a file under results/: append each problem's written working (JSON Lines).
+                              # It quotes problems: never commit it.
+    "PRESOLVE": "",           # "1": copy the answer value of a near-identical training problem, no model
+    "PRESOLVE_DATA": "data/train.jsonl",  # training problems only, never data/demo or data/val.jsonl
 }
 
 

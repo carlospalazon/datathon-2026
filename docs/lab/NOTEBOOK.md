@@ -228,3 +228,80 @@ never problem text (M3Kang is research-use only).
   (`ANSWER_MODE=reason`, `eval.py`/`compare_models.py`) on demo and on validation, and with
   `bench_exam.py ... :11:6:tuned` for the board-time view.
 - **GPU is busy until then:** nothing that starts a model.
+
+### 2026-11-15 02:45 · Engineer · The predict path can now do what the benchmark does (M1, M2), code only
+- **Tried / claim:** no model was run (GPU training). `pipeline.solve()`, so `predict.py` and `eval.py`,
+  now has the benchmark's three steps in `ANSWER_MODE=reason` and `think`:
+  1. **Token budget, no clock (M2).** The server renders the prompt (`/apply-template`) and counts it
+     (`/tokenize`); the working may use `(TIME_LIMIT_SECONDS − 3 − prompt_tokens / BOARD_READ_TPS) ×
+     BOARD_WRITE_TPS` tokens (new settings, defaults 11 and 6; same formula as `bench_exam.budget`, tested
+     equal). The working is written with `/completion` on that rendered prompt, budget − 1 tokens;
+     `reason` keeps its grammar, `think` has none. The "remaining − 12 s" rule is gone: the only use of
+     the clock left is the request timeout (limit − 3 s − elapsed), a safety net.
+  2. **Forced letter as a continuation.** No answer at the end of the working → `/completion` with
+     prompt + working + "\nAnswer: ", one token, grammar `[A-E]` (a cut-off "\nAnsw" is removed first).
+     Only if that call fails is the plain one-letter question asked.
+  3. **Reading the letter.** `find_letter` moved to `copilot/find_letter.py` (`laptop/find_letter.py`
+     re-exports it; its 10 tests pass unchanged). Used in `think` mode, **letters only**: value matching
+     ("Answer: 12" → the option worth 12) is not used because it has never seen a real text. In `reason`
+     mode "finished" is structural: the text ends with the grammar's "\nAnswer: X". A letter mentioned
+     inside cut-off working is not an answer; the letter is forced instead.
+- **Recorded.** Result dict and new last columns of the `eval.py` CSV: `budget_tokens`, `written_tokens`
+  (includes the forced token), `finished`, `working` (`budget` = set from the prompt's tokens; `fixed` =
+  the server could not count, or the problem has a picture: 160 tokens through the old chat call),
+  `letter_from` (`working` / `forced` / `direct`). `prompt_tokens` is now the counted size. `eval.py`
+  prints accuracy per `letter_from` and writes the new settings in the `env` column of `ablations.csv`.
+  `SAVE_TEXTS=results/<file>.jsonl` appends id, language, letter, counts and the full working per problem
+  (refused anywhere else inside the repository; `results/` is ignored by git; never commit it).
+- **Presolve wired, OFF** (`PRESOLVE=1`, index from `PRESOLVE_DATA`, default `data/train.jsonl`, built
+  once; a missing file is recorded as `presolve_error` and the model answers). A value copy answers with
+  status `presolve`; a copied letter is used only where `NO_OPTIONS_PRIOR` would have answered. Counted
+  with no model, index = training split: **validation 562: value copies 10 answered, 10 right; letter
+  copies (no options) 22 answered, 11 right. Demo 100: 0 answered** (as Ideas predicted). Against the
+  kill line (≥ 12 answered, ≥ 65% right): value copies alone miss it by two (10), with the letter copies
+  it is 32 answered, 21 right (66%). Left off; Ideas or the owner decides. Validation and demo share no
+  id with `data/train.jsonl` (checked).
+- **Result:** `python3 -m pytest tests -q`: 249 passed (225 before; 24 new in
+  `tests/test_pipeline_budget.py`, server faked). Includes the M2 check in mock form: with the clock
+  frozen and with 20 s per look at the clock, the requests and the letter are identical. Default
+  behaviour unchanged and tested: no settings → one chat call, one letter, the same result dict as before.
+- **Raw outputs checked:** not applicable (no model).
+- **Changed defaults inside the working modes only:** `REASON_MAX_TOKENS` is now empty (was 160) and is
+  only an extra cap; set it only to reproduce an old run. `compare_models.py` has `--input`.
+- **Settings for the reported number (next round, GPU free).** Server: the tuned GGUF with the flags in
+  `compare_models.py` (`SERVER_FLAGS`). Then, same settings on demo and on validation:
+
+      LLM_PORT=<port> ANSWER_MODE=reason BOARD_READ_TPS=11 BOARD_WRITE_TPS=6 \
+      SAVE_TEXTS=results/texts-<name>-demo.jsonl \
+      python3 eval.py --input data/demo/train.jsonl --limit 0 --name <name>-demo
+
+      ANSWER_MODE=reason BOARD_READ_TPS=11 BOARD_WRITE_TPS=6 SAVE_TEXTS=results/texts-<name>-val.jsonl \
+      python3 laptop/compare_models.py --models <name>=~/unoq-local/models/<file>.gguf \
+          --input data/val.jsonl --languages eng,cat --limit 0 --prefix v3 --report v3_models.md
+
+  Leave `REASON_MAX_TOKENS`, `PRESOLVE`, `OPTION_ORDERS` unset. For the untuned model use
+  `ANSWER_MODE=think`. Prefer plain `eval.py` for the number shown to the owner: `compare_models.py`
+  always passes a zero `LETTER_BIAS_FILE`, so its last-resort letter goes through the logprobs call,
+  not the call `predict.py` makes. For the board, the same three settings go in `config.env`.
+  Accept the run only if the CSV says `working = budget` on every row with options; `fixed` rows mean
+  the server did not count and the run is not the token-budget number. Board time per problem is
+  `prompt_tokens / 11 + written_tokens / 6` from the CSV (eval's own seconds are this computer's).
+- **Not verified without a model server:**
+  1. That `/apply-template` renders the same prompt the chat endpoint builds with `--reasoning off`
+     (the fine-tune was trained on the chat format). Check on one problem: `prompt_tokens` in the CSV
+     against `timings.prompt_n` of a chat call with the cache off. Same assumption `bench_exam.py` makes.
+  2. That the board's llama-server build has `/apply-template` and `/tokenize`. If not, every row says
+     `fixed` and the letter is never forced as a continuation.
+  3. The speeds 11 and 6 on the board for the tuned file. If the board is slower, the timeout fires at
+     57 s, the working is lost and only 3 s remain for the plain letter: set the two speeds at or
+     below what is measured, and look at the worst `seconds` of a board run.
+  4. Two real runs giving 100 identical letters (M2's own test), and that the forced letter reuses the
+     server's prompt cache (it should: same prefix).
+  5. `find_letter` on real texts (think mode); the saved texts make this a CPU job.
+- **Still on the clock:** `OPTION_ORDERS` > 1 stops extra passes on "1.3 × slowest pass". Not used in
+  the settings above; do not combine it with a reported number. The budget does not count time spent
+  before the model (retrieval with `--rag`, the presolve scan).
+- **Skipped:** M3 (development set by whole years) and wiring `find_letter` into `bench_exam.py`: out of
+  this round's scope.
+- **For Ideas:** presolve counts above: keep or drop? And is value matching in `find_letter` wanted in
+  the pipeline once ten real texts have been read?

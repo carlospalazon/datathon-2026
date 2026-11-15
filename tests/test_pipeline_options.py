@@ -265,12 +265,15 @@ if __name__ == "__main__":
 
 
 class ReasonMode(unittest.TestCase):
-    """ANSWER_MODE=reason: one line of working, then the letter; a plain letter if that fails."""
+    """ANSWER_MODE=reason on a server that cannot count the prompt: a fixed number of tokens of working,
+    then the letter; a plain letter if that fails. The token budget is in tests/test_pipeline_budget.py."""
 
     def post(self, replies):
         calls = []
 
         def f(url, payload, timeout):
+            if not url.endswith("/x"):  # /apply-template, /tokenize, /completion: not on this server
+                raise ConnectionRefusedError("no such endpoint")
             calls.append(payload)
             reply = replies[len(calls) - 1]
             if isinstance(reply, Exception):
@@ -282,14 +285,16 @@ class ReasonMode(unittest.TestCase):
         post, calls = self.post(["Two and two make four, so B is not it.\nAnswer: C"])
         out = run(post, {"ANSWER_MODE": "reason"})
         self.assertEqual((out["answer"], out["status"], len(calls)), ("C", "ok", 1))
-        self.assertGreater(calls[0]["max_tokens"], 1)
+        self.assertEqual(calls[0]["max_tokens"], pipeline.FIXED_WORKING_TOKENS)
         self.assertIn("Answer: ", calls[0]["grammar"])
+        self.assertEqual((out["working"], out["finished"], out["letter_from"]), ("fixed", True, "working"))
 
     def test_no_answer_line_asks_for_a_plain_letter(self):
         post, calls = self.post(["working that never ends", "E"])
         out = run(post, {"ANSWER_MODE": "reason"})
         self.assertEqual((out["answer"], out["status"], len(calls)), ("E", "ok", 2))
         self.assertEqual(calls[1]["max_tokens"], 1)
+        self.assertEqual((out["working"], out["finished"], out["letter_from"]), ("fixed", False, "direct"))
 
     def test_timeout_while_reasoning_asks_for_a_plain_letter(self):
         post, calls = self.post([TimeoutError(), "A"])

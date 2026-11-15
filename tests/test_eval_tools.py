@@ -215,7 +215,9 @@ class EvalMain(unittest.TestCase):
             self.assertEqual(len(rows), 3)
             self.assertEqual(list(rows[0])[:11], OLD_HEADER.split(","))
             self.assertEqual(list(rows[0])[11:], ["topic", "needs_figure", "passes"] +
-                             [f"lp_{l}" for l in "ABCDE"])
+                             [f"lp_{l}" for l in "ABCDE"] +
+                             ["budget_tokens", "written_tokens", "finished", "working", "letter_from"])
+            self.assertEqual({r["working"] for r in rows}, {""})  # no working mode: all empty
             by_id = {(r["id"], r["language"]): r for r in rows}
             self.assertEqual(by_id[("q1", "eng")]["topic"], "conteo")
             self.assertEqual(by_id[("q1", "eng")]["lp_A"], "-0.1")
