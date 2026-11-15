@@ -200,3 +200,14 @@ never problem text (M3Kang is research-use only).
 - **For the user / organisers:** is the hidden test M3Kang-style or 2026-style? B1 is worth about 2 points
   or nothing depending on the answer.
 
+
+### 2026-11-15 02:00 · Coordinator · Teacher-written problems: route closed
+- **Tried:** eight agents were asked to write about 120 new Kangaroo-style problems each, with worked
+  solutions and a Python solver, as extra training data (brainstorm A, idea 3).
+- **Result:** two agents were stopped by the model's safeguards before writing anything (flag
+  `reasoning_extraction`). The coordinator stopped the other six. No problems were produced.
+- **Conclusion and next:** do not relaunch this or reword it to get past the flag. Do not ask agents to
+  write new problems with worked solutions, or paraphrases of solutions, as training data (this also
+  closes brainstorm A idea 4). More training data comes only from code: the generators in
+  `laptop/synthetic_problems.py` (answers and working computed by the program), new generators, and
+  openly licensed public datasets. The owner may decide otherwise in the morning.
