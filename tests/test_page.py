@@ -64,7 +64,7 @@ class Page(unittest.TestCase):
                 httpd.shutdown()
                 httpd.server_close()
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            self.assertIn("OK: 15 steps", run.stdout)
+            self.assertIn("OK: 17 steps", run.stdout)
 
 
 if __name__ == "__main__":

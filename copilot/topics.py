@@ -9,7 +9,7 @@ import re
 from .guardrails import numbers_in, strip_accents
 
 MAX_INPUT = 200
-LOCK_AFTER = 3  # consecutive redirects before free text is turned off (buttons only)
+LOCK_AFTER = 5  # consecutive redirects before free text is turned off (buttons only), until the next problem
 
 INJECTION = [
     "ignore previous", "ignore all", "ignore the instructions", "ignora las instrucciones",
@@ -45,7 +45,20 @@ MATH_WORDS = {
     "minutos", "minuts", "minutes", "dias", "dies", "days", "grafico", "patron", "patro",
     "pattern", "secuencia", "sequence", "probabilidad", "probability", "problema", "problem",
     "opcion", "opcio", "option", "respuesta", "resposta", "answer", "calculo", "calcul",
+    # The syllabus, beyond the words of the problem on screen: a child may ask what any of these is
+    "parell", "senar", "imparell", "doble", "triple", "meitat", "mitad", "terc", "tercio", "quart",
+    "unitat", "desena", "centena", "miler", "negatiu", "residu", "quocient",
+    "producte", "dividir", "multiplicar", "taules", "tabla", "proporcio", "regla de tres",
+    "mesura", "medida", "longitud", "distancia", "metre", "centimetre", "centimetro",
+    "quilometre", "kilometro", "milimetre", "litre", "litro", "quilo", "centim",
+    "setmana", "poligon", "pentagon", "hexagon", "octagon", "quadrilater", "cuadrilatero", "rombe",
+    "rombo", "trapezi", "esfera", "cilindre", "piramide", "prisma", "costat", "vertex", "vertice",
+    "aresta", "arista", "diagonal", "simetri", "eix", "paralel", "perpendicular", "hipotenusa",
+    "altura", "alcada", "diametre", "grafi", "barres", "graus", "grados", "consecuti",
+    "numerador", "denominador", "equivalent", "aproxim", "arrodon", "redonde", "estimar", "comptar", 
 }
+
+SHORT_MATH = ["eix", "par", "mcm", "mcd", "cara", "cares", "base", "radi", "gram", "grams", "euros"]  # whole words too short for the prefix rule
 
 SOCIAL = ["hola", "hello", "hi", "hey", "gracias", "gracies", "thanks", "thank you", "merci",
           "adeu", "adios", "bye", "bon dia", "buenos dias", "good morning"]
@@ -119,7 +132,8 @@ def classify(text, problem):
     words = set(re.findall(r"[^\W\d_]{4,}", t))
     shares_problem = bool(words & _problem_words(problem))
     has_lexicon = any(w.startswith(m) for w in words for m in MATH_WORDS if len(m) >= 4) \
-        or any(m in t for m in ("how many",)) or bool(words & {"par", "mitjana"})
+        or any(m in t for m in ("how many", "regla de tres")) or bool(words & {"par", "mitjana"}) \
+        or _has(t, SHORT_MATH)
     nums = numbers_in(t)
     foreign = nums - numbers_in(problem.get("text", "") + " " + " ".join(str(v) for v in (problem.get("options") or {}).values()))
     foreign -= {"1", "2", "3", "4", "5", "10"}

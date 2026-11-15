@@ -6,7 +6,8 @@
 
 Input: copilot.topics.check_input decides what the text is (hint, answer letter, next,
 solution, a question about the problem, off topic, injection...).
-A question about the problem gets written help first: copilot.match picks the hint,
+A question about the syllabus ("what is a prime number?") gets a written definition from
+copilot.glossary. A question about the problem gets written help first: copilot.match picks the hint,
 checkpoint or note that fits it. Only a question about what a word or a phrase means
 reaches the model, with the teacher's notes on the problem.
 Output: whatever the model writes goes through copilot.guardrails.check, the tutor's leak
@@ -19,7 +20,7 @@ import re
 import threading
 import unicodedata
 
-from . import guardrails, match, slm, topics
+from . import glossary, guardrails, match, slm, topics
 from .tutor import base_status, leaks_answer
 
 APP_HELP = {
@@ -59,6 +60,14 @@ def about_problem(text, problem):
     return bool(shared_numbers) or len(shared_words) >= 2
 
 
+def syllabus(text, problem):
+    """The written definition, if the text asks about the syllabus and not about the step the student is on."""
+    kind = match.kind(text)
+    if kind == "next" or (kind in ("look", "start", "why") and not glossary.ASKS.search(glossary.clean(text))):
+        return None  # "he de dividir?", "no entenc el perímetre d'aquesta figura": about this problem
+    return glossary.lookup(text, problem)
+
+
 def answer_letter(text):
     """The letter the student chose ("opcio b", "crec que és la c"), or None."""
     return topics.choice_letter(text)
@@ -88,7 +97,7 @@ class Assistant:
             return {"kind": "answer", **self.tutor.answer(letter),
                     "debug": {"input": text, "intent": "eleccion", "locked": False}}
         verdict = topics.check_input(text, problem, self.state)
-        if (verdict["intent"] == "offtopic" and about_problem(text, problem)) or \
+        if (verdict["intent"] == "offtopic" and (about_problem(text, problem) or glossary.terms(text))) or \
                 (verdict["intent"] == "siguiente" and len(text.split()) > 4 and "problem" not in text.lower()):
             # "per on començo?" has no maths word in it, but it is a question about this problem; and
             # "i si perd el bus, quan passa el següent?" is not a request for the next problem
@@ -103,6 +112,10 @@ class Assistant:
             letter = topics.choice_letter(text)
             return {"kind": "answer", **self.tutor.answer(letter), "debug": debug}
         if intent in ("pista", "repetir", "math"):  # written help that fits the question comes first
+            found = syllabus(text, problem)  # "què és un nombre primer?": a written definition, not the model
+            if found:
+                return {"kind": "reply", "text": found["text"], "status": found["status"], "tone": "help",
+                        "debug": {**debug, "matched": found["source"]}, "events": []}
             reply = self._written(match.pick(text, self.tutor), debug)
             if reply:
                 return reply
@@ -176,7 +189,9 @@ class Assistant:
 
     def _run(self, job, problem, student_text, debug):
         reply = self.ask(problem, student_text)
-        ok, reason = guardrails.check(reply["text"], problem) if not reply["error"] else (False, "model_error")
+        explains = match.kind(student_text) == "word"  # the only questions that reach the model today
+        ok, reason = guardrails.check(reply["text"], problem, explains=explains) if not reply["error"] \
+            else (False, "model_error")
         if ok and leaks_answer(reply["text"], problem):
             ok, reason = False, "tutor_leak_check"
         if ok and restates_question(reply["text"], problem):

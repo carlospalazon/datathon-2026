@@ -95,7 +95,8 @@ const scripts = [...body.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1
 if (/<script[^>]+src=|<link[^>]+href=|@import|url\(\s*["']?https?:/.test(page)) errors.push("the page loads something from outside");
 const doc = new Node("html"); doc.body = new Node("body"); doc.append(doc.body);
 parseInto(doc.body, body.replace(/<script>[\s\S]*?<\/script>/g, ""));
-const document = { body: doc.body, createElement: t => new Node(t), querySelector: s => doc.querySelector(s), querySelectorAll: s => doc.querySelectorAll(s) };
+const document = { body: doc.body, createElement: t => new Node(t), querySelector: s => doc.querySelector(s), querySelectorAll: s => doc.querySelectorAll(s),
+  addEventListener() {} };  // the page closes its drop-downs on a click anywhere: nothing to click through here
 let inflight = 0; const calls = [];
 const fakeFetch = async path => { inflight++; calls.push(path); try { const r = await fetch(new URL(path, base)); const t = await r.text(); return { ok: r.ok, status: r.status, json: async () => JSON.parse(t) }; } finally { inflight--; } };
 const timers = new Set();
@@ -531,6 +532,22 @@ if (doc.querySelector("#sessionbtn")) await step("today's session: the plan, its
   const before = $("#img").src;
   await click($("#next"));
   check($("#img").src !== before && $("#sessionbar").hidden, "and the tutor picks the next problem again");
+});
+
+await step("the logo leads home: from the map back to the tutor's problem", async () => {
+  await click($("#mapbtn"));
+  check($("#tutorpane").hidden && $("#menu").hidden, "on the map the menu has nothing to offer");
+  await click($("#home"));
+  check(!$("#tutorpane").hidden && $("#mappane").hidden && !$("#menu").hidden, "the logo brings the tutor back, with its menu");
+});
+
+await step("a draft carries no label; a reviewed help still does", async () => {
+  await click($("#next"));
+  for (let i = 0; i < 200 && $("#help").hidden; i++) await settle();  // the think-first second
+  await click($("#help"));
+  const feed = $("#feed").textContent;
+  check(!/esborrany|no revisat/i.test([...doc.walk()].map(n => n.textContent).join(" ")), "no draft label anywhere on the page");
+  check(/revisat/.test(feed), "the reviewed hint says it was reviewed");
 });
 
 for (const t of timers) clearInterval(t);

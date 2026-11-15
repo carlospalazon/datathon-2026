@@ -101,10 +101,32 @@ class Routing(unittest.TestCase):
         r = self.a.chat("quantes pomes hi ha en total?")    # nothing written fits: the next step of the guide
         self.assertEqual(r["kind"], "help")
 
-    def test_three_off_topic_messages_lock_free_text(self):
-        for _ in range(3):
+    def test_five_off_topic_messages_lock_free_text(self):
+        for n in range(5):
             r = self.a.chat("qui va guanyar el partit ahir?")
-        self.assertTrue(r["locked"])
+            self.assertEqual(r["locked"], n == 4, n)
+
+    def test_a_syllabus_question_gets_the_written_definition(self):
+        for text, word in (("què és un nombre primer?", "per ell mateix"), ("que es el perimetre", "vora"),
+                           ("com es calcula l'àrea d'un rectangle?", "llarg"), ("què és una hipotenusa?", "triangle rectangle"),
+                           ("quina diferència hi ha entre àrea i perímetre?", "quadradets"), ("com es llegeix un gràfic de barres?", "barra"),
+                           ("no sé què és un terç", "tres parts")):
+            r = self.a.chat(text)
+            self.assertEqual(r["kind"], "reply", text)
+            self.assertIn(word, r["text"], text)
+            self.assertTrue(r["debug"]["matched"].startswith("glossary"), text)
+
+    def test_a_definition_never_carries_the_answer(self):
+        r = self.a.chat("què és un múltiple?")      # the example lists 5, 10, 15, 20 and the answer is 10
+        self.assertEqual(r["kind"], "reply")
+        self.assertNotIn("10", r["text"])
+        self.assertIn("multiplicar-lo", r["text"])
+
+    def test_a_question_about_the_step_is_not_a_syllabus_question(self):
+        for text in ("he de dividir?", "què faig primer?", "i ara què?", "quant és 7 per 8?"):
+            r = self.a.chat(text)
+            self.assertFalse(r.get("debug", {}).get("matched", "").startswith("glossary"), text)
+        self.assertEqual(self.a.chat("quant és 7 per 8?")["kind"], "rail")   # another sum: still not the tutor's job
 
 
 class OutputRails(unittest.TestCase):

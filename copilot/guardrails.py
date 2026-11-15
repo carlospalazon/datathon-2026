@@ -76,12 +76,12 @@ def _correct_value(problem):
     return str((problem.get("options") or {}).get(problem.get("label", ""), "")).strip()
 
 
-def _check(text, problem, max_chars):
+def _check(text, problem, max_chars, explains=False):
     if not isinstance(text, str) or not text.strip():
         return False, "empty"
     if len(text) > max_chars:
         return False, "too_long"
-    if len([s for s in re.split(r"[.!?]+(?:\s|$)", text) if s.strip()]) > MAX_SENTENCES:
+    if len([s for s in re.split(r"[.!?]+(?:\s|$)", text) if s.strip()]) > MAX_SENTENCES + explains:
         return False, "too_many_sentences"
     if LIST_OR_MARKDOWN.search(text) or "\n\n" in text:
         return False, "format"
@@ -104,11 +104,14 @@ def _check(text, problem, max_chars):
                 and strip_accents(correct.lower()) not in strip_accents(statement.lower()):
             return False, "value_leak"
 
-    if CALC_RESULT.search(text):
-        return False, "calculation"
-    unknown = numbers_in(text) - _problem_numbers(problem) - ALLOWED_NUMBERS
-    if unknown:
-        return False, "invented_number"
+    # An explanation of a word of the syllabus needs its own numbers: "a right angle measures 90 degrees",
+    # "the multiples of 5 are 5, 10, 15". The value of the right option is still caught above.
+    if not explains:
+        if CALC_RESULT.search(text):
+            return False, "calculation"
+        unknown = numbers_in(text) - _problem_numbers(problem) - ALLOWED_NUMBERS
+        if unknown:
+            return False, "invented_number"
 
     language = problem.get("language")
     if language in STOPWORDS:
@@ -126,10 +129,14 @@ def _check(text, problem, max_chars):
     return True, "ok"
 
 
-def check(text, problem, max_chars=MAX_CHARS):
-    """Return (ok, reason). Fail-closed: any error counts as a rejection."""
+def check(text, problem, max_chars=MAX_CHARS, explains=False):
+    """Return (ok, reason). Fail-closed: any error counts as a rejection.
+
+    explains: the text answers "what does this word mean?". It may use numbers of its own and one more
+    sentence. Every check on the answer of the problem (letter, value, "the answer is") stays as strict.
+    """
     try:
-        return _check(text, problem, max_chars)
+        return _check(text, problem, max_chars, explains)
     except Exception as error:  # noqa: BLE001 - a guardrail must never break the app
         return False, f"error: {error.__class__.__name__}"
 

@@ -18,8 +18,27 @@
   [hidden] { display: none !important; }
   body { margin: 0; font: 17px/1.5 "Nunito", "DIN Round Pro", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 600; color: var(--ink); background: var(--bg); }
   header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 24px; background: var(--card); border-bottom: 2px solid var(--line); position: sticky; top: 0; z-index: 5; }
-  header h1 { font-size: 26px; font-weight: 800; margin: 0 14px 0 0; color: var(--green); letter-spacing: -.3px; }
-  header h1::before { content: "🦘 "; }
+  header h1 { margin: 0 14px 0 0; }
+  /* The logo is the way home: back to the tutor's problem from the map, the session or a result */
+  #home { font: inherit; font-size: 26px; font-weight: 800; color: var(--green); letter-spacing: -.3px; background: none; border: 0; padding: 2px 6px; border-radius: 12px; cursor: pointer; }
+  #home::before { content: "🦘 "; }
+  #home:hover { background: var(--soft); }
+  #home:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* Drop-downs: what is used now and then stays folded, so the problem and its answers lead the page */
+  details.dd { position: relative; }
+  details.dd > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--card); color: var(--accent); cursor: pointer; user-select: none; }
+  details.dd > summary::-webkit-details-marker { display: none; }
+  details.dd > summary::after { content: "▾"; font-size: 12px; }
+  details.dd[open] > summary::after { content: "▴"; }
+  details.dd > summary:hover { background: var(--soft); }
+  details.dd > summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  details.dd > .panel { position: absolute; z-index: 6; top: calc(100% + 6px); left: 0; min-width: 230px; display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--card); border: 2px solid var(--line); border-radius: 16px; box-shadow: 0 6px 18px rgba(0, 0, 0, .15); }
+  details.dd.right > .panel { left: auto; right: 0; }
+  details.dd > .panel button { width: 100%; text-align: left; }
+  .actions details.dd > summary { font-size: 15px; padding: 12px 20px; border-radius: 16px; border-bottom-width: 5px; }
+  #readdd { margin: 14px 0 0; }
+  #readdd > summary { font-size: 13px; padding: 6px 12px; border-radius: 12px; border-bottom-width: 2px; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  #readdd > summary b { color: var(--accent); }
   .pill { font-size: 13px; font-weight: 800; padding: 4px 14px; border-radius: 999px; border: 2px solid var(--line); color: var(--muted); background: var(--card); text-transform: uppercase; letter-spacing: .5px; }
   #grade { color: var(--accent); border-color: var(--accent); }
   #topic { color: var(--green-dark); border-color: var(--green); }
@@ -103,7 +122,7 @@
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* Reading modes: one idea per line, more room, the key data marked, a strip with only the numbers. The student's choice */
-  .readbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 0; }
+  .readbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 0; }
   .readbar button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
   .readbar button.picked { border-color: var(--accent); color: var(--accent); background: var(--soft); }
   .readbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -199,14 +218,20 @@
 </head>
 <body>
 <header>
-  <h1>Tutor Cangur</h1>
+  <h1><button id="home" title="Torna a l'inici" aria-label="Tutor Cangur: torna a l'inici">Tutor Cangur</button></h1>
   <span class="pill" id="grade"></span>
   <span class="pill" id="topic"></span>
   <span class="pill" id="pid"></span>
   <span class="hbtns">
-    <button id="sessionbtn">Sessió d'avui</button>
-    <button id="mapbtn">El meu mapa</button>
-    <button id="exambtn">Mode examen</button>
+    <details class="dd right" id="menu">
+      <summary>Menú</summary>
+      <div class="panel">
+        <button id="sessionbtn">Sessió d'avui</button>
+        <button id="mapbtn">El meu mapa</button>
+        <button id="exambtn">Mode examen</button>
+        <label class="muted"><input type="checkbox" id="debugtoggle" checked> Detalls de prova (guardes i model)</label>
+      </div>
+    </details>
   </span>
 </header>
 <main>
@@ -217,13 +242,15 @@
     <div class="planbar" id="sessionbar" hidden><span class="ptxt"></span><button class="pquit">Surt de la sessió</button></div>
     <div class="planbar" id="reviewbar" hidden><span class="ptxt"></span><button class="pquit">Torna als resultats</button></div>
     <img class="problem-img" id="img" alt="Enunciat del problema">
-    <div class="readbar" id="readbar" role="group" aria-label="Com vols llegir l'enunciat">
-      <span class="muted">Com vols llegir?</span>
-      <button class="rmode" id="rm-lines" aria-pressed="false">Una idea per línia</button>
-      <button class="rmode" id="rm-space" aria-pressed="false">Més espai</button>
-      <button class="rmode" id="rm-key" aria-pressed="false">Dades clau</button>
-      <button class="rmode" id="rm-numbers" aria-pressed="false">Només els números</button>
-    </div>
+    <details class="dd" id="readdd">
+      <summary>Com vols llegir l'enunciat? <b id="readcount"></b></summary>
+      <div class="readbar" id="readbar" role="group" aria-label="Com vols llegir l'enunciat">
+        <button class="rmode" id="rm-lines" aria-pressed="false">Una idea per línia</button>
+        <button class="rmode" id="rm-space" aria-pressed="false">Més espai</button>
+        <button class="rmode" id="rm-key" aria-pressed="false">Dades clau</button>
+        <button class="rmode" id="rm-numbers" aria-pressed="false">Només els números</button>
+      </div>
+    </details>
     <div id="reader" hidden></div>
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
@@ -233,12 +260,17 @@
         <span>Primer, pensa-hi tu. La pista arriba de seguida.</span>
         <button id="thinkskip" hidden>Ja hi he pensat</button>
       </span>
-      <button id="solution">Veure la solució</button>
-      <button id="practice" hidden>Un de semblant</button>
       <button id="next">Següent problema</button>
+      <details class="dd" id="more">
+        <summary>Més opcions</summary>
+        <div class="panel">
+          <button id="practice" hidden>Un de semblant</button>
+          <button id="solution">Veure la solució</button>
+        </div>
+      </details>
     </div>
     <form id="chat" class="actions" autocomplete="off">
-      <input id="chattext" maxlength="200" placeholder="Escriu al tutor: «no ho entenc», «crec que és la B»…" aria-label="Escriu al tutor"
+      <input id="chattext" maxlength="200" placeholder="Escriu al tutor: «no ho entenc», «què és un múltiple?»…" aria-label="Escriu al tutor"
         style="flex:1;min-width:220px;font:inherit;color:var(--ink)">
       <button type="submit">Envia</button>
     </form>
@@ -250,10 +282,9 @@
       <p class="muted">Simulada a la pantalla: el mateix que es veurà a la UNO Q.</p>
       <div class="matrix" id="matrix" aria-hidden="true"></div>
     </div>
-    <label class="muted"><input type="checkbox" id="debugtoggle" checked> Mostra els detalls de prova (guardes i model)</label>
     <div class="muted">
       Les respostes es corregeixen amb la solució verificada del Cangur, no amb el model.
-      Cada ajuda indica d'on surt i si una persona l'ha revisada.
+      Quan una ajuda l'ha escrita el model, ho diu.
     </div>
   </aside>
 </main>
@@ -261,8 +292,9 @@
 const TOPICS = { aritmetica: "Càlcul amb dades", algebra: "Número amagat (tempteig)", conteo: "Comptar", numeros: "Propietats dels números",
   logica: "Lògica", patrones: "Patrons", geometria_plana: "Geometria plana", geometria_espacial: "Geometria de l'espai",
   medida: "Mesura", visual: "Raonament visual", otros: "Altres" };
-const STATUS = { revisado: "revisat", preparado: "preparat", generado: "esborrany, no revisat", dataset: "problema del Cangur" };
+const STATUS = { revisado: "revisat", preparado: "preparat", dataset: "problema del Cangur" };  // "generado" (a draft) carries no label
 const $ = s => document.querySelector(s);
+const CHAT_HINT = "Escriu al tutor: «no ho entenc», «què és un múltiple?»…";
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const matrix = $("#matrix");
@@ -302,7 +334,7 @@ function badge(status) {
   if (status === "plantilla") return `<span class="badge">plantilla fixa</span>`;
   if (status === "regla") return `<span class="badge">deduït per regles, sense model</span>`;
   const base = String(status || "").split(":")[0];
-  return base ? `<span class="badge ${esc(base)}">${esc(STATUS[base] || base)}</span>` : "";
+  return STATUS[base] ? `<span class="badge ${esc(base)}">${esc(STATUS[base])}</span>` : "";
 }
 
 function show(view) {
@@ -314,6 +346,8 @@ function show(view) {
   $("#topic").textContent = TOPICS[p.topic] || p.topic;
   $("#pid").textContent = p.id;
   $("#feed").innerHTML = "";
+  $("#chattext").disabled = false;  // a chat closed after several off-topic messages opens again with a new problem
+  $("#chattext").placeholder = CHAT_HINT;
   const box = $("#letters");
   box.innerHTML = "";
   for (const letter of "ABCDE") {
@@ -355,6 +389,7 @@ function paintReading() {
     b.classList.toggle("picked", on);
     b.setAttribute("aria-pressed", String(on));
   }
+  $("#readcount").textContent = modes.length ? `(${modes.length})` : "";
   document.body.classList.toggle("airy", modes.includes("space"));
   const box = $("#reader");
   box.hidden = !modes.length || !reading;
@@ -741,6 +776,10 @@ function examButton() {  // the header button: into the exam, back to its result
   const inExam = !pane.hidden;
   $("#exambtn").hidden = inExam;
   $("#exambtn").textContent = exam.status === "finished" ? "Resultats de l'examen" : "Mode examen";
+  menuState();
+}
+function menuState() {  // the menu goes when none of its three ways out is on offer (a paper running, the map open)
+  $("#menu").hidden = ["#sessionbtn", "#mapbtn", "#exambtn"].every(id => $(id).hidden);
 }
 function showPane(side) {  // false: the tutor; true: the exam; "map": the skill map; "warm": the warm-up
   if (side === false && warm) side = "warm";       // a warm-up on offer comes before the tutor's problem
@@ -756,6 +795,7 @@ function showPane(side) {  // false: the tutor; true: the exam; "map": the skill
   $("#mapbtn").hidden = away;  // the map is reached from the tutor, never in the middle of a paper
   $("#sessionbtn").hidden = away;
   if (mapSide || warmSide) $("#exambtn").hidden = true;
+  menuState();
   if (warmSide) $("#warmpane").scrollIntoView({ block: "start" });
   if (examSide) pane.scrollIntoView({ block: "start" });
   if (mapSide) $("#mappane").scrollIntoView({ block: "start" });
@@ -1317,6 +1357,22 @@ $("#exambtn").onclick = async () => {
   await examSetup();
   showPane(true);
 };
+
+// The logo: back to the start, the tutor's problem. A paper that is running is not left in silence:
+// the page asks first, with the same question as "Surt sense lliurar".
+$("#home").onclick = () => {
+  const quit = exam.status === "running" && !pane.hidden && pane.querySelector(".equit");
+  if (quit) return quit.click();
+  showPane(false);
+  if (window.scrollTo) window.scrollTo({ top: 0, behavior: "smooth" });
+};
+// The two floating drop-downs close after a choice and with a click anywhere else.
+// The reading switches are a fold in the page, not a floating panel: they stay as the student left them.
+document.addEventListener("click", e => {
+  for (const d of document.querySelectorAll("#menu[open], #more[open]")) {
+    if (!d.contains(e.target) || (e.target.closest && e.target.closest(".panel button"))) d.open = false;
+  }
+});
 
 loadState().then(async () => {
   const r = await api("examstate");   // a reload in the middle of a paper goes back to it

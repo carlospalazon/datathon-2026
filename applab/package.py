@@ -34,7 +34,7 @@ def main():
     # no config.env, no predict pipeline.
     pkg = os.path.join(out, "python", "copilot")
     os.makedirs(pkg)
-    for module in ("__init__.py", "tutor.py", "diagnose.py", "matrix.py", "assistant.py", "match.py", "slm.py", "guardrails.py", "topics.py", "practice.py", "exam.py", "skillmap.py", "reading.py", "warmup.py", "pictures.py"):
+    for module in ("__init__.py", "tutor.py", "diagnose.py", "matrix.py", "assistant.py", "match.py", "glossary.py", "slm.py", "guardrails.py", "topics.py", "practice.py", "exam.py", "skillmap.py", "reading.py", "warmup.py", "pictures.py"):
         shutil.copy(os.path.join(ROOT, "copilot", module), os.path.join(pkg, module))
     # The generators behind the practice problems (our own code, no M3Kang data)
     shutil.copy(os.path.join(ROOT, "laptop/synthetic_problems.py"), os.path.join(pkg, "synthetic_problems.py"))

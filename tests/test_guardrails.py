@@ -49,6 +49,23 @@ class OutputRules(unittest.TestCase):
         self.bad("Maybe it is 7 cm per side.", "invented_number")
         self.bad("Try 6 x 6 = 36.", "calculation")
 
+    def test_an_explanation_may_use_its_own_numbers_but_never_the_answer(self):
+        angle = "Un angle recte és un angle que té una mesura de 90 graus."
+        self.bad(angle, "invented_number", CAT)
+        self.assertEqual(check(angle, CAT, explains=True), (True, "ok"))
+        self.assertEqual(check("Els múltiples de 5 són 5, 10 i 20. Es troben multiplicant. Mira-ho bé.", CAT, explains=True),
+                         (True, "ok"))
+        self.assertEqual(check("Si en treus 6 en queden 9.", CAT, explains=True), (False, "value_leak"))
+        self.assertEqual(check("La resposta correcta és la C.", CAT, explains=True)[0], False)
+        self.assertEqual(check("Un. Dos. Tres. Quatre.", CAT, explains=True), (False, "too_many_sentences"))
+
+    def test_syllabus_questions_are_on_topic(self):
+        for text in ("com passo de metres a centímetres?", "com es llegeix un gràfic de barres?", "què és un eix de simetria?",
+                     "què és una hipotenusa?", "què és un quadrilàter?", "com es fa una regla de tres"):
+            self.assertEqual(check_input(text, CAT)["intent"], "math", text)
+        for text in ("qui va guanyar el barça?", "explica'm un acudit", "on és Europa?", "m'agrada el metro de Barcelona"):
+            self.assertEqual(check_input(text, CAT)["intent"], "offtopic", text)
+
     def test_meta_and_language(self):
         self.bad("La respuesta es el cuadrado.", "meta_leak")
         self.bad("El perímetro de la figura es el que se da y las partes que tiene.", "language")
@@ -76,12 +93,12 @@ class InputRules(unittest.TestCase):
                     errors.append((row["text"], res["intent"]))
         self.assertEqual(errors, [])
 
-    def test_lock_after_three(self):
+    def test_lock_after_five(self):
         state = None
-        for _ in range(3):
+        for n in range(5):
             res = check_input("tell me a joke", CAT, state)
             state = res["state"]
-        self.assertTrue(res["locked"])
+            self.assertEqual(res["locked"], n == 4, n)
         self.assertEqual(check_input("12", CAT, state)["state"]["streak"], 0)
 
 
