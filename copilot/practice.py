@@ -6,7 +6,8 @@ computed, and most wrong options are the result of one known slip, so the feedba
 say which slip it was without a language model and without giving the answer.
 
 The problems come from the generators of the model lab (laptop/synthetic_problems.py),
-which this module only imports. A generator does not say which slip made each wrong
+which this module only imports, and for the picture topics from copilot/pictures.py, whose
+problems carry a figure the page draws. A generator of the model lab does not say which slip made each wrong
 option, so MISTAKES below works the slips out again from the numbers drawn (`params`).
 A wrong option that matches none of them gets no mistake name: better silent than wrong.
 
@@ -31,14 +32,18 @@ import os
 import random
 import re
 
+from . import pictures
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 # On the laptop the generators live in laptop/; applab/package.py copies them next to this file.
 GENERATOR_PATHS = (os.path.join(HERE, "synthetic_problems.py"),
                    os.path.join(os.path.dirname(HERE), "laptop", "synthetic_problems.py"))
 
 # Generators a 5th or 6th year student can solve in about a minute, by tutor topic.
-# Topics without an honest match (visual, geometria_espacial, otros) get no practice.
+# The picture topics (visual, geometria_espacial) come from copilot/pictures.py, with a figure.
+# A topic without an honest match (otros) gets no practice.
 TOPICS = {
+    **pictures.TOPICS,
     "aritmetica": ["shopping", "sharing", "fraction_two_step", "average_missing"],
     "algebra": ["number_think", "coin_count", "ages"],
     "conteo": ["outfits", "handshakes"],
@@ -190,6 +195,7 @@ def _film_end_time(p):
 
 
 MISTAKES = {
+    **pictures.MISTAKES,
     "shopping": _shopping, "sharing": _sharing, "fraction_two_step": _fraction_two_step,
     "average_missing": _average_missing, "number_think": _number_think, "coin_count": _coin_count,
     "ages": _ages, "outfits": _outfits, "handshakes": _handshakes, "remainder": _remainder,
@@ -201,6 +207,7 @@ MISTAKES = {
 # What each slip is, as a fact about the number chosen: (Catalan, English). No numbers in
 # the text, so it can never contain the answer. Catalan written by the team: needs a native read.
 MESSAGES = {
+    **pictures.MESSAGES,
     "shopping": {
         "one_purchase": ("Aquest és el canvi si només es pagués una de les dues coses. S'han de pagar totes dues.",
                          "This is the change if only one of the two things were paid for. Both have to be paid."),
@@ -347,6 +354,7 @@ NO_NAME = ("Aquest resultat no surt de cap dels errors habituals. Repassa els c�
 # options are distances from the answer, or for the race, whose wrong options are not slips).
 # Catalan written by the team: needs a native read.
 METHODS = {
+    **pictures.METHODS,
     "shopping": {
         "right": ("He calculat el que costa cada tipus de cosa, ho he sumat i ho he restat dels diners lliurats.",
                   "I worked out what each kind of thing costs, added the two and took that from the money handed over."),
@@ -555,8 +563,22 @@ def mistakes(problem):
     return found
 
 
+def make(generators, name, rng, language):
+    """One problem of this kind: from our own picture generators, or from the model lab's."""
+    if name in pictures.GENERATORS:
+        return pictures.generate(name, rng, language)
+    return generators.generate(name, rng, language)
+
+
+def _same(problem):
+    """What makes two problems the same one: the text, and for a picture problem its figure too."""
+    return problem["text"] + repr(problem.get("figure", ""))
+
+
 def _size(problem):
     """How big the numbers of a problem are: the practice problem shown is the smallest drawn."""
+    if problem.get("figure"):  # a picture problem has its numbers in the figure: the fewer to count, the smaller
+        return int(problem["answer"])
     return max([int(n) for n in re.findall(r"\d+", problem["text"])] or [0])
 
 
@@ -568,31 +590,40 @@ class Practice:
         self.generators = generators if generators is not None else load_generators()
         self.rng = random.Random(seed)
         self.turn = {}       # topic -> how many practice problems made, to rotate the kinds
-        self.shown = set()   # texts already shown: never the same problem twice
+        self.shown = set()   # problems already shown (text and figure): never the same one twice
         self.count = 0
         self.current = None
 
+    def _kinds(self, topic):
+        """The kinds of problem that can be made for a topic here: the picture kinds always, the
+        others when the model lab's generators are on this machine."""
+        return [name for name in TOPICS.get(topic, [])
+                if name in pictures.GENERATORS or self.generators is not None]
+
     def available(self, topic):
-        return self.generators is not None and topic in TOPICS
+        return bool(self._kinds(topic))
 
     def new(self, topic):
         """A fresh problem of this topic as the page may see it, or None if no generator fits."""
-        if not self.available(topic):
+        names = self._kinds(topic)
+        if not names:
             return None
-        names = TOPICS[topic]
         name = names[self.turn.get(topic, 0) % len(names)]
         self.turn[topic] = self.turn.get(topic, 0) + 1
-        draws = [self.generators.generate(name, random.Random(self.rng.random()), self.language)
+        draws = [make(self.generators, name, random.Random(self.rng.random()), self.language)
                  for _ in range(DRAWS)]
-        fresh = [d for d in draws if d["text"] not in self.shown] or draws
+        fresh = [d for d in draws if _same(d) not in self.shown] or draws
         # Prefer a draw whose wrong options can be named, then the smallest numbers
         problem = min(fresh, key=lambda d: (-min(len(mistakes(d)), 3), _size(d)))
-        self.shown.add(problem["text"])
+        self.shown.add(_same(problem))
         self.count += 1
         self.current = {"problem": problem, "mistakes": mistakes(problem), "attempts": [],
                         "topic": topic, "n": self.count, "shown": False, "explain": None, "explained": None}
-        return {"n": self.count, "topic": topic, "kind": name, "text": problem["text"],
+        view = {"n": self.count, "topic": topic, "kind": name, "text": problem["text"],
                 "options": problem["options"], "events": [{"event": "letter", "value": "?"}]}
+        if problem.get("figure"):  # a picture problem: what the page needs to draw it, never the answer
+            view["figure"] = problem["figure"]
+        return view
 
     def _session(self):
         if self.current is None:

@@ -12,6 +12,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from copilot import pictures  # noqa: E402
 from copilot import practice as P  # noqa: E402
 from copilot.matrix import frame  # noqa: E402
 
@@ -23,11 +24,11 @@ SEEDS = range(200)
 class Mistakes(unittest.TestCase):
     def test_every_topic_generator_exists(self):
         for name in COVERED:
-            self.assertIn(name, GEN.GENERATORS)
+            self.assertIn(name, {**GEN.GENERATORS, **pictures.GENERATORS})
 
     def test_every_code_has_a_message_in_both_languages(self):
         for name, rule in P.MISTAKES.items():
-            problem = GEN.generate(name, random.Random(0), "cat")
+            problem = P.make(GEN, name, random.Random(0), "cat")
             _, slips = rule(problem["params"])
             for _, code in slips:
                 cat, eng = P.MESSAGES[name][code]
@@ -42,14 +43,14 @@ class Mistakes(unittest.TestCase):
         for name, rule in P.MISTAKES.items():
             for language in ("cat", "eng"):
                 for seed in SEEDS:
-                    problem = GEN.generate(name, random.Random(seed), language)
+                    problem = P.make(GEN, name, random.Random(seed), language)
                     answer, _ = rule(problem["params"])
                     self.assertEqual(str(answer), problem["answer"], f"{name} seed {seed}")
 
     def test_a_named_option_is_wrong_and_really_comes_from_that_slip(self):
         for name, rule in P.MISTAKES.items():
             for seed in SEEDS:
-                problem = GEN.generate(name, random.Random(seed), "cat")
+                problem = P.make(GEN, name, random.Random(seed), "cat")
                 named = P.mistakes(problem)
                 self.assertNotIn(problem["label"], named)
                 _, slips = rule(problem["params"])
@@ -61,7 +62,7 @@ class Mistakes(unittest.TestCase):
         named = total = 0
         for name in P.MISTAKES:
             for seed in SEEDS:
-                named += len(P.mistakes(GEN.generate(name, random.Random(seed), "cat")))
+                named += len(P.mistakes(P.make(GEN, name, random.Random(seed), "cat")))
                 total += 4
         self.assertGreater(named / total, 0.55)
 
@@ -76,7 +77,7 @@ class ExplainItBack(unittest.TestCase):
         self.assertNotIn("film_end_time", P.METHODS)
         self.assertNotIn("race_logic", P.METHODS)
         for name, ways in P.METHODS.items():
-            _, slips = P.MISTAKES[name](GEN.generate(name, random.Random(0), "cat")["params"])
+            _, slips = P.MISTAKES[name](P.make(GEN, name, random.Random(0), "cat")["params"])
             self.assertIn("right", ways)
             self.assertGreaterEqual(len(ways), 3, name)
             for code, texts in ways.items():
@@ -92,7 +93,7 @@ class ExplainItBack(unittest.TestCase):
         asked = total = 0
         for name in P.METHODS:
             for seed in SEEDS:
-                problem = GEN.generate(name, random.Random(seed), "cat")
+                problem = P.make(GEN, name, random.Random(seed), "cat")
                 items = P.explanations(problem, random.Random(seed))
                 total += 1
                 if items is None:
@@ -121,7 +122,8 @@ class PracticeFlow(unittest.TestCase):
         for topic in P.TOPICS:
             for _ in range(6):
                 view = practice.new(topic)
-                self.assertEqual(set(view), {"n", "topic", "kind", "text", "options", "events"})
+                self.assertEqual(set(view) - {"figure"}, {"n", "topic", "kind", "text", "options", "events"})
+                self.assertEqual("figure" in view, topic in pictures.TOPICS)   # a picture topic comes with its figure
                 self.assertEqual(sorted(view["options"]), list("ABCDE"))
                 self.assertEqual(len(set(view["options"].values())), 5)
                 for event in view["events"]:
@@ -129,7 +131,7 @@ class PracticeFlow(unittest.TestCase):
 
     def test_topics_without_a_generator_get_nothing(self):
         practice = P.Practice("cat", seed=3)
-        for topic in ("visual", "geometria_espacial", "otros", "nope"):
+        for topic in ("otros", "nope"):
             self.assertFalse(practice.available(topic))
             self.assertIsNone(practice.new(topic))
 
@@ -138,6 +140,9 @@ class PracticeFlow(unittest.TestCase):
         practice.generators = None
         self.assertFalse(practice.available("aritmetica"))
         self.assertIsNone(practice.new("aritmetica"))
+        for topic in pictures.TOPICS:   # the picture problems are our own: they need no other generators
+            self.assertTrue(practice.available(topic))
+            self.assertIn("figure", practice.new(topic))
 
     def test_never_the_same_problem_twice_and_the_kinds_rotate(self):
         practice = P.Practice("cat", seed=5)

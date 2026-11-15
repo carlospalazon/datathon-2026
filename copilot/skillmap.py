@@ -31,7 +31,7 @@ SOLID = 3    # right the first time on this many of them (the tutor's own MASTER
 SESSION = 3  # problems in "today's session": a shaky topic, one just begun, a new one
 WARMUP = 3   # problems in the warm-up before the first Cangur problem, one per topic
 # Warm-up topics for a student with nothing on the map yet, or to fill up: varied, friendly ones first
-WARMUP_DEFAULTS = ("aritmetica", "patrones", "geometria_plana", "conteo", "medida", "numeros", "algebra", "logica")
+WARMUP_DEFAULTS = ("aritmetica", "visual", "patrones", "geometria_plana", "conteo", "medida", "numeros", "algebra", "logica")
 BAR = 6      # tallest column of the LED view; the top row marks what to try next
 # Pseudonyms in the order students sit down. Animals of Catalonia, none of them a person's name.
 ANIMALS = ("Guineu", "Mussol", "Dofí", "Esquirol", "Llúdriga", "Falcó", "Eriçó", "Isard", "Granota", "Teixó",

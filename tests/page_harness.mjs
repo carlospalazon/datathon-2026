@@ -137,11 +137,17 @@ if (doc.querySelector("#warmpane")) await step("warm-up: three short problems in
   warm.querySelector(".wgo").click(); warm.querySelector(".wgo").click();  // a double click
   await settle();
   check(calls.filter(c => c === "api/warmupnext").length === 1, "a double click starts one problem");
-  let slips = 0;
+  let slips = 0, figures = 0;
   for (let n = 1; n <= 3; n++) {
     check(new RegExp(`problema ${n} de 3`).test(warm.textContent), "problem " + n + " of 3: " + warm.textContent.slice(0, 60));
     check(warm.querySelector(".ptext").textContent.length > 20 && warm.querySelectorAll(".letters button").length === 5, "a problem as text with five options");
     check(warm.querySelector(".wnext").hidden, "no way on before it is solved, only the skip");
+    if (/Raonament visual/.test(warm.textContent)) {  // a picture topic: the figure is drawn by the page
+      const fig = warm.querySelector(".pfig svg");
+      check(fig && fig.querySelectorAll("rect, path, polygon").length >= 1, "a figure drawn as SVG");
+      check(/^0 0 [\d.]+ [\d.]+$/.test(fig.getAttribute("viewBox")), "with a sound size: " + fig.getAttribute("viewBox"));
+      figures++;
+    }
     for (const b of warm.querySelectorAll(".letters button")) {
       await click(b);
       if (b.classList.contains("right")) break;
@@ -151,6 +157,7 @@ if (doc.querySelector("#warmpane")) await step("warm-up: three short problems in
     check(warm.querySelectorAll(".letters button").every(b => b.disabled) && !warm.querySelector(".wnext").hidden, "solved: the way on appears");
     await click(warm.querySelector(".wnext"));
   }
+  check(figures === 1, "one of the three was a picture problem");
   check(warm.hidden && !$("#tutorpane").hidden && !$("#mapbtn").hidden, "after the third, the Cangur problem");
   check(/Escalfament fet/.test($("#feed").firstElementChild.textContent), "with a line saying the warm-up is done");
   check(calls.filter(c => c === "api/warmupnext").length === 4 && !calls.includes("api/practice"), "three problems asked for, none through the practice card");
@@ -209,6 +216,52 @@ if (doc.querySelector("#readbar")) await step("reading modes: one idea per line,
   check(calls.filter(c => c.startsWith("api/readingmode/")).length === 10, "every change is told to the server");
 });
 
+let pictureCards = 0;  // practice problems asked for by the picture step, for the count further down
+if (doc.querySelector("#warmpane")) await step("picture practice: cubes, a folded strip and a staircase drawn by the page, with the slip named", async () => {
+  const open = async name => {  // a problem of this topic, through the map's "what to try next"
+    await click($("#mapbtn"));
+    const row = $("#mappane").querySelectorAll(".nexts .msg").find(m => m.textContent.includes(name));
+    check(row, `«${name}» among what to try next`);
+    await click(row.querySelector("button"));
+    check(!$("#tutorpane").hidden && $("#topic").textContent === name, "a problem of " + name);
+  };
+  const sound = (nodes, attr, re) => nodes.every(n => re.test(n.getAttribute(attr)));
+  const solve = async card => {
+    let named = 0;
+    for (const b of card.querySelectorAll(".letters button")) {
+      await click(b);
+      if (b.classList.contains("right")) break;
+      check(card.querySelector(".preply").textContent.length > 30, "a sentence about the wrong option");
+      named++;
+    }
+    check(card.querySelectorAll(".letters button.right").length === 1, "the right option is found by clicking");
+  };
+  await open("Geometria de l'espai");
+  check(!$("#practice").hidden, "a practice problem can be made for space geometry");
+  await click($("#practice")); pictureCards++;
+  let card = $("#feed").querySelector(".msg.practice");
+  const faces = card.querySelectorAll(".pfig polygon");
+  check(faces.length >= 9 && card.querySelectorAll(".pfig polygon.ftop").length >= 3, "piles of cubes drawn face by face: " + faces.length);
+  check(sound(faces, "points", /^(-?\d+(\.\d)?,-?\d+(\.\d)?( |$)){4}$/), "every face with four sound corners: " + faces[0].getAttribute("points"));
+  check(card.querySelector(".ptext").textContent.length > 20, "and its question as text");
+  await solve(card);
+  check(card.querySelectorAll(".xopt").length === 3, "and it asks how it was solved");
+  await open("Raonament visual");
+  await click($("#practice")); pictureCards++;
+  card = $("#feed").querySelector(".msg.practice");
+  const strip = card.querySelectorAll(".pfig path.strip"), cuts = card.querySelectorAll(".pfig line.cut");
+  check(strip.length === 1 && /^M [\d. ]+H [\d.]+( A [\d. ]+ H [\d.]+){2,5}$/.test(strip[0].getAttribute("d")), "a strip folded in layers: " + (strip[0] && strip[0].getAttribute("d")));
+  check(cuts.length >= 1 && cuts.length <= 2 && sound(cuts, "x1", /^\d+(\.\d)?$/), "and its dotted lines");
+  await solve(card);
+  await click(card.querySelector(".pmore")); pictureCards++;
+  card = $("#feed").querySelector(".msg.practice");
+  const squares = card.querySelectorAll(".pfig rect.sq");
+  check(squares.length >= 5 && sound(squares, "y", /^\d+$/), "a staircase drawn square by square: " + squares.length);
+  check(card.querySelectorAll(".letters button").some(b => b.textContent.replace(/^[A-E]/, "") === String(squares.length)), "whose squares can be counted on the drawing");
+  await solve(card);
+  await open("Càlcul amb dades");
+});
+
 await step("a wrong letter, then the practice card from the red message", async () => {
   // The page never learns the right letter; try letters until one is wrong
   let wrong = null;
@@ -256,7 +309,7 @@ await step("another practice problem, its solution on request, and back", async 
   $("#practice").click(); $("#practice").click();  // a double click
   await settle();
   check($("#feed").querySelectorAll(".msg.practice").length === 1, "a double click makes one card");
-  check(calls.filter(c => c === "api/practice").length === 3, "and asks the server for one problem");
+  check(calls.filter(c => c === "api/practice").length === 3 + pictureCards, "and asks the server for one problem");
   for (const b of letters()) { if (b.disabled) continue; await click(b); if (b.classList.contains("right")) break; }
   check(letters().every(b => b.disabled), "the Cangur problem is locked once solved");
   check($("#feed").querySelectorAll(".msg.practice .letters button").every(b => !b.disabled), "the practice card still takes answers");

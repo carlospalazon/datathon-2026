@@ -30,7 +30,7 @@ def catalogue():
             n = block * 8 + i + 1
             rows.append({"key": f"lvl-0_2020_{n}_cat", "id": f"lvl-0_2020_{n}", "language": "cat", "stage": "primaria",
                          "level": 0, "grade": 5, "block": block, "question_number": n, "difficulty": block,
-                         "topic": "aritmetica", "text": f"{n}. Made-up problem {n}", "label": "C",
+                         "topic": ("visual", "geometria_espacial")[n % 2] if block == 2 else "aritmetica", "text": f"{n}. Made-up problem {n}", "label": "C",
                          "question": f"A made-up shelf has 12 boxes with 7 pens each. Box {n + 20} is empty; how many pens?",
                          "needs_figure": bool(n % 2),
                          "anatomy": {"key_data": "12 boxes; 7 pens in each box.", "key_condition": "One box is empty.",
@@ -64,7 +64,7 @@ class Page(unittest.TestCase):
                 httpd.shutdown()
                 httpd.server_close()
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            self.assertIn("OK: 14 steps", run.stdout)
+            self.assertIn("OK: 15 steps", run.stdout)
 
 
 if __name__ == "__main__":

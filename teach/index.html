@@ -79,6 +79,14 @@
   .msg.practice .letters button b, #warmpane .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
   .preply { margin-top: 8px; }
   .preply p { margin: 6px 0 0; }
+  /* Picture practice: the figure of a generated problem, drawn here from its parameters */
+  .pfig { margin: 10px 0 0; padding: 12px; background: var(--card); border: 2px solid var(--line); border-radius: 16px; overflow-x: auto; }
+  .pfig svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .pfig .sq { fill: var(--soft); stroke: var(--ink); stroke-width: 2; }
+  .pfig .strip { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+  .pfig .cut { stroke: var(--ink); stroke-width: 3; stroke-dasharray: 3 7; stroke-linecap: round; }
+  .pfig .ftop { fill: var(--card); } .pfig .fx { fill: var(--line); } .pfig .fy { fill: var(--soft); }
+  .pfig polygon { stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
   /* "Explain it back": three ways of solving, one tap; the right way is marked afterwards, nothing in red */
   .explain { margin-top: 10px; padding: 12px 14px; border: 2px solid var(--accent); border-radius: 16px; }
   .xopts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
@@ -424,6 +432,46 @@ async function skipThink() {  // after a clear attempt: the hint button comes ba
 $("#thinkskip").onclick = skipThink;
 $("#chattext").oninput = e => { if (thinkTimer !== null && e.target.value.trim().length >= 3) $("#thinkskip").hidden = false; };
 
+// --- Picture practice: the figure of a generated problem as inline SVG, from the parameters the server sends ---
+// Markup, not createElement: an SVG element made with createElement would not draw in a browser.
+function figureSvg(f) {
+  if (!f) return "";
+  const r1 = v => Math.round(v * 10) / 10;
+  const svg = (w, h, label, inner) => `<div class="pfig"><svg viewBox="0 0 ${r1(w)} ${r1(h)}" width="${r1(w)}" height="${r1(h)}" role="img" aria-label="${esc(label)}">${inner}</svg></div>`;
+  if (f.kind === "stairs") {  // a staircase of small squares, column by column
+    const u = 34, top = Math.max(...f.heights);
+    const cells = f.heights.map((h, c) => Array.from({ length: h }, (_, r) =>
+      `<rect class="sq" x="${4 + c * u}" y="${4 + (top - 1 - r) * u}" width="${u}" height="${u}"></rect>`).join("")).join("");
+    return svg(f.heights.length * u + 8, top * u + 8, "Figura: una escala feta de quadradets", cells);
+  }
+  if (f.kind === "strip") {  // a strip folded in a zigzag, seen from the side, and the dotted lines of the cuts
+    const x0 = 24, x1 = 284, gap = 18, y0 = 26;
+    let d = `M ${x0} ${y0} H ${x1}`;
+    for (let i = 1; i < f.layers; i++) {
+      const y = y0 + i * gap, right = i % 2 === 1;
+      d += ` A ${gap / 2} ${gap / 2} 0 0 ${right ? 1 : 0} ${right ? x1 : x0} ${y} H ${right ? x0 : x1}`;
+    }
+    const bottom = y0 + (f.layers - 1) * gap;
+    const cuts = f.cuts.map(c => { const x = r1(x0 + c * (x1 - x0)); return `<line class="cut" x1="${x}" y1="${y0 - 18}" x2="${x}" y2="${bottom + 18}"></line>`; }).join("");
+    return svg(x1 + 34, bottom + 26, "Figura: una tira de paper plegada en ziga-zaga, vista de costat, amb línies de punts per on es talla", `<path class="strip" d="${d}"></path>${cuts}`);
+  }
+  if (f.kind === "cubes") {  // piles of cubes seen from above and in front: only the faces in sight are drawn
+    const u = 30, dx = u * 0.866, dy = u * 0.5, H = f.heights, rows = H.length, cols = Math.max(...H.map(row => row.length));
+    const tall = Math.max(...H.map(row => Math.max(...row)));
+    const at = (x, y) => (H[x] && H[x][y]) || 0;
+    const pt = (x, y, z) => `${r1(6 + cols * dx + (x - y) * dx)},${r1(6 + tall * u + (x + y) * dy - z * u)}`;
+    const face = (cls, pts) => `<polygon class="${cls}" points="${pts.map(p => pt(...p)).join(" ")}"></polygon>`;
+    let faces = "";
+    for (let x = 0; x < rows; x++) for (let y = 0; y < cols; y++) for (let z = 0; z < at(x, y); z++) {
+      if (z === at(x, y) - 1) faces += face("ftop", [[x, y, z + 1], [x + 1, y, z + 1], [x + 1, y + 1, z + 1], [x, y + 1, z + 1]]);
+      if (at(x + 1, y) <= z) faces += face("fx", [[x + 1, y, z], [x + 1, y + 1, z], [x + 1, y + 1, z + 1], [x + 1, y, z + 1]]);
+      if (at(x, y + 1) <= z) faces += face("fy", [[x, y + 1, z], [x + 1, y + 1, z], [x + 1, y + 1, z + 1], [x, y + 1, z + 1]]);
+    }
+    return svg(12 + (rows + cols) * dx, 12 + tall * u + (rows + cols) * dy, "Figura: una construcció de cubs apilats", faces);
+  }
+  return "";
+}
+
 // --- "Explain it back": after a right answer on a practice problem, one tap on the explanation that matches the student's way ---
 // The three are the worked solution's method and two slips whose result is known. It never counts against the student.
 function explainBack(reply, letter, items, solved) {
@@ -468,6 +516,7 @@ async function practise() {
   div.className = "msg practice";
   div.innerHTML = `<strong>Un de semblant, però teu.</strong><span class="badge revisado">problema nou, resposta calculada</span>
     <small>Acabat de fer per a tu, del mateix tipus. Resol-lo i després torna al teu problema.</small>
+    ${figureSvg(r.figure)}
     <div class="ptext"></div>
     <div class="letters" role="group" aria-label="Respostes del problema semblant"></div>
     <div class="preply" aria-live="polite"></div>
@@ -1166,6 +1215,7 @@ async function warmNext() {
   warmReading = r.reading;
   warmPane.innerHTML = `<span class="wstep">Escalfament · problema ${w.n} de ${w.total}</span>
     <h2>${esc(topicName(r.topic))}</h2>
+    ${figureSvg(r.figure)}
     <div class="ptext">${readingHtml(warmReading, true)}</div>
     <div class="letters" role="group" aria-label="Respostes del problema d'escalfament"></div>
     <div class="preply" aria-live="polite"></div>

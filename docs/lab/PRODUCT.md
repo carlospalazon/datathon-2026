@@ -14,7 +14,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked method and two wrong methods, each with the number it gives). | Checks understanding, not luck. | generators' typical mistakes (`copilot/practice.py`) | **built** (2026-11-15; on generated practice problems only, 15 kinds, where two slips give two other numbers; not on Cangur problems, not in the warm-up; not seen in a real browser) |
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | **built** (2026-11-15; not in the exam; the key condition of some problems reads like a hint; not seen in a real browser) |
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
-| 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
+| 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | **built** (2026-11-15; three kinds: staircase of squares, folded strip, piles of cubes; **the drawings have not been seen in a real browser**; `otros` (1 problem) still has no practice) |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | **built** (2026-11-15; offered once per sitting, on every page load until begun or skipped; on the board the map is in memory, so a restart gives the default topics; not seen in a real browser) |
 | 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | **built** (2026-11-15; the queue is forgotten with "Un altre examen"; not seen in a real browser) |
 | 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | **built** (2026-11-15; the chat's "següent" still goes by the tutor's own rule; not seen in a real browser) |
@@ -543,3 +543,69 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   **The 45 Catalan sentences of `METHODS` need a native read**, as do "Com l'has resolt?" and
   "camí ben explicat en 2 de 3".
 - **Commit:** see `git log -1 -- tests/test_practice.py`
+
+
+### 2026-11-15 · Practice for the picture topics (backlog 10)
+- **What:** "Un de semblant" now works on `visual` and `geometria_espacial` problems too, with a
+  **figure drawn by the page as inline SVG from parameters** (no image file, nothing from the
+  data). New module `copilot/pictures.py`, three kinds, each with a computed answer, named slips
+  and a worked solution, in Catalan and English:
+  1. **Staircase of squares** (visual): "Quants quadradets té?" The figure is drawn square by
+     square. Slips: the whole rectangle round it, the sides along the edge (perimeter), one
+     square per column, the bottom row left out.
+  2. **Folded strip** (visual): a strip folded in a zigzag into 3 to 6 layers, seen from the
+     side, cut through all its layers along one or two dotted lines: "Quants trossos queden?"
+     Slips: the cuts counted instead of the pieces (one fewer), as if the strip were not folded,
+     two pieces per cut, the layers counted.
+  3. **Piles of cubes** (space geometry): cubes piled in a corner, drawn from above and in front
+     face by face: "Quants cubs té?", the hidden ones too. Slips: only the cubes in sight, one
+     per pile, the faces in sight counted instead of the cubes. **The drawing settles the count:**
+     the piles never get taller towards the viewer, so the top of every pile is in sight, and the
+     statement says there are no holes; at least one cube is always hidden.
+  The options are five different numbers in increasing order and the answer's place is drawn at
+  random (A to E about equally often). `copilot/practice.py` takes these kinds for the two topics
+  (they need nothing from the model lab's generators, which are not edited), names the slip
+  behind a wrong option as for the others, and "explain it back" (backlog 6) is asked on all
+  three. The warm-up's defaults now include a picture problem (calculation, **visual
+  reasoning**, patterns). The figure goes through `practice` and `warmupnext` as
+  `figure: {kind, ...}`, never with the answer. The page's `figureSvg()` builds the SVG as markup
+  with the page's colour variables, so it follows the dark theme.
+- **Why:** 27 of the 154 primary problems (18 visual, 9 space geometry) had no practice problem
+  and no warm-up. They are the topics where "do one like it" helps most, because the skill is
+  seeing, not computing. Now 153 of 154 have one.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650. **"Comença
+  l'escalfament"**: the second warm-up problem is a staircase with its figure. Then "El meu
+  mapa": under "Què pots provar ara" click **"Prova'n un"** on "Raonament visual" (or on the
+  tile's topic "Geometria de l'espai" when it is listed), then **"Un de semblant"**: a folded
+  strip with dotted lines; "Un altre": a staircase. Click a wrong option to read the slip, the
+  right one for "Com l'has resolt?". On a "Geometria de l'espai" problem "Un de semblant" draws
+  the piles of cubes.
+- **Tests / checks run:** `python3 -m pytest -q`: 384 passed (12 new in `tests/test_pictures.py`:
+  over 300 seeds and 2 languages five different options in order with the answer among them and
+  in every place; **every answer and every slip worked out a second, independent way**: the
+  squares counted one by one on the cells and the outline counted side by side; the strip
+  really folded, cut and unfolded; for the cubes a ray marched from every face towards the
+  viewer, which gives the faces and cubes in sight, shows that the top of every pile is in
+  sight, and that the faces the page draws are exactly those; no slip sentence with a digit; the
+  statement never carries the answer; never the same figure twice; through the server with a
+  made-up catalogue. The page harness has a 15th step: cubes, strip and staircase opened from
+  the map, the SVG's faces, path, dotted lines and squares checked, the number of squares drawn
+  among the options, a slip named, "how did you solve it" asked; and the warm-up step checks its
+  figure. Run 8 times in a row.) The page's own `figureSvg` run on 450 drawn figures: every
+  coordinate inside the drawing, as many faces as the model says, as many squares as the answer.
+  Real catalogue, server started from a Python script: the warm-up's second problem is a
+  staircase, practice made on a visual and a space-geometry problem with its figure and no
+  label, 153 of 154 problems with a practice button; server stopped. The App Lab build imported
+  with stand-ins: 37 routes, the warm-up with its figure.
+- **Not done:** **nobody has looked at the three drawings in a real browser**: the geometry is
+  checked by numbers, not by eye (sizes, shades in the dark theme, how the strip's folds read).
+  Not run on the board. Three kinds only: no cube nets, no views from the front and the side
+  (two views do not settle the count without more conditions, so they were left out), no
+  mirror or rotation problems. The practice problem is of the same topic, not of the same kind
+  as the Cangur problem on screen (a problem about a net gets cubes to count). The strip is an
+  idealised zigzag with equal layers. The smallest of 8 draws is shown, so the strip usually has
+  one dotted line; two lines come up as the single-line ones are used. No Spanish. The Catalan
+  ("quadradets", "es plega en ziga-zaga fins a fer 4 capes", "sense forats: sota de cada cub n'hi
+  ha un altre o hi ha la taula", the 11 slip sentences and 12 ways of `copilot/pictures.py`)
+  needs a native read.
+- **Commit:** see `git log -1 -- copilot/pictures.py`
