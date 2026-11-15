@@ -569,3 +569,22 @@ never problem text (M3Kang is research-use only).
   (and 10.5 for reading) for any reasoning run on the board. Qwen3.5 2B Q4 on the board: read 4.7,
   write 2.5 tokens/s (three made-up problems).
 - **Still to run:** twin copy through `eval.py` with the server up; 2B free working with the 4.7/2.5 budget.
+
+### 2026-11-15 10:50 · Coordinator · Delivered configuration, installed on the board
+- **Owner's choice:** Qwen3.5 0.8B untuned, one letter, twin copy on by default (`PRESOLVE=1` is now
+  the default in `copilot/config.py`). Through `eval.py` on the laptop: 147/562 (26.2%), twice, the
+  same 562 letters.
+- **2B inside 60 s:** 106/562 (18.9%) with the board's real budget (0 of 339 workings finished);
+  120/562 (21.4%) with the 0.8B's budget (3 of 339 finished). Not viable on the board.
+- **Board, solver:** new `copilot/`, `predict.py`, `eval.py`, `analyze_errors.py` in
+  `/home/arduino/tutor-cangur` (old ones in `/home/arduino/tutor-cangur.bak-1115`). `predict.py` on the
+  sample problems answers every row; 30 validation problems through `eval.py`: mean 8.5 s, worst 15.2 s,
+  none over 60 s, 4 answered by the twin copy. The board's `config.env` was not touched or read.
+- **Board, tutor:** new App Lab build in `/home/arduino/ArduinoApps/math-tutor` (old one in
+  `/home/arduino/math-tutor.bak-1115`), started, page answers on port 7000 and holds the new features
+  (exam mode, map, session, reading modes, warm-up, practice). Not clicked in a browser.
+- **Undo on the board:** `cp -r ~/tutor-cangur.bak-1115/* ~/tutor-cangur/` for the solver;
+  `arduino-app-cli app stop user:math-tutor; rm -rf ~/ArduinoApps/math-tutor;
+  cp -r ~/math-tutor.bak-1115 ~/ArduinoApps/math-tutor; arduino-app-cli app start user:math-tutor`.
+- **Pushed:** branch `improve/review-fixes` to the team repository (f8cc240 and this entry). `team/main`
+  has a newer README from a teammate (59c69c6) that conflicts with this branch's README.
