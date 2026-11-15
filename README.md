@@ -4,6 +4,8 @@ Tutor Cangur helps primary school students (10 to 12 years old) practise Kangaro
 
 Everything runs on an Arduino UNO Q 4 GB with no internet connection, so no student data leaves the device. Built at the Datathon FME 2026 for the Qualcomm challenge [Math on the Edge](DATATHON.md).
 
+**Arduino Project Hub:** the step-by-step write-up, "CangurMath: an offline maths tutor on the Arduino UNO Q", is submitted and waiting for Arduino's review. It will be listed on [projecthub.arduino.cc/perearenas](https://projecthub.arduino.cc/perearenas) once approved.
+
 ## The short version
 
 - **Teach:** works well because the hints are written ahead of time and the tutor is plain Python. Help appears instantly, and a leak check stops any hint that reveals the answer.
