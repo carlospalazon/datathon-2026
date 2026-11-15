@@ -42,8 +42,8 @@ class Parsing(unittest.TestCase):
         self.assertIsNone(prior.number("1/0"))
 
     def test_one_noisy_option_keeps_its_leading_number(self):
-        self.assertEqual(prior.numbers(options(11, 12, 14, 15, "13 2 1 3")), [11, 12, 14, 15, 13])
-        self.assertIsNone(prior.numbers(options(11, "x", 14, 15, "13 2 1 3")))
+        self.assertEqual(prior.numbers(options(21, 22, 24, 25, "23 7 7 9")), [21, 22, 24, 25, 23])
+        self.assertIsNone(prior.numbers(options(21, "x", 24, 25, "23 7 7 9")))
         self.assertIsNone(prior.numbers(options("red", "blue", "green", "pink", "grey")))
 
     def test_shape(self):

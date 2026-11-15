@@ -109,17 +109,34 @@ Ask for a hint: RGB LED 1 turns purple and the matrix shows the step. Answer wro
 
 ### Reason: answering problems (`predict.py`)
 
-The small model answers at chance level. Nothing we tried has moved it yet.
+What `predict.py` runs: the Qwen3.5 0.8B answers with one letter, and before it, code copies the answer of a twin problem when the training set holds one (`copilot/presolve.py`, on by default). Kangaroo papers reuse a problem at neighbouring levels of the same year; when the problem asked is almost word for word a training problem, the value of that problem's answer is looked for among the options. It never matches the problem's own id or its translation, and it only knows the training split.
 
-| Run | Where | Problems | Accuracy (95% interval) | Mean s | Worst s |
-|---|---|---|---|---|---|
-| Baseline, Qwen3.5 0.8B Q8_0 | board | 281 English validation | 22.4% (17.9–27.6) | 8.8 | 19.2 |
-| Baseline, 0.8B | laptop | 562 English and Catalan validation | 22.8% (19.5–26.4) | – | – |
-| Qwen3.5 2B Q4_K_M | laptop | 562 | 21.4% (18.2–24.9) | – | – |
-| Qwen3.5 4B Q4_K_M | laptop | 562 | 24.0% (20.7–27.7) | – | – |
-| 0.8B fine-tuned to answer the letter | laptop | 562 | 17.3% (14.4–20.6) | – | – |
+| Run | Where | Problems | Accuracy (95% interval) |
+|---|---|---|---|
+| **0.8B, one letter, with the twin copy (what we deliver)** | laptop, `eval.py` | 562 English and Catalan validation | **26.2% (22.7–29.9), 147/562** |
+| 0.8B, one letter (baseline) | laptop | 562 | 22.8% (19.5–26.4), 128/562 |
+| 0.8B, one letter (baseline) | board | 281 English validation | 22.4% (17.9–27.6), 8.8 s mean, 19.2 s worst |
+| Always answer D (no model) | – | 562 | 23.1% |
 
-Chance is 20% with five options. No problem went over the 60-second limit on the board. Laptop runs measure accuracy only: their speed says nothing about the board.
+The twin copy answers 50 of the 562 problems without the model and is right on 27; two runs gave the same 562 letters. Chance is 20% with five options, and 223 of the 562 problems arrive without readable options.
+
+**The model itself does not solve Kangaroo problems, and we measured why.** Everything below is the 0.8B unless it says otherwise, on the same 562 problems.
+
+| What we tried | Result |
+|---|---|
+| Free step-by-step working, 250 tokens | 22.1% (2B: 21.2%) |
+| Fine-tuned to answer the letter | 17.3% measured on a broken file; the idea was dropped, the model only learned to guess evenly |
+| Fine-tuned on 3,883 checked Kangaroo solutions, writing its working | 18.3% |
+| Fine-tuned on a mix: Kangaroo solutions, 6,000 generated problems, 1,000 AQuA | 18.3% (20/100 on 100 unseen 2026-style problems) |
+| The same model on 300 fresh generated problems | 54.7%, up from about 19% before tuning |
+| The same generated problems told as another story (same numbers) | 35% reworded against 88% in the trained wording |
+| One similar solved problem shown as a worked example | 20% → 17%; but 2/13 → 8/13 when the example is nearly the same problem |
+| Python recomputing every sum in the working | −1 problem of 339 |
+| Qwen3.5 2B, free working, inside 60 s at the board's real speed (2.5 tokens/s) | 18.9%: it finishes no working at all |
+
+So the small model imitates what it has seen and cannot deduce: it learns the wording of a problem family, not the maths, and a worked example helps only when it is almost the same problem. That is why the one thing that raises the score is the twin copy. On the board the fine-tuned model writes its working in 34 s on average (worst 58 s), reads 11.7 and writes 5.7 tokens per second.
+
+A statistical prior over answer positions and option shapes, learned from the training split, scored 151/562 (26.9%). We left it off: it does not solve anything.
 
 ### Teach: help for the catalogue's problems
 
@@ -192,15 +209,18 @@ From the baseline on the board, 281 English validation problems. Commands and ho
 ## What didn't work, and what's next
 
 - **The live model as a hint writer.** It restates the question or writes nonsense. We moved to hints written ahead of time, and kept the model behind guardrails as an extra.
-- **A bigger model.** The 2B and 4B models scored the same as the 0.8B on 562 problems.
-- **The first fine-tune.** The model trained to answer the letter scored 17.3%, below the base model, and did no better on problems it had seen in training. We haven't found why yet.
+- **A bigger model.** With one letter the 2B and 4B scored the same as the 0.8B, and inside the board's 60 seconds the 2B cannot finish any working.
+- **Fine-tuning.** Three fine-tunes, none above chance on Kangaroo problems. The model learns the wording of the families it is trained on (88% in the trained wording, 35% when the same problem is told as another story).
+- **Giving the model more to work with.** A worked example of a similar problem, a calculator pass over its sums, and matching its result to the options: none helped, except an example that is nearly the same problem.
+- **A converter trap.** A fine-tuned model converted to GGUF with a newer llama.cpp than the board's loads on the laptop and is refused by the board. `laptop/adapter_to_gguf.py` uses the board's own converter.
 - **Retrieving a strategy by embeddings, and letting the model choose one.** Both are close to the floor (see the table above).
 
 Next:
 
 - Have a person review the hints and the checkpoint answers, starting with the problems the writers flagged as doubtful.
 - Finish the comparison of hint sources for new problems: the model with near problems as examples, and rules on the statement, each judged on the same 48 problems.
-- Measure the fine-tune that writes its reasoning before the letter, and try a fine-tune on hints (the set is built by `laptop/make_hint_ft_set.py`, with 2023 and 2024 held out).
+- Let the model with its vision projector read the options from the image: 40% of the problems arrive without them, and reading is closer to what this model can do than solving.
+- Try a fine-tune on hints (the set is built by `laptop/make_hint_ft_set.py`, with 2023 and 2024 held out).
 - Measure the letter-bias correction for `predict.py` (`calibrate.py`) on the board: the model answers A or D four times out of five.
 - A demo with Wi-Fi off, and a check of the matrix and the LED colours by eye.
 

@@ -88,7 +88,8 @@ class Budget(unittest.TestCase):
     def test_new_settings_exist_and_are_off(self):
         from copilot.config import DEFAULTS
         self.assertEqual((DEFAULTS["BOARD_READ_TPS"], DEFAULTS["BOARD_WRITE_TPS"]), ("11", "6"))
-        self.assertEqual((DEFAULTS["ANSWER_MODE"], DEFAULTS["SAVE_TEXTS"], DEFAULTS["PRESOLVE"]), ("", "", ""))
+        self.assertEqual((DEFAULTS["ANSWER_MODE"], DEFAULTS["SAVE_TEXTS"]), ("", ""))
+        self.assertEqual(DEFAULTS["PRESOLVE"], "1")  # the twin copy is part of what predict.py delivers
 
     def test_finished_working_gives_its_letter(self):
         server = Server()
