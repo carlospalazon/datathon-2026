@@ -205,9 +205,10 @@ class BuildTests(unittest.TestCase):
         for row in rows:
             content = row["messages"][2]["content"]
             self.assertRegex(content, r"\nAnswer: [A-E]$")
-            body = content.rsplit("\nAnswer:", 1)[0]
+            body, option_line = content.rsplit("\nAnswer:", 1)[0].rsplit("\n", 1)
             self.assertLessEqual(len(body), 350)
             self.assertFalse(btd.refers_to_option(body))
+            self.assertRegex(option_line, rf"(option|opció|opción) {content[-1]}\.$")  # the one line with a letter
 
     def test_filters_and_no_val_in_output(self):
         out = self.w.run_build(self.train, self.val, self.aqua)
@@ -648,3 +649,23 @@ class SyntheticTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OptionLine(unittest.TestCase):
+    """The reasoning target names the option that holds the value, after the shuffle."""
+
+    def test_line_names_the_shuffled_letter_in_the_row_language(self):
+        for lang, word in (("eng", "is option"), ("cat", "és l'opció"), ("esp", "es la opción")):
+            rec = {"text": "Made-up question about nine zebras?", "language": lang, "label": "D",
+                   "options": {"A": "1", "B": "2", "C": "3", "D": "44 cm", "E": "5"}, "rationale": "Four elevens make 44 cm."}
+            turn = btd.to_chat(rec, reasoning=True)["messages"][-1]["content"].split("\n")
+            self.assertEqual(turn, ["Four elevens make 44 cm.", f"44 cm {word} D.", "Answer: D"])
+            self.assertEqual(btd.to_chat(rec, reasoning=False)["messages"][-1]["content"], "D")
+
+    def test_every_held_out_file_is_guarded(self):
+        with tempfile.TemporaryDirectory() as d:
+            a, b = Path(d) / "a.jsonl", Path(d) / "b.jsonl"
+            write(a, [invented(1)]); write(b, [invented(2)])
+            ids, norms = btd.load_val([str(a), str(b)])
+            self.assertEqual(ids, {"lvl-9_2001_1", "lvl-9_2001_2"})
+            self.assertTrue(norms)

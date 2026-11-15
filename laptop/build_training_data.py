@@ -213,12 +213,22 @@ def problem_of(rec):
     return {"text": rec["text"], "options": rec["options"]}
 
 
+OPTION_LINE = {"eng": "{value} is option {letter}.", "cat": "{value} és l'opció {letter}.",
+               "esp": "{value} es la opción {letter}."}
+
+
+def option_line(rec):
+    """The step from the value found to its letter, written after the options were shuffled."""
+    template = OPTION_LINE.get(rec.get("language"), OPTION_LINE["eng"])
+    return template.format(value=rec["options"][rec["label"]], letter=rec["label"])
+
+
 def to_chat(rec, reasoning):
     messages = build_messages(problem_of(rec))  # system + user, exactly as at inference
     assert messages[0] == {"role": "system", "content": SYSTEM}
     user = messages[1]
     assert user["content"] == format_problem(problem_of(rec)) + "\nAnswer:"
-    content = f"{rec['rationale']}\nAnswer: {rec['label']}" if reasoning else rec["label"]
+    content = f"{rec['rationale']}\n{option_line(rec)}\nAnswer: {rec['label']}" if reasoning else rec["label"]
     return {"messages": [messages[0], user, {"role": "assistant", "content": content}]}
 
 
@@ -243,12 +253,14 @@ def write_jsonl(path, rows):
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def load_val(path):
+def load_val(paths):
+    """Ids and normalised question texts of every held-out file: none may reach the output."""
     ids, norms = set(), set()
-    for row in read_jsonl(path):
-        ids.add(row["id"])
-        for v in norm_variants(row.get("text", "")):
-            norms.add(v)
+    for path in ([paths] if isinstance(paths, str) else paths):
+        for row in read_jsonl(path):
+            ids.add(row["id"])
+            for v in norm_variants(row.get("text", "")):
+                norms.add(v)
     return ids, norms
 
 
@@ -610,7 +622,11 @@ def render_stats(args, records, exports, drops, n_val_ids, n_val_norms):
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--train", default=str(ROOT / "data" / "train.jsonl"))
-    p.add_argument("--val", default=str(ROOT / "data" / "val.jsonl"))
+    held_out = [str(ROOT / "data" / "val.jsonl")]
+    if (ROOT / "data" / "demo" / "train.jsonl").is_file():
+        held_out.append(str(ROOT / "data" / "demo" / "train.jsonl"))
+    p.add_argument("--val", nargs="+", default=held_out,
+                   help="held-out files (validation, test-like samples): their ids and texts are kept out")
     p.add_argument("--aqua", type=int, default=8000, help="AQuA-RAT examples to sample (default 8000)")
     p.add_argument("--aqua-file", default=str(ROOT / "data" / "external" / "aqua_train.json"))
     p.add_argument("--synthetic", type=int, default=6000, help="synthetic examples in total (default 6000)")

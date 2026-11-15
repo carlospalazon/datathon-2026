@@ -96,7 +96,7 @@ def answer_scores(problem, examples=(), timeout=60, image_b64=None, url=URL):
     return letter, scores, response.get("timings", {})
 
 
-REASON_GRAMMAR = 'root ::= [^\\n]+ "\\nAnswer: " [A-E]'
+REASON_GRAMMAR = 'root ::= line ("\\n" line)* "\\nAnswer: " [A-E]\nline ::= [^\\n]+'
 
 
 def answer_reasoned(problem, examples=(), timeout=60, image_b64=None, url=URL, max_tokens=160):
