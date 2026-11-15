@@ -15,6 +15,7 @@
           --accent: #49c0f8; --accent-dark: #1899d6; --ok: #89e219; --ok-bg: #202f36; --bad: #ff7878; --bad-bg: #202f36; --warn: #ffc800; --warn-bg: #3a3210; --board: #0b1418; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; font: 17px/1.5 "Nunito", "DIN Round Pro", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 600; color: var(--ink); background: var(--bg); }
   header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 24px; background: var(--card); border-bottom: 2px solid var(--line); position: sticky; top: 0; z-index: 5; }
   header h1 { font-size: 26px; font-weight: 800; margin: 0 14px 0 0; color: var(--green); letter-spacing: -.3px; }
@@ -80,6 +81,34 @@
   .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* Exam mode: a timed paper in the tutor's place, no hints, the competition's scoring */
+  #exambtn { margin-left: auto; font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: #fff; cursor: pointer; }
+  #exambtn:hover { background: #3cc0ff; }
+  #exambtn:focus-visible, .chips button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  #exampane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
+  #exampane h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  #exampane .rules { margin: 8px 0 0; padding-left: 22px; }
+  .actions button.picked { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .ebar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .timer { font: 800 34px/1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; padding: 8px 16px; border-radius: 16px; border: 2px solid var(--line); }
+  .timer.late { color: var(--bad); border-color: var(--bad); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+  .chips button { font: inherit; font-weight: 800; font-size: 14px; min-width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
+  .chips button.answered { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .chips button.here { border-color: var(--ink); color: var(--ink); }
+  .chips button.answered.here { color: #fff; box-shadow: 0 0 0 2px var(--ink); }
+  #exampane .letters button.picked { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .confirm { margin-top: 12px; padding: 12px 16px; border: 2px solid var(--warn); background: var(--warn-bg); border-radius: 16px; }
+  .score { font-size: 30px; font-weight: 800; margin: 4px 0; color: var(--green-dark); }
+  .review { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .review li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 10px 14px; border: 2px solid var(--line); border-radius: 14px; }
+  .review li.right { border-color: var(--green); }
+  .review li.wrong { border-color: #ff4b4b; }
+  .review li b { min-width: 28px; }
+  .review li .what { flex: 1; min-width: 180px; }
+  .review li .delta { font-variant-numeric: tabular-nums; font-weight: 800; }
+  .review li button { font: inherit; font-weight: 800; font-size: 14px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
+  .review li button:hover { background: var(--soft); }
 </style>
 </head>
 <body>
@@ -88,9 +117,11 @@
   <span class="pill" id="grade"></span>
   <span class="pill" id="topic"></span>
   <span class="pill" id="pid"></span>
+  <button id="exambtn">Mode examen</button>
 </header>
 <main>
-  <section>
+  <section id="exampane" hidden></section>
+  <section id="tutorpane">
     <img class="problem-img" id="img" alt="Enunciat del problema">
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
@@ -144,7 +175,9 @@ async function api(action, body) {
     : action === "start" ? `start/${enc(body.key)}`
     : action === "chat" ? `chat/${enc(body.text)}`
     : action === "job" ? `job/${enc(body.id)}`
-    : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}` : action;
+    : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}`
+    : action === "examstart" ? `examstart/${enc(body.level)}/${enc(body.paper)}`
+    : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}` : action;
   const r = await fetch("api/" + path);
   return r.json();
 }
@@ -186,9 +219,12 @@ function show(view) {
 }
 
 // --- "One like this, but yours": a fresh problem of the same kind, with the slip named ---
-let canPractise = false;
+let canPractise = false, practising = false;
 async function practise() {
-  const r = await api("practice");
+  if (practising) return;  // a double click must not make two cards: the server keeps one practice problem
+  practising = true;
+  let r;
+  try { r = await api("practice"); } finally { practising = false; }
   if (r.error) return say("Ara mateix no puc fer un problema semblant a aquest.", "help");
   draw(r.frames);
   document.querySelectorAll(".msg.practice").forEach(d => d.remove());
@@ -250,7 +286,7 @@ async function answer(letter, button) {
   button.classList.add(r.correct ? "right" : "wrong");
   if (r.correct) {
     say(`<strong>Molt bé! La ${letter} és correcta.</strong>`, "ok");
-    document.querySelectorAll(".letters button").forEach(b => b.disabled = true);
+    $("#letters").querySelectorAll("button").forEach(b => b.disabled = true);  // not the practice card's options
   } else {
     button.disabled = true;
     say(`<strong>La ${letter} no és correcta.</strong> Torna-ho a provar o demana una pista.`
@@ -399,7 +435,260 @@ $("#next").onclick = async () => {
   show(r);
 };
 
-api("state").then(show);
+// --- Exam mode: a timed paper, no feedback until it is handed in, then a review that leads to the tutor ---
+const PAPER = { tast: "Tast", curt: "Curt", complet: "Complet" };
+const pane = $("#exampane");
+const num = v => String(v).replace(".", ",").replace("-", "−");   // 3.75 -> 3,75
+const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
+const mmss = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+let exam = { status: "none" }, examClock = null, examBusy = false;
+
+function examButton() {  // the header button: into the exam, back to its result, or nothing while a paper runs
+  const inExam = !pane.hidden;
+  $("#exambtn").hidden = inExam;
+  $("#exambtn").textContent = exam.status === "finished" ? "Resultats de l'examen" : "Mode examen";
+}
+function showPane(examSide) {
+  pane.hidden = !examSide;
+  $("#tutorpane").hidden = examSide;
+  for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = examSide;  // they describe the tutor's problem
+  examButton();
+  if (examSide) pane.scrollIntoView({ block: "start" });
+}
+function stopClock() { if (examClock !== null) { clearInterval(examClock); examClock = null; } }
+async function examCall(action, body) {  // one request at a time: a fast double click cannot hand in twice
+  if (examBusy) return null;
+  examBusy = true;
+  try { return await api(action, body); } catch (e) { return { error: "No s'ha pogut parlar amb el tutor. Torna-ho a provar." }; }
+  finally { examBusy = false; }
+}
+
+async function examSetup() {
+  stopClock();
+  const info = await api("examinfo");
+  const r = info.rules, f = r.wrong_fraction;
+  const share = f[0] === 1 && f[1] === 4 ? "una quarta part" : f[0] === 1 && f[1] === 2 ? "la meitat" : `${f[0]}/${f[1]}`;
+  const pts = r.points.slice(0, -1).join(", ") + " o " + r.points[r.points.length - 1];
+  pane.innerHTML = `<h2>Mode examen</h2>
+    <p>Un examen com el del Cangur: temps limitat, sense pistes, i no sabràs si l'has encertat fins que el lliuris.</p>
+    <ul class="rules">
+      <li>Les preguntes valen ${esc(pts)} punts: com més avall, més difícils.</li>
+      <li>Cada resposta equivocada resta ${esc(share)} dels punts de la pregunta.</li>
+      <li>${r.blank === 0 ? "Una pregunta en blanc ni suma ni resta." : `Una pregunta en blanc val ${num(r.blank)} punts.`}</li>
+      ${r.start_per_question ? `<li>Comences amb ${plural(r.start_per_question, "punt", "punts")} per pregunta.</li>` : ""}
+    </ul>
+    <h3>Curs</h3><div class="actions levelpick"></div>
+    <h3>Examen</h3><div class="actions paperpick"></div>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary estart">Comença l'examen</button>
+      <button class="eleave">Torna al tutor</button>
+    </div><p class="muted emsg" aria-live="polite"></p>`;
+  if (!info.levels.length) {
+    pane.querySelector(".emsg").textContent = "No hi ha prou problemes per fer un examen.";
+    pane.querySelector(".estart").disabled = true;
+  }
+  let level = info.levels.length ? info.levels[0] : null, paper = null;
+  const papers = () => {
+    const row = pane.querySelector(".paperpick");
+    row.innerHTML = "";
+    if (!level) return;
+    if (!level.papers.includes(paper)) paper = level.papers[0];
+    for (const name of level.papers) {
+      const b = document.createElement("button"), p = info.papers[name];
+      b.textContent = `${PAPER[name] || name} · ${plural(p.questions, "pregunta", "preguntes")} · ${plural(p.minutes, "minut", "minuts")}`;
+      b.classList.toggle("picked", name === paper);
+      b.setAttribute("aria-pressed", String(name === paper));
+      b.onclick = () => { paper = name; papers(); };
+      row.append(b);
+    }
+  };
+  const levels = () => {
+    const row = pane.querySelector(".levelpick");
+    row.innerHTML = "";
+    for (const l of info.levels) {
+      const b = document.createElement("button");
+      b.textContent = l.grade ? `${l.grade}è de primària` : `Nivell ${l.level}`;
+      b.classList.toggle("picked", l === level);
+      b.setAttribute("aria-pressed", String(l === level));
+      b.onclick = () => { level = l; levels(); papers(); };
+      row.append(b);
+    }
+  };
+  levels(); papers();
+  pane.querySelector(".eleave").onclick = () => showPane(false);
+  pane.querySelector(".estart").onclick = async () => {
+    const r = await examCall("examstart", { level: level.level, paper });
+    if (!r) return;
+    if (r.error) { pane.querySelector(".emsg").textContent = "No s'ha pogut començar l'examen."; return; }
+    examRun(r);
+  };
+}
+
+function examRun(state) {
+  exam = state;
+  draw(state.frames);
+  const qs = state.questions, answers = { ...state.answers };
+  let at = 0, left = state.left, sync = 0;
+  pane.innerHTML = `<div class="ebar">
+      <div><h2 class="etitle"></h2><span class="muted evalue"></span></div>
+      <div class="timer" role="timer" aria-label="Temps que queda"></div>
+    </div>
+    <div class="chips" role="group" aria-label="Preguntes de l'examen"></div>
+    <img class="problem-img eimg" alt="Enunciat de la pregunta">
+    <div class="letters" role="group" aria-label="Respostes"></div>
+    <div class="actions">
+      <button class="eprev">Anterior</button>
+      <button class="eblank">Deixa-la en blanc</button>
+      <button class="enext">Següent</button>
+    </div>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary ehand">Lliura l'examen</button>
+      <button class="equit">Surt sense lliurar</button>
+    </div>
+    <div class="confirm" hidden aria-live="polite"></div>
+    <p class="muted emsg" aria-live="polite"></p>`;
+  const chips = pane.querySelector(".chips"), box = pane.querySelector(".letters"), confirmBox = pane.querySelector(".confirm");
+  const clock = () => {
+    const t = pane.querySelector(".timer");
+    t.textContent = mmss(left);
+    t.classList.toggle("late", left < 60);
+  };
+  const over = r => { stopClock(); examDone(r); };
+  const paint = () => {
+    const q = qs[at];
+    pane.querySelector(".etitle").textContent = `Pregunta ${q.n} de ${qs.length}`;
+    pane.querySelector(".evalue").textContent = `Val ${plural(q.points, "punt", "punts")}`;
+    pane.querySelector(".eimg").src = "img/" + encodeURIComponent(q.key) + ".png";
+    chips.querySelectorAll("button").forEach((c, i) => {
+      c.classList.toggle("answered", !!answers[qs[i].n]);
+      c.classList.toggle("here", i === at);
+      c.setAttribute("aria-label", `Pregunta ${qs[i].n}, ${answers[qs[i].n] ? "resposta " + answers[qs[i].n] : "en blanc"}`);
+    });
+    box.querySelectorAll("button").forEach(b => {
+      const on = answers[q.n] === b.textContent;
+      b.classList.toggle("picked", on);
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", `Resposta ${b.textContent}: ${(q.options || {})[b.textContent] ?? ""}`);
+    });
+    pane.querySelector(".eprev").disabled = at === 0;
+    pane.querySelector(".enext").disabled = at === qs.length - 1;
+    pane.querySelector(".eblank").disabled = !answers[q.n];
+    confirmBox.hidden = true;
+  };
+  const mark = async letter => {
+    const n = qs[at].n;
+    const r = await examCall("examanswer", { n, letter });
+    if (!r) return;
+    if (r.error) { pane.querySelector(".emsg").textContent = "No s'ha pogut desar la resposta. Torna-ho a provar."; return; }
+    if (r.status === "finished") return over(r);
+    pane.querySelector(".emsg").textContent = "";
+    if (r.letter) answers[n] = r.letter; else delete answers[n];
+    left = r.left;
+    clock(); draw(r.frames); paint();
+  };
+  qs.forEach((q, i) => {
+    const c = document.createElement("button");
+    c.textContent = q.n;
+    c.onclick = () => { at = i; paint(); };
+    chips.append(c);
+  });
+  for (const letter of "ABCDE") {
+    const b = document.createElement("button");
+    b.textContent = letter;
+    b.onclick = () => mark(letter);
+    box.append(b);
+  }
+  pane.querySelector(".eprev").onclick = () => { at--; paint(); };
+  pane.querySelector(".enext").onclick = () => { at++; paint(); };
+  pane.querySelector(".eblank").onclick = () => mark("-");
+  const confirmWith = (text, yes, action) => {
+    confirmBox.innerHTML = `${esc(text)}<div class="actions"><button class="primary yes">${esc(yes)}</button><button class="no">Encara no</button></div>`;
+    confirmBox.hidden = false;
+    confirmBox.querySelector(".no").onclick = () => { confirmBox.hidden = true; };
+    confirmBox.querySelector(".yes").onclick = action;
+    confirmBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
+  pane.querySelector(".ehand").onclick = () => confirmWith(
+    `Has respost ${Object.keys(answers).length} de ${plural(qs.length, "pregunta", "preguntes")}. Vols lliurar l'examen?`, "Sí, lliura'l",
+    async () => { const r = await examCall("examfinish"); if (r && !r.error) over(r); });
+  pane.querySelector(".equit").onclick = () => confirmWith(
+    "Si surts ara, l'examen es perd i no es corregeix. Vols sortir?", "Sí, surt",
+    async () => { const r = await examCall("examclose"); if (!r || r.error) return; stopClock(); exam = { status: "none" }; draw(r.frames); showPane(false); });
+  // The page counts the seconds; the server owns the time. Asking it also moves the countdown on the board
+  stopClock();
+  examClock = setInterval(async () => {
+    if (left > 0) left--;
+    clock();
+    if (++sync < (left <= 60 ? 1 : 5) && left > 0) return;
+    sync = 0;
+    if (examBusy) return;
+    let r;
+    try { r = await api("examtick"); } catch (e) { return; }
+    if (examClock === null || r.error) return;
+    if (r.status === "finished") return over(r);
+    left = r.left;
+    clock(); draw(r.frames);
+  }, 1000);
+  clock(); paint();
+  showPane(true);
+}
+
+const OUTCOME = { right: "Encertada", wrong: "Equivocada", blank: "En blanc" };
+function examDone(r) {
+  exam = r;
+  draw(r.frames);
+  const g = r.guess;
+  const tip = g.pays_from === null ? "Amb aquestes regles, respondre a l'atzar fa perdre punts de mitjana: si dubtes, deixa-la en blanc."
+    : g.pays_from === 0 ? "Amb aquestes regles, respondre sempre surt a compte, encara que dubtis."
+    : `Si no pots descartar ${g.pays_from === 1 ? "cap opció" : "almenys " + g.pays_from + " opcions"}, respondre a l'atzar ${g.sign_with_none_out === 0 && g.pays_from === 1 ? "no et fa guanyar ni perdre punts de mitjana" : "no surt a compte"}. `
+      + `Si en pots descartar ${g.pays_from === 1 ? "una o més" : g.pays_from + " o més"}, de mitjana hi surts guanyant.`;
+  pane.innerHTML = `<h2>${r.timed_out ? "S'ha acabat el temps" : "Examen lliurat"}</h2>
+    <p class="score">${num(r.score)} punts de ${num(r.maximum)}</p>
+    <p>Encertades: ${r.right} · Equivocades: ${r.wrong} · En blanc: ${r.blank}</p>
+    <p class="muted">${r.start ? `${plural(r.start, "punt", "punts")} de sortida, ` : ""}+${num(r.gained)} per les encertades, −${num(r.lost)} per les equivocades.</p>
+    ${r.wrong ? `<p>Les respostes equivocades t'han restat ${plural(r.lost, "punt", "punts")}. Deixant-les en blanc tindries ${plural(r.if_blank, "punt", "punts")}.</p>` : ""}
+    <p><strong>Quan val la pena arriscar?</strong> ${esc(tip)}</p>
+    <h3>Repàs</h3>
+    <p class="muted">Aquí no es diu quina era la resposta correcta: torna a provar cada pregunta amb el tutor, amb pistes si et calen.</p>
+    <ul class="review"></ul>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary eagain">Un altre examen</button>
+      <button class="eleave">Torna al tutor</button>
+    </div>`;
+  const list = pane.querySelector(".review");
+  for (const q of r.questions) {
+    const li = document.createElement("li");
+    li.className = q.outcome;
+    li.setAttribute("data-img", "img/" + encodeURIComponent(q.key) + ".png");
+    li.innerHTML = `<b>${q.n}</b><span class="what">${OUTCOME[q.outcome]}${q.given ? ` (has marcat la ${esc(q.given)})` : ""} · val ${plural(q.points, "punt", "punts")}</span>
+      <span class="delta">${q.delta > 0 ? "+" : ""}${num(q.delta)}</span>
+      <button>${q.outcome === "right" ? "Torna-la a veure" : "Repassa-la amb el tutor"}</button>`;
+    li.querySelector("button").onclick = async () => {
+      const view = await api("start", { key: q.key });
+      if (view.error) return;
+      show(view);
+      showPane(false);
+      say(`<strong>Pregunta ${q.n} de l'examen.</strong> ${q.outcome === "blank" ? "L'havies deixada en blanc." : q.outcome === "wrong" ? `Havies marcat la ${esc(q.given)}, que no és correcta.` : "L'havies encertada: sabries explicar per què?"}
+        Ara tens pistes i tot el temps que vulguis. Per tornar al repàs, prem «Resultats de l'examen» a dalt.`, "help");
+    };
+    list.append(li);
+  }
+  pane.querySelector(".eagain").onclick = async () => { await api("examclose"); exam = { status: "none" }; examSetup(); };
+  pane.querySelector(".eleave").onclick = () => showPane(false);
+  showPane(true);
+}
+
+$("#exambtn").onclick = async () => {
+  if (exam.status === "finished") return examDone(exam);
+  await examSetup();
+  showPane(true);
+};
+
+api("state").then(show).then(async () => {
+  const r = await api("examstate");   // a reload in the middle of a paper goes back to it
+  if (r.status === "running") examRun(r);
+  else if (r.status === "finished") { exam = r; examButton(); }
+}).catch(() => {});
 </script>
 </body>
 </html>

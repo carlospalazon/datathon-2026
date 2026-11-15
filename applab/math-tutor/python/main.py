@@ -23,6 +23,7 @@ from arduino.app_bricks.web_ui import WebUI  # noqa: E402
 from arduino.app_utils import App, Bridge, Frame, Leds  # noqa: E402
 
 from copilot.assistant import Assistant  # noqa: E402
+from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame, rgb  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
 from copilot.tutor import Tutor  # noqa: E402
@@ -37,6 +38,7 @@ with open(os.path.join(HERE, "types.json")) as f:
 
 tutor = Tutor(problems, types, show=SHOW)
 practice = Practice(problems[0]["language"])  # practice problems made on the spot, apart from the tutor
+exam = Exam(problems)  # exam mode: a timed paper; the page's clock requests move the matrix countdown
 assistant = Assistant(tutor)  # free text, guardrails and the model (port 8081), in threads
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
@@ -118,6 +120,13 @@ ui.expose_api("GET", "/api/practice",
                           or {"error": "no practice for this kind of problem"}))
 ui.expose_api("GET", "/api/practiceanswer/{letter}", lambda letter: run(practice.answer, letter))
 ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
+ui.expose_api("GET", "/api/examinfo", lambda: run(exam.info))
+ui.expose_api("GET", "/api/examstart/{level}/{paper}", lambda level, paper: run(exam.start, level, paper))
+ui.expose_api("GET", "/api/examstate", lambda: run(exam.state))
+ui.expose_api("GET", "/api/examanswer/{n}/{letter}", lambda n, letter: run(exam.answer, n, letter))
+ui.expose_api("GET", "/api/examtick", lambda: run(exam.tick))
+ui.expose_api("GET", "/api/examfinish", lambda: run(exam.finish))
+ui.expose_api("GET", "/api/examclose", lambda: run(exam.close))
 ui.expose_api("GET", "/api/modelhint",
               lambda: run(lambda: {"kind": "job", "job": assistant.model_hint(), "events": [{"event": "thinking"}]}))
 ui.expose_api("GET", "/api/job/{job}", lambda job: run(assistant.job, job))

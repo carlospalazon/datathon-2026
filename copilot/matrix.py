@@ -17,6 +17,7 @@ RGB = {
     "tick": (0, 1, 0),       # correct
     "cross": (1, 0, 0),      # incorrect
     "help_step": (1, 0, 1),  # hint or guide step
+    "clock": (0, 0, 1),      # exam countdown
     "clear": (0, 0, 0),
 }
 
@@ -101,6 +102,13 @@ def frame(event):
     if kind == "level":  # level 0..7 as 1..8 lit columns, with the digit above
         grid = text(str(event["value"] + 1))
         for c in range(event["value"] + 1):
+            grid[7][c] = ON
+        return grid
+    if kind == "clock":  # exam countdown: minutes left (seconds in the last minute), time left as a bar
+        left = max(0, int(event["value"]))
+        grid = text(str(min(99, -(-left // 60) if left >= 60 else left)))
+        of = event.get("of") or left
+        for c in range(min(COLS, -(-COLS * left // of)) if of else 0):
             grid[7][c] = ON
         return grid
     if kind == "clear":

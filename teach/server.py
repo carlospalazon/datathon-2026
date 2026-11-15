@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from copilot.assistant import Assistant  # noqa: E402
+from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
 from copilot.tutor import STATUSES, Tutor  # noqa: E402
@@ -65,6 +66,7 @@ class App:
                            profile_path=args.profile or None)
         self.assistant = Assistant(self.tutor)
         self.practice = Practice(args.language)  # "one like this, but yours": apart from the tutor's session
+        self.exam = Exam(self.problems)  # exam mode: a timed paper, also apart from the tutor's session
         self.lock = threading.Lock()
         first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
         self.view = self.tutor.start(first["key"])
@@ -106,6 +108,20 @@ class App:
                 return with_frames(self.practice.answer(body.get("letter", "")))
             if action == "practicesolution":
                 return with_frames(self.practice.solution())
+            if action == "examinfo":
+                return self.exam.info()
+            if action == "examstart":
+                return with_frames(self.exam.start(body.get("level"), body.get("paper", "")))
+            if action == "examstate":
+                return with_frames(self.exam.state())
+            if action == "examanswer":
+                return with_frames(self.exam.answer(body.get("n"), body.get("letter", "")))
+            if action == "examtick":
+                return with_frames(self.exam.tick())
+            if action == "examfinish":
+                return with_frames(self.exam.finish())
+            if action == "examclose":
+                return with_frames(self.exam.close())
             if action == "start" and body.get("key") in self.tutor.problems:
                 self.view = self.tutor.start(body["key"])
                 return with_frames(self.view)
@@ -133,7 +149,8 @@ def make_handler(app):
             parts = [urllib.parse.unquote(x) for x in self.path.split("?")[0].strip("/").split("/")]
             if parts[0] == "api" and len(parts) >= 2:
                 names = {"answer": ["letter"], "practiceanswer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
-                         "chat": ["text"], "job": ["id"]}.get(parts[1], [])
+                         "chat": ["text"], "job": ["id"], "examstart": ["level", "paper"],
+                         "examanswer": ["n", "letter"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))
