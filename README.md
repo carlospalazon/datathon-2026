@@ -110,6 +110,17 @@ adb forward tcp:7000 tcp:7000        # then open http://127.0.0.1:7000
 
 Ask for a hint: RGB LED 1 turns purple and the matrix shows the step. Answer wrong: red and a cross. Answer right: green and a tick.
 
+**7. Run the official answering run (board).** From the repository folder on the board, with `data/train.jsonl` in place (the twin copy reads it; without it the model answers every problem):
+
+```bash
+python3 predict.py --input data/val.jsonl --output results/predictions.csv   # one letter per problem
+python3 eval.py --input data/val.jsonl --languages eng,cat --limit 0 --name delivery   # the same run, scored
+```
+
+`eval.py` prints accuracy with its interval, latency, the breakdown by language, level and options, and how many problems the twin copy answered. `PRESOLVE=` (empty) in the environment turns the twin copy off.
+
+**8. Repeat the fine-tuning experiments (laptop, optional).** `laptop/build_training_data.py` builds the training file (it refuses to include validation or sample-test problems), `laptop/make_ft_sets.py` cuts a set, `mlx_lm.lora` trains, and `laptop/adapter_to_gguf.py` converts the result with the board's own llama.cpp converter. `laptop/bench_exam.py`, `laptop/measure_examples.py` and `laptop/reworded_problems.py` are the measurements quoted in [Results](#results). The log of every experiment is in [docs/lab/NOTEBOOK.md](docs/lab/NOTEBOOK.md).
+
 **Tests** (standard library only): `python3 -m unittest discover -s tests`.
 
 ## Results
@@ -237,6 +248,8 @@ Why the model fails, from the experiments in [Results](#results): it imitates wo
 - **A converter trap.** A fine-tuned model converted to GGUF with a newer llama.cpp than the board's loads on the laptop and is refused by the board. `laptop/adapter_to_gguf.py` uses the board's own converter.
 - **Retrieving a strategy by embeddings, and letting the model choose one.** Both are close to the floor (see the table above). The embedding model is English and the statements are Catalan.
 
+- **Tutor features added on the last night** (practice problems, exam mode, skill map and session plan, reading modes, warm-up, think-first timer): they pass their tests and the board serves them, but nobody has clicked through them in a browser yet, the exam's scoring rules are a setting to be checked, and their Catalan has not had a native read.
+
 Next:
 
 - Have a person review the hints and the checkpoint answers, starting with the problems the writers flagged as doubtful.
@@ -250,16 +263,18 @@ Next:
 
 | Path | What it holds |
 |---|---|
-| `predict.py`, `copilot/pipeline.py`, `llm.py`, `rag.py` | The official answering run |
-| `copilot/tutor.py`, `diagnose.py`, `assistant.py`, `guardrails.py`, `topics.py`, `slm.py`, `matrix.py` | The tutor |
+| `predict.py`, `copilot/pipeline.py`, `llm.py`, `rag.py`, `presolve.py`, `find_letter.py`, `prior.py` | The official answering run: the model, the twin copy before it, and the settings that are off (working before the letter, a statistical prior) |
+| `copilot/tutor.py`, `diagnose.py`, `assistant.py`, `match.py`, `guardrails.py`, `topics.py`, `slm.py`, `matrix.py` | The tutor |
+| `copilot/practice.py`, `pictures.py`, `exam.py`, `skillmap.py`, `reading.py` | Generated practice problems (with drawn figures), the exam mode, the skill map and session plan, the reading modes |
 | `teach/`, `applab/`, `led_demo/` | The student's page, the App Lab app, an LED test app |
 | `explorer/` | A page to browse problems and the model's answers |
 | `board/` | Setup scripts, service files, tools that run on the board |
-| `laptop/` | Data preparation, catalogue, hints, training data, model comparison |
+| `laptop/` | Data preparation, catalogue, hints, training data and problem generators, fine-tuning tools, model comparison and benchmarks |
 | `content/` | Method cards per topic and the list of strategies (no M3Kang text) |
 | `eval.py`, `analyze_errors.py`, `error_report.py`, `calibrate.py` | Measuring the answering run |
 | `measure_teach.py`, `measure_newproblem.py` | Measuring the teaching side |
 | `tests/` | Unit tests |
+| `docs/` | The error analysis in full, and the lab notebook, ideas and product log of the overnight work |
 | `DATATHON.md` | The organizers' guide |
 
 ## The team
