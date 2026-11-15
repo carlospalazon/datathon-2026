@@ -268,11 +268,13 @@ class Presolve(unittest.TestCase):
             out = run(Server(), self.on, problem=problem, **kw)
             self.assertEqual((out["status"], out["answer"]), ("ok", "C"))
 
-    def test_a_copied_letter_only_replaces_the_fixed_prior(self):
+    def test_a_copied_letter_answers_a_close_twin_without_options(self):
+        # On the training split a letter copied from a close twin is right about half the time, against
+        # about a fifth for the model, so it answers with or without a fixed prior.
         no_options = {**TWIN, "options": {}}
         server = Server(direct="D")
         out = run(server, self.on, problem=no_options)
-        self.assertEqual((out["answer"], out["status"], len(server.calls)), ("D", "ok", 1))
+        self.assertEqual((out["answer"], out["status"], len(server.calls)), ("B", "presolve", 0))
         out = run(Server(), {**self.on, "NO_OPTIONS_PRIOR": "E"}, problem=no_options)
         self.assertEqual((out["answer"], out["status"], out["presolve"]), ("B", "presolve", "letter:t1:1.0"))
         out = run(Server(), {**self.on, "NO_OPTIONS_PRIOR": "E"}, problem={**PROBLEM, "options": {}})

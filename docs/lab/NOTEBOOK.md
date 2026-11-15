@@ -519,6 +519,8 @@ never problem text (M3Kang is research-use only).
 
       ANSWER_PRIOR=1 PRESOLVE=1 python3 eval.py --input data/val.jsonl --languages eng,cat --limit 0 --name prior
 
+  Unlike `NO_OPTIONS_PRIOR`, it also answers a problem sent with a picture. The `eval.py` path was
+  smoke-tested on 20 training rows (status `prior` on all), not run on validation.
   No default changed. Board: needs `copilot/prior.py` and `copilot/prior_table.json`; presolve also needs
   `data/train.jsonl` on the board.
 - **Tests:** `python3 -m pytest tests -q`: 306 passed (28 new in `tests/test_prior.py`: parsing, features,
@@ -527,7 +529,7 @@ never problem text (M3Kang is research-use only).
 - **Limits, so nobody reads more into it.** (1) Three layouts of the with-options features were tried on
   training before freezing (letter per layout + rank; plain letter + rank everywhere; plain letter + rank
   when unordered): the plain cross-validated figures (26.2–28.3%) have seen that search, the nested ones
-  (23.4–25.0%) and validation have not. A parsing bug (OCR option "13 2 1 3" read as 13213) was fixed
+  (23.4–25.0%) and validation have not. A parsing bug (an OCR option with stray digits after a space, like "23 7 7 9", was read as one number) was fixed
   before the freeze. (2) The level is read from the `level` field or an id shaped `lvl-N_YYYY_Q`; the
   kept features do not use it, so a test file with only `id`, `text` and `options` gets the same answers.
   (3) It answers D on 80% of problems; on a test with all options readable and in order it is close to
@@ -537,3 +539,33 @@ never problem text (M3Kang is research-use only).
   at chance? If yes, the cheapest honest configuration for an M3Kang-like test is `ANSWER_PRIOR=1
   PRESOLVE=1` (29.2% on validation, no model, milliseconds). If the model ever beats chance on a slice
   (for example text-only problems with options), the prior should answer only the rest.
+
+### 2026-11-15 10:20 · Coordinator (as Engineer) · Worked example of a similar problem; twin copy tuned and measured
+- **Owner's decisions this morning:** the hidden test is drawn from M3Kang (validation is the reference
+  set, not the 2026 samples); the statistical prior (`ANSWER_PRIOR`, 151/562 on validation) is NOT to
+  be used for now; the twin copy is to be tried; the aim is a model that solves, not one that guesses.
+- **Worked example of the most similar solved training problem** (`laptop/measure_examples.py`, bge
+  embeddings, 339 validation problems with options, same problems with and without the example):
+  tuned v3_mix 68/339 without, 58/339 with; untuned 82/339 without, 69/339 with. By similarity of the
+  example: >= 0.90: tuned 2/13 -> 8/13, untuned 1/13 -> 7/13; 0.80-0.90: 35 -> 31 and 46 -> 42 of 175;
+  0.70-0.80: 30 -> 18 and 34 -> 20 of 145. An example helps only when it is nearly the same problem and
+  hurts otherwise (the model copies the example's answer). The untuned model finished its working in
+  time on 10/339 without and 38/339 with the example, so its letters are mostly forced.
+- **Twin copy (`copilot/presolve.py`), thresholds chosen on the training split only**, leave one id
+  out, by similarity band: value copies right 84% (>= 0.6), 71%, 62%, 60% (0.3-0.4), 36% (0.2-0.3),
+  25% (0.15-0.2); letter copies 51% (>= 0.6), 42% (0.5-0.6), then 14-27%. Set: value 0.2, letter 0.5.
+  A letter copy now answers on its own (it used to need a fixed prior).
+- **Measured once on validation** (twin copy over the untuned one-letter answers, no model run):
+  base 128/562 (22.8%); old threshold 0.5 for both: **146/562 (26.0%)**, value copies 10/10 right,
+  letter copies 11/22; new thresholds: **147/562 (26.2%)**, value copies 16/28 right, letter 11/22
+  (fixed 26, broke 7). The lower value threshold did not add anything measurable on validation
+  (6 of the 18 extra copies right). Left as chosen on training; not re-tuned after seeing validation.
+- **Twin solution:** with `PRESOLVE_SOLUTIONS` set to the checked-solution files, a close twin
+  (similarity >= 0.5) also returns its worked solution (`twin_solution` in the result): 6 of the
+  validation twins have one.
+- **Board (real, 20 demo problems twice, tuned model, reason mode with 11/6):** it loads with the
+  board-layout file; read 11.7, write 5.7 tokens/s; mean 34 s, worst 58 s; 4-5 of 20 hit the clock and
+  fell back to the direct letter; 19/20 letters equal between the two passes. Use `BOARD_WRITE_TPS=5`
+  (and 10.5 for reading) for any reasoning run on the board. Qwen3.5 2B Q4 on the board: read 4.7,
+  write 2.5 tokens/s (three made-up problems).
+- **Still to run:** twin copy through `eval.py` with the server up; 2B free working with the 4.7/2.5 budget.

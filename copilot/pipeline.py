@@ -48,6 +48,24 @@ def _token_cap():
         return 0
 
 
+def _twin_solutions():
+    """{(id, language): checked worked solution} from the PRESOLVE_SOLUTIONS files, or {} if there are none."""
+    table = {}
+    for path in str(CONFIG.get("PRESOLVE_SOLUTIONS", "") or "").split(","):
+        path = path.strip()
+        if not path:
+            continue
+        try:
+            with open(path if os.path.isabs(path) else os.path.join(ROOT, path), encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        row = json.loads(line)
+                        table[(row["id"], row.get("language"))] = row["rationale"]
+        except Exception:  # noqa: BLE001  a missing or broken file means no solutions, never a failed run
+            continue
+    return table
+
+
 def _presolved(problem, exclude_id, result):
     """A copied answer from copilot.presolve, or None. Never raises: no index means no answer."""
     path = str(CONFIG.get("PRESOLVE_DATA", "") or "data/train.jsonl")
@@ -55,7 +73,8 @@ def _presolved(problem, exclude_id, result):
     if path not in _PRESOLVE_INDEX:
         try:
             with open(path, encoding="utf-8") as f:
-                _PRESOLVE_INDEX[path] = presolver.build([json.loads(line) for line in f if line.strip()])
+                problems = [json.loads(line) for line in f if line.strip()]
+            _PRESOLVE_INDEX[path] = presolver.build(problems, _twin_solutions())
         except Exception as error:  # noqa: BLE001
             _PRESOLVE_INDEX[path] = type(error).__name__
     index = _PRESOLVE_INDEX[path]
@@ -246,11 +265,12 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
         table_answers = str(CONFIG.get("ANSWER_PRIOR", "")).strip() == "1"
         if str(CONFIG.get("PRESOLVE", "")).strip() == "1":
             hit = _presolved(problem, exclude_id, result)
-            # A copied letter (no options to check it against) only replaces the fixed prior.
-            if hit and (hit["kind"] == "value" or prior_answers or table_answers):
+            if hit:
                 result["answer"] = hit["answer"]
                 result["status"] = "presolve"
                 result["presolve"] = f"{hit['kind']}:{hit['source']}:{hit['similarity']}"
+                if hit.get("solution"):  # the twin's checked solution: how it is solved, not only the letter
+                    result["twin_solution"] = hit["solution"]
                 result["seconds"] = round(time.perf_counter() - start, 2)
                 return result
         if table_answers:

@@ -23,6 +23,8 @@ DEFAULTS = {
                               # It quotes problems: never commit it.
     "PRESOLVE": "",           # "1": copy the answer value of a near-identical training problem, no model
     "PRESOLVE_DATA": "data/train.jsonl",  # training problems only, never data/demo or data/val.jsonl
+    "PRESOLVE_SOLUTIONS": "",  # comma-separated JSON Lines files (id, language, rationale): a close twin
+                               # then also returns its checked worked solution
     "ANSWER_PRIOR": "",       # "1": answer every problem from copilot.prior (letter and option-shape counts
                               # of the training split), no model call. A statistical guess, not a solution
     "PRIOR_TABLE": "copilot/prior_table.json",  # built by laptop/build_prior.py from data/train.jsonl only

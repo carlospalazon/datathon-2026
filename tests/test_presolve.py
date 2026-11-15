@@ -8,7 +8,7 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-from copilot.presolve import build, nearest, presolve  # noqa: E402
+from copilot.presolve import THRESHOLD_LETTER, THRESHOLD_VALUE, build, nearest, presolve  # noqa: E402
 
 TEXT = "A farmer has twelve hens and each hen lays three eggs a day. How many eggs does she collect in a day?"
 TRAIN = [
@@ -69,3 +69,30 @@ class Presolve(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ThresholdsAndSolutions(unittest.TestCase):
+    """Value copies reach further than letter copies; a close twin brings its checked solution."""
+
+    def setUp(self):
+        self.train = [{"id": "s1", "language": "eng", "label": "B",
+                       "text": "Nine made-up zebras share forty-five carrots equally among themselves. How many each?",
+                       "options": {"A": "4", "B": "5", "C": "6", "D": "7", "E": "9"}}]
+        self.index = build(self.train, {("s1", "eng"): "45 / 9 = 5."})
+
+    def ask(self, text, options):
+        return presolve({"id": "q", "language": "eng", "text": text, "options": options}, self.index)
+
+    def test_close_twin_copies_the_value_and_brings_the_solution(self):
+        hit = self.ask("Nine made-up zebras share forty-five carrots equally among themselves. How many does each get?",
+                       {"A": "9", "B": "7", "C": "5", "D": "6", "E": "4"})
+        self.assertEqual((hit["answer"], hit["kind"], hit["solution"]), ("C", "value", "45 / 9 = 5."))
+
+    def test_loose_twin_copies_the_value_but_not_the_solution_and_never_a_letter(self):
+        loose = "Some zebras share forty-five carrots equally. A different story follows with other words entirely here."
+        hit = self.ask(loose, {"A": "9", "B": "7", "C": "5", "D": "6", "E": "4"})
+        similarity, _ = nearest({"id": "q", "language": "eng", "text": loose}, self.index)
+        self.assertTrue(THRESHOLD_VALUE <= similarity < THRESHOLD_LETTER, similarity)
+        self.assertEqual((hit["answer"], hit["kind"]), ("C", "value"))
+        self.assertNotIn("solution", hit)
+        self.assertIsNone(self.ask(loose, {}))

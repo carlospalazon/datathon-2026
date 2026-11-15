@@ -25,7 +25,16 @@ import json
 import re
 import sys
 
-THRESHOLD = 0.5
+THRESHOLD = 0.5         # the old single threshold; still what a caller gets by passing threshold=
+# Chosen on the training split only (leave one id out, 15 Nov 2026), band by band:
+#   value copies are right 84% at similarity >= 0.6, 71% at 0.5-0.6, 62% at 0.4-0.5, 60% at 0.3-0.4,
+#   36% at 0.2-0.3 and 25% at 0.15-0.2. The model is right about 22% of the time, so copying pays down
+#   to 0.2 (a value copy only happens when exactly one option holds the twin's answer value).
+#   letter copies (no options to check against) are right 51% at >= 0.6 and 42% at 0.5-0.6, then 14-27%
+#   below, no better than a fixed letter, so they stop at 0.5.
+THRESHOLD_VALUE = 0.2
+THRESHOLD_LETTER = 0.5
+SOLUTION_THRESHOLD = 0.5  # the twin's worked solution is only offered when the problems are this close
 
 
 def _grams(text):
@@ -37,8 +46,13 @@ def _norm(value):
     return re.sub(r"[\s$*_\\{}()]", "", str(value).lower().replace(",", ".")).rstrip(".")
 
 
-def build(problems):
-    """The index: one entry per training problem that has text and a label."""
+def build(problems, solutions=None):
+    """The index: one entry per training problem that has text and a label.
+
+    solutions is an optional {(id, language): worked solution} of checked solutions; a hit on a close
+    twin then carries that solution, so the caller can show how the problem is solved, not only a letter.
+    """
+    solutions = solutions or {}
     index = []
     for p in problems:
         grams = _grams(p.get("text"))
@@ -48,7 +62,7 @@ def build(problems):
         options = p.get("options") or {}
         value = _norm(options[label]) if label in options else None
         index.append({"id": p["id"], "language": p.get("language"), "grams": grams, "label": label,
-                      "value": value})
+                      "value": value, "solution": solutions.get((p["id"], p.get("language")))})
     index.sort(key=lambda e: (e["id"], str(e["language"])))
     return index
 
@@ -71,21 +85,30 @@ def nearest(problem, index, exclude_id=None):
     return best
 
 
-def presolve(problem, index, exclude_id=None, threshold=THRESHOLD):
-    """The copied answer, or None to let the model answer."""
+def presolve(problem, index, exclude_id=None, threshold=None):
+    """The copied answer, or None to let the model answer.
+
+    threshold=None uses THRESHOLD_VALUE for a value copy and THRESHOLD_LETTER for a letter copy;
+    a number applies to both.
+    """
     similarity, entry = nearest(problem, index, exclude_id)
-    if entry is None or similarity < threshold:
+    if entry is None:
         return None
     found = {"source": entry["id"], "similarity": round(similarity, 3)}
     options = problem.get("options") or {}
     if not options:
+        if similarity < (THRESHOLD_LETTER if threshold is None else threshold):
+            return None
         return {**found, "answer": entry["label"], "kind": "letter"}
-    if entry["value"] is None:
+    if similarity < (THRESHOLD_VALUE if threshold is None else threshold) or entry["value"] is None:
         return None
     letters = [letter for letter, value in sorted(options.items()) if _norm(value) == entry["value"]]
     if len(letters) != 1:
         return None
-    return {**found, "answer": letters[0], "kind": "value"}
+    hit = {**found, "answer": letters[0], "kind": "value"}
+    if entry.get("solution") and similarity >= SOLUTION_THRESHOLD:
+        hit["solution"] = entry["solution"]
+    return hit
 
 
 def main(path):
