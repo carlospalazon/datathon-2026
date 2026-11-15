@@ -155,6 +155,32 @@ if (doc.querySelector("#think")) await step("think first: a ring in the hint but
   await click($("#next"));
 });
 
+if (doc.querySelector("#readbar")) await step("reading modes: one idea per line, key data, numbers only, more room; kept for the next problem", async () => {
+  const picked = () => $("#readbar").querySelectorAll("button.picked").length;
+  check($("#reader").hidden && picked() === 0, "the plain page to start with: the image and nothing else");
+  await click($("#rm-lines"));
+  check(!$("#reader").hidden && $("#reader").querySelectorAll(".rtext p").length === 3, "one idea per line: " + $("#reader").textContent);
+  check($("#rm-lines").classList.contains("picked") && $("#rm-lines").getAttribute("aria-pressed") === "true", "the switch shows it is on");
+  check(!$("#reader").querySelector("mark") && !$("#reader").querySelector(".numstrip"), "and nothing else yet");
+  await click($("#rm-key"));
+  check($("#reader").querySelectorAll("mark.kd").length === 2, "the key data marked in the statement");
+  check($("#reader").querySelectorAll(".keybox li").length === 2 && /Condició clau/.test($("#reader").textContent), "the key data and the key condition under it");
+  check(!/SECRET/.test($("#reader").textContent), "never the first step");
+  await click($("#rm-numbers"));
+  const strip = $("#reader").querySelectorAll(".numstrip span");
+  check(strip.length === 3 && /12/.test(strip[0].textContent) && /boxes/.test(strip[0].textContent), "a strip with only the numbers and what they count");
+  await click($("#rm-space"));
+  check(doc.body.classList.contains("airy") && picked() === 4, "more room, and the four switches mix");
+  await click($("#rm-lines"));
+  check($("#reader").querySelectorAll(".rtext p").length === 1 && picked() === 3, "a switch turns off again");
+  await click($("#next"));
+  check(calls.filter(c => c === "api/reading").length >= 2 && picked() === 3 && !$("#reader").hidden, "the next problem keeps the choice");
+  await click($("#rm-key")); await click($("#rm-numbers")); await click($("#rm-space"));
+  check($("#reader").hidden && picked() === 0 && !doc.body.classList.contains("airy"), "all off: the plain page again");
+  await click($("#rm-lines")); await click($("#rm-numbers"));
+  check(calls.filter(c => c.startsWith("api/readingmode/")).length === 10, "every change is told to the server");
+});
+
 await step("a wrong letter, then the practice card from the red message", async () => {
   // The page never learns the right letter; try letters until one is wrong
   let wrong = null;
@@ -170,6 +196,7 @@ await step("a wrong letter, then the practice card from the red message", async 
   await click($("#feed").querySelector(".msg.bad .inline"));
   const card = $("#feed").querySelector(".msg.practice");
   check(card && card.querySelector(".ptext").textContent.length > 20, "a practice problem as text");
+  if (doc.querySelector("#readbar")) check(card.querySelector(".ptext .numstrip") && card.querySelectorAll(".ptext .rtext p").length >= 2, "laid out with the reading switches that are on");
   check(card.querySelector(".psol").disabled, "no solution before a try");
   const options = card.querySelectorAll(".letters button");
   check(options.length === 5, "five options on the practice card");
@@ -338,6 +365,7 @@ if (doc.querySelector("#mapbtn")) await step("the map: a new student, back to th
   check(map.querySelector(".mname").textContent !== me, "another pseudonym");
   check(map.querySelectorAll(".seats button").length === 3, "a double click seats one new student");
   check(map.querySelectorAll(".tile").every(t => t.classList.contains("new")), "an empty map for the new student");
+  if (doc.querySelector("#readbar")) check($("#readbar").querySelectorAll("button.picked").length === 0, "and the plain page: the reading switches are each student's own");
   check(!map.hidden && $("#tutorpane").hidden, "still on the map");
   await click(map.querySelector(".mclass"));
   check(map.querySelectorAll(".heat tbody tr").length === 2, "two students in the class");
@@ -347,6 +375,7 @@ if (doc.querySelector("#mapbtn")) await step("the map: a new student, back to th
   check(map.querySelector(".mname").textContent === me, "the first student is back");
   check(map.querySelectorAll(".tile").some(t => !t.classList.contains("new")), "with their map");
   check($("#img").src === mine, "and their problem");
+  if (doc.querySelector("#readbar")) check($("#readbar").querySelectorAll("button.picked").length === 2, "and their reading switches");
   await click(map.querySelector(".nexts button"));
   check(map.hidden && (!$("#tutorpane").hidden || !$("#exampane").hidden), "the suggestion leaves the map");
   if (!$("#tutorpane").hidden) {

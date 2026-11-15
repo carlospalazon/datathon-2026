@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from copilot import reading  # noqa: E402
 from copilot.assistant import Assistant  # noqa: E402
 from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame  # noqa: E402
@@ -70,6 +71,8 @@ class App:
         self.think = max(0, int(getattr(args, "think", THINK)))
         # The skill map: fed by the tutor, the practice card and the exam; kept in the profile file if there is one
         self.skills = SkillMap(self.problems, path=args.profile or None, language=args.language)
+        # The reading switches each student chose: a display setting, apart from the map
+        self.reading = reading.Choices(args.profile or None)
         self.seats = {}  # pseudonym -> that student's own tutor, practice card, exam and problem on screen
         self.lock = threading.Lock()
         self.sit(self.skills.student)
@@ -95,6 +98,11 @@ class App:
 
     def map(self):
         return with_frames(self.skills.view(seen=self.tutor.seen, home=self.tutor.current["problem"]["level"]))
+
+    def read(self):
+        """The problem on screen for the reading modes, with the switches of whoever is at the board."""
+        return {"modes": self.reading.get(self.skills.student),
+                **reading.of_problem(self.tutor.current["problem"], self.tutor.show)}
 
     def call(self, action, body):
         with self.lock:
@@ -133,10 +141,17 @@ class App:
             return with_frames(self.tutor.think(self.think))
         if action == "thinkskip":  # the student made an attempt and wants the hint button now
             return with_frames(self.tutor.think(self.think, skip=True))
+        if action == "reading":  # the statement laid out for reading, and the switches chosen
+            return self.read()
+        if action == "readingmode":  # the student turns reading switches on or off: remembered
+            self.reading.set(self.skills.student, body.get("modes", ""))
+            return self.read()
         if action == "practiceok":  # can the page offer a practice problem for the one on screen?
             return {"available": self.practice.available(self.tutor.current["problem"]["topic"])}
         if action == "practice":
             view = self.practice.new(self.tutor.current["problem"]["topic"])
+            if view:
+                view["reading"] = reading.of_text(view["text"])  # the reading modes work on the card too
             return with_frames(view) if view else {"error": "no practice for this kind of problem"}
         if action == "practiceanswer":
             return with_frames(self.practice.answer(body.get("letter", "")))
@@ -217,7 +232,7 @@ def make_handler(app):
             if parts[0] == "api" and len(parts) >= 2:
                 names = {"answer": ["letter"], "practiceanswer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
                          "chat": ["text"], "job": ["id"], "examstart": ["level", "paper"],
-                         "examanswer": ["n", "letter"], "student": ["n"]}.get(parts[1], [])
+                         "examanswer": ["n", "letter"], "student": ["n"], "readingmode": ["modes"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))

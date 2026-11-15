@@ -12,7 +12,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 4 | **Skill map.** One screen (and a matrix view) of the student's topics by level: tried, mastered, shaky, with "what to try next". A teacher view of the class as a heat map, by pseudonym. | Students see progress; teachers see where the class is stuck. | SQLite student memory, topics | **built** (2026-11-15; students take turns at one board; not seen in a real browser) |
 | 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | **built** (2026-11-15; 20 seconds unless `--think` or `TUTOR_THINK` says otherwise; the dim ring not seen on the real matrix) |
 | 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked solution and two wrong methods that also give that number). | Checks understanding, not luck. | checked solutions, generators' typical mistakes | open |
-| 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | open |
+| 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | **built** (2026-11-15; not in the exam; the key condition of some problems reads like a hint; not seen in a real browser) |
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
@@ -381,3 +381,57 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 - **Commit:** 3d55933, and a follow-up: the seconds count from the first time the page asks for
   the problem (the first problem is started when the server comes up), and no ring is started
   behind the map or the exam
+
+
+### 2026-11-15 · Reading modes (backlog 7)
+- **What:** under the problem's image, a row "Com vols llegir?" with four switches that mix freely:
+  **"Una idea per línia"** (the statement as text, a sentence or the part before a semicolon or
+  colon per line; put together again the lines are the statement, nothing is rewritten),
+  **"Més espai"** (larger type, more room between letters, words and lines), **"Dades clau"**
+  (the numbers the catalogue's key data names are marked in the statement, and the key data and
+  the key condition of the catalogue are listed under it with their status badge) and **"Només
+  els números"** (a strip with the numbers of the statement, each with the word after it when it
+  says what is counted: "12 capses"). The image always stays: a problem with a figure says "mira-la
+  a la imatge de dalt". The practice card follows the same switches (its statement is text
+  already; all its numbers count as data). New module `copilot/reading.py`, two endpoints
+  (`reading`, `readingmode/<switches>`) in `teach/server.py` and in the App Lab app.
+  **The choice is the student's and is remembered:** per pseudonym on the server (with
+  `--profile`, in a table of its own, `display`, as a list of switches), so the next problem,
+  a reload, a restart and coming back to the board keep it, and "Alumne nou" starts plain.
+  **Nothing labels the student:** the switches are named for what they do, the stored value is
+  a list of switch names, and no map, class view, session or exam reads it (tested).
+  Key data and key condition are shown only if their status may be shown (`--show`) and they do
+  not give the answer away (8 of the 154 key data do and are left out); the first step and the
+  strategy of the catalogue are never sent. The numbers of the strip come from the statement
+  only, never from the key data (in text-only problems some of those are worked out).
+- **Why:** a long statement in a small picture is the first wall for many students. The same
+  problem can be read line by line, with room, or starting from its numbers, without a separate
+  product and without anybody being told who needs it.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650. Under the image
+  click **"Una idea per línia"**, then **"Dades clau"**, **"Només els números"** and **"Més
+  espai"**; click one again to turn it off. "Següent problema": the choice stays. Click "Un de
+  semblant": the practice card is laid out the same way. "El meu mapa" → "Alumne nou" → "Torna al
+  tutor": the plain page; the first animal's button brings the choice back.
+- **Tests / checks run:** `python3 -m pytest -q`: 350 passed (14 new in `tests/test_reading.py`
+  on made-up statements: the lines rejoin to the statement, numbers with a comma, colon or slash
+  stay whole, the word after a number, key data marked, key data that leaks or has a status not
+  shown left out, never the first step or the strategy, the choice per student and across a
+  restart, nothing of it in the map, the class, the session or the exam; the page harness has a
+  12th step that clicks the four switches on and off, the next problem, the practice card, a new
+  student and back). Real catalogue: over the 154 primary problems the lines rejoin to the
+  statement and none is empty; 146 show key data, 154 a key condition. Server started from a
+  Python script with `--profile`: 30 problems read with the choice kept, nothing with a label or
+  a strategy, a new student plain, the first one back, the choice still there after a restart;
+  server stopped. The App Lab build imported with stand-ins: the same through its 34 routes.
+- **Not done:** not seen in a real browser (the harness sees no CSS: the spacing and the marks
+  are unchecked by eye), not run on the board (there the choice is in memory only). Not in exam
+  mode (no text is sent during a paper, and the key condition would be help). The statement is
+  the catalogue's text: for problems read by OCR it may carry small errors, and many problems
+  with a figure have no number written in digits, so their strip is empty and says so. **The key
+  condition of some problems is close to a first hint** (it says what the question really asks):
+  it is shown only when the student turns "Dades clau" on, with its "esborrany" badge; the owner
+  may prefer to show the key data alone. The split into ideas is by punctuation only: a long
+  sentence with commas stays one line. No font choice (no font can be loaded offline). The
+  Catalan ("Com vols llegir?", "Dades clau", "Condició clau", "Aquest enunciat no té cap número
+  escrit amb xifres.") needs a native read.
+- **Commit:** see `git log -1 -- copilot/reading.py`

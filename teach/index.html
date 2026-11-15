@@ -73,6 +73,7 @@
   /* "One like this, but yours": a practice problem made on the spot, as text */
   .msg.practice { border-color: var(--green); background: var(--card); }
   .msg.practice .ptext { font-size: 19px; margin: 8px 0 0; }
+  .msg.practice .ptext .rtext p { margin-top: 0; }
   .msg.practice .letters { margin: 14px 0 6px; }
   .msg.practice .letters button { width: auto; min-width: 72px; height: 54px; padding: 0 16px; font-size: 19px; }
   .msg.practice .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
@@ -81,6 +82,22 @@
   .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  /* Reading modes: one idea per line, more room, the key data marked, a strip with only the numbers. The student's choice */
+  .readbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 0; }
+  .readbar button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
+  .readbar button.picked { border-color: var(--accent); color: var(--accent); background: var(--soft); }
+  .readbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #reader { margin-top: 12px; padding: 14px 18px; border: 2px solid var(--line); border-radius: 16px; background: var(--soft); font-size: 19px; }
+  .rtext p { margin: 0 0 .5em; }
+  .rtext p:last-child { margin-bottom: 0; }
+  body.airy .rtext { font-size: 21px; line-height: 2.1; letter-spacing: .06em; word-spacing: .3em; }
+  body.airy .rtext p { margin-bottom: 1em; }
+  mark.kd { background: var(--warn-bg); color: var(--ink); font-weight: 800; padding: 0 5px; border-radius: 6px; }
+  .numstrip { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+  .numstrip span { padding: 2px 14px; border: 2px solid var(--accent); border-radius: 999px; background: var(--card); }
+  .numstrip b { font-size: 22px; font-weight: 800; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  .keybox { margin-top: 12px; padding-top: 10px; border-top: 2px dashed var(--line); font-size: 17px; }
+  .keybox ul { margin: 4px 0 8px; padding-left: 22px; }
   /* Exam mode: a timed paper in the tutor's place, no hints, the competition's scoring */
   #exambtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: #fff; cursor: pointer; }
   #exambtn:hover { background: #3cc0ff; }
@@ -179,6 +196,14 @@
     <div class="planbar" id="sessionbar" hidden><span class="ptxt"></span><button class="pquit">Surt de la sessió</button></div>
     <div class="planbar" id="reviewbar" hidden><span class="ptxt"></span><button class="pquit">Torna als resultats</button></div>
     <img class="problem-img" id="img" alt="Enunciat del problema">
+    <div class="readbar" id="readbar" role="group" aria-label="Com vols llegir l'enunciat">
+      <span class="muted">Com vols llegir?</span>
+      <button class="rmode" id="rm-lines" aria-pressed="false">Una idea per línia</button>
+      <button class="rmode" id="rm-space" aria-pressed="false">Més espai</button>
+      <button class="rmode" id="rm-key" aria-pressed="false">Dades clau</button>
+      <button class="rmode" id="rm-numbers" aria-pressed="false">Només els números</button>
+    </div>
+    <div id="reader" hidden></div>
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
       <button id="help" class="primary">Una pista</button>
@@ -239,6 +264,7 @@ async function api(action, body) {
     : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}`
     : action === "examstart" ? `examstart/${enc(body.level)}/${enc(body.paper)}`
     : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}`
+    : action === "readingmode" ? `readingmode/${enc(body.modes)}`
     : action === "student" ? `student/${enc(body.n)}` : action;
   const r = await fetch("api/" + path);
   return r.json();
@@ -274,6 +300,7 @@ function show(view) {
     box.append(b);
   }
   draw(view.frames);
+  loadReading();
   // Offer a practice problem only where the server can make one for this kind of problem
   canPractise = false;
   $("#practice").hidden = true;
@@ -281,6 +308,59 @@ function show(view) {
   // Behind the map or the exam nobody is looking at the problem yet: the ring starts when the tutor is back (showPane)
   if ($("#tutorpane").hidden) stopThink(); else startThink();
 }
+
+// --- Reading modes: the same statement laid out as the student chooses (the choice is kept by the server, per student) ---
+// The image stays: the text goes under it. Nothing here says anything about the student.
+const MODES = ["lines", "space", "key", "numbers"];
+let modes = [], reading = null, practiceReading = null, readRun = 0;
+function readingHtml(rd, always) {  // always: show the text even with no switch on (the practice card)
+  const on = m => modes.includes(m);
+  const piece = s => s.n && s.key && on("key") ? `<mark class="kd">${esc(s.t)}</mark>` : esc(s.t);
+  let html = "";
+  if (on("numbers")) html += rd.numbers.length
+    ? `<div class="numstrip" aria-label="Només els números">${rd.numbers.map(n => `<span><b>${esc(n.n)}</b>${esc(n.what)}</span>`).join("")}</div>`
+    : `<p class="muted">Aquest enunciat no té cap número escrit amb xifres.</p>`;
+  if (always || on("lines") || on("space") || on("key")) html += `<div class="rtext">${on("lines")
+    ? rd.lines.map(l => `<p>${l.map(piece).join("")}</p>`).join("")
+    : `<p>${rd.lines.map(l => l.map(piece).join("")).join(" ")}</p>`}</div>`;
+  return html;
+}
+function paintReading() {
+  for (const m of MODES) {
+    const b = $("#rm-" + m), on = modes.includes(m);
+    b.classList.toggle("picked", on);
+    b.setAttribute("aria-pressed", String(on));
+  }
+  document.body.classList.toggle("airy", modes.includes("space"));
+  const box = $("#reader");
+  box.hidden = !modes.length || !reading;
+  if (!box.hidden) {
+    let html = readingHtml(reading, false);
+    if (reading.figure) html += `<p class="muted">Aquest problema té una figura: mira-la a la imatge de dalt.</p>`;
+    if (modes.includes("key")) html += reading.key_data.length || reading.key_condition
+      ? `<div class="keybox"><strong>Dades clau</strong>${badge(reading.status)}<ul>${reading.key_data.map(d => `<li>${esc(d)}</li>`).join("")}</ul>
+          ${reading.key_condition ? `<strong>Condició clau:</strong> ${esc(reading.key_condition)}` : ""}</div>`
+      : `<p class="muted">Per a aquest problema no tenim les dades clau escrites.</p>`;
+    box.innerHTML = html;
+  }
+  const card = document.querySelector(".msg.practice .ptext");  // the practice card follows the same switches
+  if (card && practiceReading) card.innerHTML = readingHtml(practiceReading, true);
+}
+async function loadReading(change) {
+  const run = ++readRun;
+  let r;
+  try { r = await api(change ? "readingmode" : "reading", change && { modes: change }); } catch (e) { return; }
+  if (run !== readRun || r.error) return;
+  modes = r.modes;
+  reading = r;
+  paintReading();
+}
+for (const m of MODES) $("#rm-" + m).onclick = () => {
+  const next = modes.includes(m) ? modes.filter(x => x !== m) : [...modes, m];
+  modes = next;
+  paintReading();  // at once; the server's answer confirms it
+  return loadReading(next.join("-") || "none");
+};
 
 // --- Think-first time: the server says how long is left for the problem on screen; a ring takes the hint button's place ---
 // It ends by itself, at the first answer, or when the student has typed something and asks for the button.
@@ -340,7 +420,7 @@ async function practise() {
   div.className = "msg practice";
   div.innerHTML = `<strong>Un de semblant, però teu.</strong><span class="badge revisado">problema nou, resposta calculada</span>
     <small>Acabat de fer per a tu, del mateix tipus. Resol-lo i després torna al teu problema.</small>
-    <p class="ptext">${esc(r.text)}</p>
+    <div class="ptext"></div>
     <div class="letters" role="group" aria-label="Respostes del problema semblant"></div>
     <div class="preply" aria-live="polite"></div>
     <div class="actions">
@@ -348,6 +428,8 @@ async function practise() {
       <button class="psol" disabled>Com es resol</button>
       <button class="pback">Torna al meu problema</button>
     </div>`;
+  practiceReading = r.reading || { lines: [[{ t: r.text }]], numbers: [] };
+  div.querySelector(".ptext").innerHTML = readingHtml(practiceReading, true);
   const box = div.querySelector(".letters"), reply = div.querySelector(".preply");
   const lock = () => box.querySelectorAll("button").forEach(b => b.disabled = true);
   for (const letter of "ABCDE") {

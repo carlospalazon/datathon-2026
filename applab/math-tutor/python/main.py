@@ -22,6 +22,7 @@ import numpy as np  # noqa: E402
 from arduino.app_bricks.web_ui import WebUI  # noqa: E402
 from arduino.app_utils import App, Bridge, Frame, Leds  # noqa: E402
 
+from copilot import reading  # noqa: E402
 from copilot.assistant import Assistant  # noqa: E402
 from copilot.exam import Exam  # noqa: E402
 from copilot.matrix import frame, rgb  # noqa: E402
@@ -43,6 +44,7 @@ with open(os.path.join(HERE, "types.json")) as f:
 
 LANGUAGE = problems[0]["language"]
 skills = SkillMap(problems, language=LANGUAGE)  # the skill map: fed by the tutor, the practice card and the exam
+choices = reading.Choices()  # the reading switches each student chose: a display setting, apart from the map
 seats = {}  # pseudonym -> that student's own tutor, practice card, exam and problem on screen
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
@@ -169,6 +171,20 @@ def exam_review():
     return {**step, "events": []}
 
 
+def read(modes=None):
+    """The problem on screen for the reading modes; with modes, the student's switches are changed first."""
+    if modes is not None:
+        choices.set(skills.student, urllib.parse.unquote(modes))
+    return {"modes": choices.get(skills.student), **reading.of_problem(tutor.current["problem"], tutor.show)}
+
+
+def practice_new():
+    made = practice.new(tutor.current["problem"]["topic"])
+    if not made:
+        return {"error": "no practice for this kind of problem"}
+    return {**made, "reading": reading.of_text(made["text"])}  # the reading modes work on the card too
+
+
 def chat(text):
     def go():
         result = assistant.chat(urllib.parse.unquote(text))
@@ -193,9 +209,9 @@ ui.expose_api("GET", "/api/think", lambda: run(lambda: tutor.think(THINK)))
 ui.expose_api("GET", "/api/thinkskip", lambda: run(lambda: tutor.think(THINK, skip=True)))
 ui.expose_api("GET", "/api/practiceok",
               lambda: run(lambda: {"available": practice.available(tutor.current["problem"]["topic"])}))
-ui.expose_api("GET", "/api/practice",
-              lambda: run(hooked("practice", lambda: practice.new(tutor.current["problem"]["topic"])
-                                 or {"error": "no practice for this kind of problem"})))
+ui.expose_api("GET", "/api/reading", lambda: run(read))
+ui.expose_api("GET", "/api/readingmode/{modes}", lambda modes: run(read, modes))
+ui.expose_api("GET", "/api/practice", lambda: run(hooked("practice", practice_new)))
 ui.expose_api("GET", "/api/practiceanswer/{letter}",
               lambda letter: run(hooked("practiceanswer", lambda x: practice.answer(x)), letter))
 ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
