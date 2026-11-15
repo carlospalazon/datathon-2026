@@ -50,6 +50,7 @@ def sit(student):
     if student not in seats:
         own = Tutor(problems, types, show=SHOW)
         own.observer = lambda kind, problem, detail=None: skills.tutor_event(kind, problem, detail, student)
+        own.planner = lambda problem: skills.advice(problem, own.seen, student)  # the map plans too
         seats[student] = {"tutor": own,
                           "practice": Practice(LANGUAGE),  # practice problems made on the spot, apart from the tutor
                           "exam": Exam(problems),  # a timed paper; the page's clock requests move the matrix countdown
@@ -93,7 +94,7 @@ def run(action, *args):
 
 
 def state():
-    return run(lambda: view["current"])
+    return run(lambda: {**view["current"], "session": skills.plan_state()})
 
 
 def start(key):
@@ -133,6 +134,28 @@ def change_student(n=None):
     return skill_map()
 
 
+def session():
+    """Today's session: the one under way, or a new plan from the map."""
+    plan = skills.plan_state()
+    if plan is None or plan["finished"] or not plan["total"]:
+        plan = skills.plan_start(seen=tutor.seen, home=tutor.current["problem"]["level"])
+    return {"session": plan}
+
+
+def session_next():
+    current = tutor.current["problem"]
+    step = skills.plan_advance(seen=tutor.seen,
+                               on_screen=current["key"] if practice.available(current["topic"]) else None)
+    if "key" in step:
+        view["current"] = step = tutor.start(step["key"])
+    return {**step, "session": skills.plan_state()}
+
+
+def session_stop():
+    skills.plan_stop()
+    return {"session": None}
+
+
 def chat(text):
     def go():
         result = assistant.chat(urllib.parse.unquote(text))
@@ -170,6 +193,9 @@ ui.expose_api("GET", "/api/examtick", lambda: run(hooked("examtick", lambda: exa
 ui.expose_api("GET", "/api/examfinish", lambda: run(hooked("examfinish", lambda: exam.finish())))
 ui.expose_api("GET", "/api/examclose", lambda: run(exam.close))
 ui.expose_api("GET", "/api/skillmap", lambda: run(skill_map))
+ui.expose_api("GET", "/api/session", lambda: run(session))
+ui.expose_api("GET", "/api/sessionnext", lambda: run(session_next))
+ui.expose_api("GET", "/api/sessionstop", lambda: run(session_stop))
 ui.expose_api("GET", "/api/classmap", lambda: run(skills.classroom))
 ui.expose_api("GET", "/api/classsample", lambda: run(sample_class, problems, LANGUAGE))
 ui.expose_api("GET", "/api/studentnew", lambda: run(change_student))

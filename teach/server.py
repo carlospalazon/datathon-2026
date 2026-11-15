@@ -79,6 +79,7 @@ class App:
             tutor = Tutor(self.problems, self.types, show=set(self.args.show.split(",")),
                           profile_path=(self.args.profile or None) if not self.seats else None)
             tutor.observer = lambda kind, problem, detail=None: self.skills.tutor_event(kind, problem, detail, student)
+            tutor.planner = lambda problem: self.skills.advice(problem, tutor.seen, student)  # the map plans too
             first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
             self.seats[student] = {"tutor": tutor, "assistant": Assistant(tutor),
                                    "practice": Practice(self.args.language),  # "one like this, but yours"
@@ -99,7 +100,7 @@ class App:
 
     def act(self, action, body):
         if action == "state":
-            return with_frames({**self.view, "events": self.view["events"]})
+            return with_frames({**self.view, "session": self.skills.plan_state()})
         if action == "answer":
             return with_frames(self.tutor.answer(body.get("letter", "")))
         if action == "help":
@@ -149,6 +150,22 @@ class App:
             return with_frames(self.exam.close())
         if action == "skillmap":
             return self.map()
+        if action == "session":  # today's session: the one under way, or a new plan from the map
+            plan = self.skills.plan_state()
+            if plan is None or plan["finished"] or not plan["total"]:
+                plan = self.skills.plan_start(seen=self.tutor.seen, home=self.tutor.current["problem"]["level"])
+            return {"session": plan}
+        if action == "sessionnext":
+            current = self.tutor.current["problem"]
+            step = self.skills.plan_advance(
+                seen=self.tutor.seen, on_screen=current["key"] if self.practice.available(current["topic"]) else None)
+            if "key" in step:
+                self.view = self.tutor.start(step["key"])
+                step = self.view
+            return with_frames({**step, "session": self.skills.plan_state()})
+        if action == "sessionstop":
+            self.skills.plan_stop()
+            return {"session": None}
         if action == "classmap":
             return with_frames(self.skills.classroom())
         if action == "classsample":  # a made-up class, marked as such, to see the view

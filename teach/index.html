@@ -111,9 +111,9 @@
   .review li button:hover { background: var(--soft); }
   /* The skill map: topics by level (new, tried, shaky, solid), what to try next, and the class by pseudonym */
   .hbtns { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
-  #mapbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--green-dark); border-bottom-width: 4px; background: var(--green); color: #fff; cursor: pointer; }
-  #mapbtn:hover { background: #61d800; }
-  #mapbtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  #mapbtn, #sessionbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--green-dark); border-bottom-width: 4px; background: var(--green); color: #fff; cursor: pointer; }
+  #mapbtn:hover, #sessionbtn:hover { background: #61d800; }
+  #mapbtn:focus-visible, #sessionbtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   .who { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-top: 10px; }
   .nexts { display: flex; flex-direction: column; gap: 10px; }
   .nexts .msg { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; justify-content: space-between; }
@@ -142,6 +142,16 @@
   .key .tried { border: 2px solid var(--accent); }
   .key .shaky { border: 2px solid var(--warn); background: var(--warn-bg); }
   .key .solid { border: 2px solid var(--green); background: var(--ok-bg); }
+  /* Today's session: three problems chosen from the map; a bar over the problem says where the student is */
+  .planbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 10px 14px; border: 2px solid var(--green); border-radius: 16px; background: var(--ok-bg); }
+  .planbar button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
+  .planbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .plan { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; counter-reset: plan; }
+  .plan li { counter-increment: plan; padding: 12px 14px; border: 2px solid var(--line); border-left-width: 8px; border-radius: 16px; }
+  .plan li::before { content: counter(plan) ". "; font-weight: 800; }
+  .plan li.now { border-color: var(--accent); }
+  .plan li.done { border-color: var(--green); }
+  .plan li small { display: block; color: var(--muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -151,6 +161,7 @@
   <span class="pill" id="topic"></span>
   <span class="pill" id="pid"></span>
   <span class="hbtns">
+    <button id="sessionbtn">Sessió d'avui</button>
     <button id="mapbtn">El meu mapa</button>
     <button id="exambtn">Mode examen</button>
   </span>
@@ -159,6 +170,7 @@
   <section id="exampane" hidden></section>
   <section id="mappane" hidden></section>
   <section id="tutorpane">
+    <div class="planbar" id="sessionbar" hidden><span class="ptxt"></span><button class="pquit">Surt de la sessió</button></div>
     <img class="problem-img" id="img" alt="Enunciat del problema">
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
@@ -468,6 +480,7 @@ $("#solution").onclick = async () => {
 };
 
 $("#next").onclick = async () => {
+  if (session && session.active) return sessionNext();  // in a session the map picks the next problem
   const r = await api("next");
   if (r.error) return say(esc(r.error));
   show(r);
@@ -494,6 +507,7 @@ function showPane(side) {  // false: the tutor; true: the exam; "map": the skill
   for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = examSide || mapSide;  // they describe the tutor's problem
   examButton();
   $("#mapbtn").hidden = examSide || mapSide;  // the map is reached from the tutor, never in the middle of a paper
+  $("#sessionbtn").hidden = examSide || mapSide;
   if (mapSide) $("#exambtn").hidden = true;
   if (examSide) pane.scrollIntoView({ block: "start" });
   if (mapSide) $("#mappane").scrollIntoView({ block: "start" });
@@ -758,6 +772,7 @@ function mapShow(r) {
       i el punt de dalt marca què pots provar ara.</p>
     <div class="actions" style="margin-top:22px">
       <button class="primary mleave">Torna al tutor</button>
+      <button class="msession">Sessió d'avui</button>
       <button class="mclass">Vista de la classe</button>
     </div><p class="muted mmsg" aria-live="polite"></p>`;
   const seats = mapPane.querySelector(".seats");
@@ -811,13 +826,14 @@ function mapShow(r) {
     levels.append(h, grid);
   }
   mapPane.querySelector(".mleave").onclick = () => showPane(false);
+  mapPane.querySelector(".msession").onclick = openSession;
   mapPane.querySelector(".mclass").onclick = async () => { const c = await mapCall("classmap"); if (c && !c.error) classShow(c); };
 }
 async function mapSeat(action, body) {  // the board goes to another student: their problem, their exam, their map
   const r = await mapCall(action, body);
   if (!r) return;
   if (r.error) { mapPane.querySelector(".mmsg").textContent = "Ara mateix no es pot canviar d'alumne."; return; }
-  show(await api("state"));
+  await loadState();
   const e = await api("examstate");
   exam = e.status === "finished" ? e : { status: "none" };
   mapShow(r);
@@ -857,13 +873,91 @@ async function openMap() {
 }
 $("#mapbtn").onclick = openMap;
 
+// --- Today's session: three problems the map chooses (a topic that resists, one just begun, a new one) ---
+const SESSION_WHY = { shaky: "un tema que encara es resisteix", tried: "un tema que tot just has començat", new: "un tema que encara no has provat" };
+const SESSION_OUTCOME = { first: "Fet: resolt a la primera.", later: "Fet: resolt després d'algun intent.", shown: "Fet: amb la solució a la vista.",
+  open: "Encara sense resoldre: el pots reprendre des del mapa.", blank: "Encara sense resoldre: el pots reprendre des del mapa." };
+let session = null;
+function sessionBar() {  // over the problem: where the student is in the session
+  const bar = $("#sessionbar"), on = !!(session && session.active);
+  bar.hidden = !on;
+  if (!on) return;
+  const step = session.steps[session.at];
+  bar.querySelector(".ptxt").innerHTML = `<strong>Sessió d'avui</strong> · problema ${session.at + 1} de ${session.total} · ${esc(topicName(step.topic))}`;
+}
+async function loadState() {  // the problem on screen and the session of whoever is at the board
+  const st = await api("state");
+  session = st.session || null;
+  show(st);
+  sessionBar();
+}
+function sessionShow(s) {
+  session = s;
+  sessionBar();
+  const going = s.active, steps = s.steps.map(st => `<li class="${st.status}"><strong>${esc(topicName(st.topic))}</strong> (${esc(gradeName(st.grade, st.level))}): ${SESSION_WHY[st.state]}.
+      ${st.status === "done" ? `<small>${SESSION_OUTCOME[st.outcome] || "Fet."}</small>` : st.status === "now" ? "<small>És el problema que tens ara.</small>" : ""}</li>`).join("");
+  mapPane.innerHTML = `<h2>Sessió d'avui</h2>
+    ${s.total ? `<p>${plural(s.total, "problema triat", "problemes triats")} a partir del teu mapa: primer el que més costa, al final el que és nou. Si un error torna a sortir, abans de continuar et proposaré un problema de pràctica.</p>
+      <ol class="plan">${steps}</ol>`
+      : `<p>Tot el que has provat va bé i no queda cap tema per descobrir en aquest curs. Vols posar-te a prova amb un examen?</p>`}
+    <div class="actions" style="margin-top:22px">
+      ${s.total ? `<button class="primary sgo">${going ? "Continua la sessió" : "Comença la sessió"}</button>` : `<button class="primary sexam">Mode examen</button>`}
+      ${going ? `<button class="snew">Fes una sessió nova</button>` : ""}
+      <button class="smap">El meu mapa</button>
+      <button class="mleave">Torna al tutor</button>
+    </div>`;
+  const on = (sel, fn) => { const b = mapPane.querySelector(sel); if (b) b.onclick = fn; };
+  on(".sgo", () => going ? showPane(false) : sessionNext());
+  on(".sexam", async () => { await examSetup(); showPane(true); });
+  on(".snew", async () => { const r = await mapCall("sessionstop"); if (!r || r.error) return; session = null; openSession(); });
+  on(".smap", openMap);
+  on(".mleave", () => showPane(false));
+}
+async function openSession() {
+  const r = await mapCall("session");
+  if (!r || r.error) return;
+  sessionShow(r.session);
+  showPane("map");
+}
+async function sessionNext() {  // the next step: a problem, a practice problem offered first, or the end
+  const r = await mapCall("sessionnext");
+  if (!r || r.error) return;
+  session = r.session;
+  if (r.problem) {
+    show(r);
+    showPane(false);
+    sessionBar();
+    const step = session.steps[session.at];
+    return say(`<strong>Sessió d'avui, problema ${session.at + 1} de ${session.total}:</strong> ${SESSION_WHY[step.state]}, «${esc(topicName(step.topic))}». Pren-te el temps que et calgui.`, "help");
+  }
+  sessionBar();
+  if (r.offer) {
+    say(`<strong>Abans de continuar:</strong> en aquest tema hi ha un error que ha tornat a sortir. ${esc(r.offer.slip)}
+      <br>Un problema de pràctica t'ajudarà a caçar-lo. Si prefereixes continuar, torna a prémer «Següent problema».
+      <br><button class="inline">Fes-ne un de pràctica</button>`, "help");
+    $("#feed").firstElementChild.querySelector(".inline").onclick = practise;
+    return;
+  }
+  showPane(false);
+  say(`<strong>Sessió d'avui acabada.</strong> Has acabat el pla (${plural(session.total, "problema", "problemes")}). Mira al mapa com ha canviat cada tema.
+    <br><button class="inline">El meu mapa</button>`, "ok");
+  $("#feed").firstElementChild.querySelector(".inline").onclick = openMap;
+}
+$("#sessionbtn").onclick = openSession;
+$("#sessionbar").querySelector(".pquit").onclick = async () => {
+  const r = await mapCall("sessionstop");
+  if (!r || r.error) return;
+  session = null;
+  sessionBar();
+};
+
 $("#exambtn").onclick = async () => {
   if (exam.status === "finished") return examDone(exam);
   await examSetup();
   showPane(true);
 };
 
-api("state").then(show).then(async () => {
+loadState().then(async () => {
   const r = await api("examstate");   // a reload in the middle of a paper goes back to it
   if (r.status === "running") examRun(r);
   else if (r.status === "finished") { exam = r; examButton(); }

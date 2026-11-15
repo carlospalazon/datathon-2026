@@ -122,6 +122,7 @@ class Tutor:
         self.review = []   # [key, problems left before it comes back]; in memory only
         self.current = None
         self.observer = None  # observer(kind, problem, detail): told of answers, solutions and slips
+        self.planner = None   # planner(problem) -> {"solid", "topics"}: the skill map's advice, if there is one
         self.profile_path = profile_path
         if profile_path:
             self._load_profile()
@@ -352,7 +353,9 @@ class Tutor:
 
         1. a problem that went wrong REVIEW_AFTER problems ago comes back;
         2. after MASTERED first-try right answers in a row, another topic: the one that goes worst,
-           an untried one before one that goes well;
+           an untried one before one that goes well. With a skill map (self.planner) the topic is
+           the first one the map says to try, and a topic the map calls solid is left after a
+           first-try right answer even before the streak;
         3. else the same topic, one step up the difficulty scale after a first-try right answer,
            one down otherwise.
         """
@@ -374,10 +377,16 @@ class Tutor:
         topic = problem["topic"]
         skill = self.skill.get(topic)
         others = {p["topic"] for p in pool} - {topic}
-        if skill and skill["streak"] >= MASTERED and others:
-            skill["streak"] = 0
-            self._save_skill(topic)
-            topic = min(others, key=self._mastery)
+        advice = self.planner(problem) if self.planner else None
+        wanted = [t for t in (advice or {}).get("topics", []) if t in others]
+        leave = bool(skill and skill["streak"] >= MASTERED)
+        if first_try and wanted and advice.get("solid"):
+            leave = True
+        if leave and others:
+            if skill:
+                skill["streak"] = 0
+                self._save_skill(topic)
+            topic = wanted[0] if wanted else min(others, key=self._mastery)
             target = _difficulty(problem)
         pool.sort(key=lambda p: (p["topic"] != topic, abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))

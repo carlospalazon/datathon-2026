@@ -17,7 +17,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
 | 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | half built (2026-11-15: the skill map records every question of a paper handed in; the queue is not built) |
-| 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | open |
+| 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | **built** (2026-11-15; the chat's "següent" still goes by the tutor's own rule; not seen in a real browser) |
 | 15 | **The class from several boards.** Each board saves its map file; the teacher's laptop reads the files of all the boards into one class view, and prints it. | A class has more than one board, and the teacher wants it on paper. | `copilot/skillmap.py` tables in the profile file | open |
 | 16 | **Come back as the same animal after a restart on the board.** The App Lab app keeps the map in a file on the board, and each animal's tutor memory with it. | Today the board forgets the class when the app restarts. | `copilot/skillmap.py`, `applab/math-tutor/python/main.py` | open |
 | 13 | **Printable paper and answer sheet for the class.** The teacher starts one paper, every device gets the same questions, and the board shows the shared countdown. | A whole class sits the same mock exam with one board. | `copilot/exam.py` (seeded papers), LED matrix | open |
@@ -203,3 +203,52 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   read-ahead on the board starts again for each new student. No Spanish or English page text; the
   Catalan (and the animal names as pseudonyms) needs a native read.
 - **Commit:** see `git log -1 -- copilot/skillmap.py`
+
+
+### 2026-11-15 · Today's session: the map plans (backlog 14)
+- **What:** "Sessió d'avui": up to three problems chosen from the skill map, in this order: a topic
+  that resists ("Per reforçar"), one just begun ("Començat") and one not tried yet of the level on
+  screen. Where the map has fewer kinds, the next topics in line fill the plan, then second
+  problems of the same topics. The problem of each step is picked when the step starts (the
+  easiest one of that topic and level not yet shown). While a session runs, a green bar over the
+  problem says "problema 2 de 3" and the topic, and **"Següent problema" follows the plan**.
+  Between two steps, when a slip the tutor named on the step's problem has come back in that topic
+  (twice or more on the map) and a practice problem can be made for it, the page offers one first,
+  once; pressing "Següent problema" again moves on. In `copilot/skillmap.py`: `plan_start`,
+  `plan_state`, `plan_advance`, `plan_stop` (a plan per student, in memory) and `advice`. **The
+  tutor's own `next_problem` reads the map** through a new optional `Tutor.planner`: when it
+  changes topic it takes the first topic the map says to try, and it leaves a topic the map calls
+  "Segur" after a first-time right answer without waiting for its own streak of three (an exam can
+  make a topic solid). Without a planner the tutor's rule is exactly as before. Three endpoints
+  (`session`, `sessionnext`, `sessionstop`) in `teach/server.py` and in the App Lab app; `state`
+  now carries the session, so a reload or a student who comes back finds the bar.
+- **Why:** the map stops being a report and becomes the plan: a student who sits down has three
+  problems that are theirs, the hardest topic first, and a teacher can say "do today's session".
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650. Click the green
+  **"Sessió d'avui"** (top right): on an empty map the plan is three new topics. To see the three
+  kinds, first answer the problem on screen wrong twice and click "Següent problema", then click
+  "Sessió d'avui": the plan lists the topic just begun and new ones. **"Comença la sessió"** opens
+  problem 1 with the bar; answer and click **"Següent problema"** for 2 and 3, and once more for
+  "Sessió d'avui acabada" with a button to the map. "Sessió d'avui" during a session shows the
+  plan with what was done ("Continua la sessió", "Fes una sessió nova"); "Surt de la sessió" on
+  the bar leaves it. The map also has a "Sessió d'avui" button.
+- **Tests / checks run:** `python3 -m pytest -q`: 316 passed (9 new in `tests/test_skillmap.py`
+  on a made-up catalogue: the three kinds in order, an empty map, a one-topic catalogue, each step
+  a problem not yet seen, the end, the practice offer once and only for a slip that came back,
+  a session per student, the tutor taking the map's topic, a solid topic left early, the tutor
+  without a map unchanged, the plan through the server, nothing with a solution or right letter in
+  the plan; the page harness has a 10th step that clicks a whole session, a double click, the
+  plan under way, the end, the way to the map and leaving a session). Real catalogue, server
+  started from a Python script on a free port: plan made, three problems of three topics started,
+  `state` in step, the end, the tutor's `next` taking the map's topic, help, practice and exam
+  still answering; server stopped. `applab/package.py` built into a scratch folder and the app's
+  `main.py` imported with stand-ins for the board's libraries: the same session through its 29
+  routes.
+- **Not done:** not seen in a real browser (the harness sees no CSS or layout) and not run on the
+  board. The practice offer between steps is tested in Python, not clicked in the harness (its
+  made-up catalogue has no slip the rules can name). Typing "següent" in the chat still uses the
+  tutor's own rule and steps out of the plan (the bar stays; "Següent problema" goes on with the
+  plan). A problem opened from the map or the exam review during a session does not count as a
+  step. The plan is kept in memory: a restart forgets it. The Catalan needs a native read
+  ("un tema que encara es resisteix", "t'ajudarà a caçar-lo").
+- **Commit:** see `git log -1 -- tests/page_harness.mjs` at this date ("Today's session")

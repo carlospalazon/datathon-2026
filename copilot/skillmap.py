@@ -9,6 +9,11 @@ The words describe a topic, never a student: "new", "tried", "shaky", "solid". A
 is solid only on Cangur problems answered right the first time; practice problems show
 that the topic was worked on and which slips came back, but never make it solid.
 
+The map also plans: "today's session" is up to three problems, one of a topic that
+resists, one of a topic just begun and one of a new topic, with a practice problem offered
+between two of them when a slip came back; and advice() tells the tutor which topic to
+take next.
+
 Several students can share one board. Each gets the name of an animal, never a real
 name, and the class view is one row per animal with no marks and no ranking.
 
@@ -23,6 +28,7 @@ TOPICS = ("aritmetica", "algebra", "conteo", "numeros", "patrones", "logica", "g
           "geometria_espacial", "medida", "visual", "otros")
 WINDOW = 5   # a topic is judged on the last Cangur problems answered, so it can change
 SOLID = 3    # right the first time on this many of them (the tutor's own MASTERED), with one other at most
+SESSION = 3  # problems in "today's session": a shaky topic, one just begun, a new one
 BAR = 6      # tallest column of the LED view; the top row marks what to try next
 # Pseudonyms in the order students sit down. Animals of Catalonia, none of them a person's name.
 ANIMALS = ("Guineu", "Mussol", "Dofí", "Esquirol", "Llúdriga", "Falcó", "Eriçó", "Isard", "Granota", "Teixó",
@@ -67,6 +73,7 @@ class SkillMap:
         self.students = []   # pseudonyms, in the order they sat down
         self.items = {}      # student -> {item id: record}, oldest first
         self.student = None  # who is at the board now
+        self.plans = {}      # student -> today's session; in memory only
         self.path = path
         self.seq = 0
         if path:
@@ -205,22 +212,17 @@ class SkillMap:
         problem on screen, where untried topics are offered."""
         student = student or self.student
         done = self._summary(student)
-        levels = [{"level": level, "grade": self.grades[level],
-                   "cells": [self._cell(t, done.get((level, t)), len(self.catalogue[(level, t)]))
-                             for t in self.topics if (level, t) in self.catalogue]}
-                  for level in sorted(self.grades)]
-        if home not in self.grades:
-            home = min(self.grades) if self.grades else None
-        nexts = self._next(student, levels, set(seen), home)
+        levels = self._levels(student)
+        nexts = self._next(student, levels, set(seen), self._home(home))
         totals = [self._cell(t, done.get((None, t))) for t in self.topics]
         return {"student": student, "students": list(self.students), "levels": levels, "next": nexts,
                 "started": bool(self.items[student]),
                 "events": [{"event": "skills", "value": [self._height(c) for c in totals],
                             "next": self.topics.index(nexts[0]["topic"]) if nexts else None}]}
 
-    def _next(self, student, levels, seen, home, limit=3):
-        """Up to three topics to try, the one that goes worst first (as the tutor's own rule does):
-        shaky ones, then the ones just begun, then untried ones of the level on screen."""
+    def _candidates(self, levels, home):
+        """Every (level, topic) worth trying, the one that goes worst first (as the tutor's own rule
+        does): shaky ones, then the ones just begun, then untried ones of the level on screen."""
         order = {"shaky": 0, "tried": 1, "new": 2}
         found = []
         for row in levels:
@@ -230,8 +232,12 @@ class SkillMap:
                 share = c["clean"] / c["tries"] if c["tries"] else 0.5
                 found.append((order[c["state"]], share, -c["problems"], row["level"], c))
         found.sort(key=lambda f: f[:4])
+        return [(level, c) for _, _, _, level, c in found]
+
+    def _next(self, student, levels, seen, home, limit=3):
+        """Up to three topics to try, each with a problem to start on."""
         nexts, topics = [], set()
-        for _, _, _, level, c in found:
+        for level, c in self._candidates(levels, home):
             if c["topic"] in topics:
                 continue
             key = self._pick(student, level, c["topic"], seen)
@@ -244,13 +250,140 @@ class SkillMap:
                 break
         return nexts
 
-    def _pick(self, student, level, topic, seen):
-        """A problem of this topic and level: the easiest not yet shown, else the easiest not yet solved."""
+    def _pickable(self, student, level, topic, seen):
+        """Problems of this topic and level: the ones not yet shown, else the ones not yet solved; easiest first."""
         keys = self.catalogue.get((level, topic), [])
         items = self.items[student]
         fresh = [k for k in keys if k not in seen and "cangur:" + k not in items]
         unsolved = [k for k in keys if (items.get("cangur:" + k) or {}).get("outcome") in ("open", "blank")]
-        return (fresh or unsolved or [None])[0]
+        return fresh or unsolved
+
+    def _pick(self, student, level, topic, seen):
+        return (self._pickable(student, level, topic, seen) or [None])[0]
+
+    def _levels(self, student):
+        done = self._summary(student)
+        return [{"level": level, "grade": self.grades[level],
+                 "cells": [self._cell(t, done.get((level, t)), len(self.catalogue[(level, t)]))
+                           for t in self.topics if (level, t) in self.catalogue]}
+                for level in sorted(self.grades)]
+
+    def _home(self, home):
+        return home if home in self.grades else min(self.grades) if self.grades else None
+
+    # --- The map as a plan -------------------------------------------------------------------
+
+    def advice(self, problem, seen=(), student=None):
+        """For the tutor's choice of the next problem: is the topic of this problem solid at its
+        level, and which topics does the map say to try, the one that goes worst first."""
+        student = student or self.student
+        levels = self._levels(student)
+        here = next((c for row in levels if row["level"] == problem["level"]
+                     for c in row["cells"] if c["topic"] == problem["topic"]), None)
+        nexts = self._next(student, levels, set(seen), self._home(problem["level"]), limit=len(self.topics))
+        return {"solid": bool(here and here["state"] == "solid"), "topics": [n["topic"] for n in nexts]}
+
+    def plan_start(self, seen=(), home=None, student=None):
+        """Today's session: a topic that resists, one just begun and a new one, in that order. Where
+        the map has fewer kinds, the next topics in line fill the session, then second problems.
+        The problem of each step is picked when the step starts."""
+        student = student or self.student
+        seen = set(seen)
+        found = self._candidates(self._levels(student), self._home(home))
+        room = {}  # (level, topic) -> problems that can still be picked there
+
+        def take(level, c):
+            where = (level, c["topic"])
+            if where not in room:
+                room[where] = len(self._pickable(student, level, c["topic"], seen))
+            if not room[where]:
+                return None
+            room[where] -= 1
+            return {"topic": c["topic"], "level": level, "grade": self.grades[level], "state": c["state"],
+                    "key": None}
+
+        steps = []
+        for want in ("shaky", "tried", "new"):   # one of each kind, each of a different topic
+            for level, c in found:
+                if c["state"] == want and c["topic"] not in {s["topic"] for s in steps}:
+                    step = take(level, c)
+                    if step:
+                        steps.append(step)
+                        break
+        for level, c in found:                   # then the topics that come next on the map
+            if len(steps) < SESSION and c["topic"] not in {s["topic"] for s in steps}:
+                steps += [step for step in [take(level, c)] if step]
+        more = True
+        while more and len(steps) < SESSION:     # then second problems of the same topics
+            more = False
+            for level, c in found:
+                step = take(level, c) if len(steps) < SESSION else None
+                if step:
+                    steps.append(step)
+                    more = True
+        steps.sort(key=lambda s: ("shaky", "tried", "new").index(s["state"]))
+        self.plans[student] = {"steps": steps[:SESSION], "at": -1, "offered": False}
+        return self.plan_state(student)
+
+    def plan_state(self, student=None):
+        """The session as the page may see it, or None when there is none."""
+        student = student or self.student
+        plan = self.plans.get(student)
+        if plan is None:
+            return None
+        steps = []
+        for i, step in enumerate(plan["steps"]):
+            record = self.items[student].get("cangur:" + step["key"]) if step["key"] else None
+            steps.append({"topic": step["topic"], "level": step["level"], "grade": step["grade"],
+                          "state": step["state"], "outcome": (record or {}).get("outcome"),
+                          "status": "done" if i < plan["at"] else "now" if i == plan["at"] else "todo"})
+        total = len(steps)
+        return {"steps": steps, "at": plan["at"], "total": total, "active": 0 <= plan["at"] < total,
+                "finished": total > 0 and plan["at"] >= total}
+
+    def plan_advance(self, seen=(), on_screen=None, student=None):
+        """On to the next step. Returns {"key": the problem to start}, {"finished": True}, or once
+        per step {"offer": ...}: a slip named on the step's problem has come back in its topic, so
+        a practice problem is offered before moving on.
+
+        on_screen: the key of the problem on screen when a practice problem can be made for it.
+        """
+        student = student or self.student
+        plan = self.plans.get(student)
+        if plan is None:
+            raise ValueError("no session")
+        steps, at = plan["steps"], plan["at"]
+        if 0 <= at < len(steps) and not plan["offered"] and on_screen and on_screen == steps[at]["key"]:
+            slip = self._came_back(student, steps[at])
+            if slip:
+                plan["offered"] = True
+                return {"offer": {"topic": steps[at]["topic"], "slip": slip}}
+        while at + 1 < len(steps):
+            at += 1
+            key = self._pick(student, steps[at]["level"], steps[at]["topic"], set(seen))
+            if key is None:   # nothing left there since the plan was made: the step is dropped
+                del steps[at]
+                at -= 1
+                continue
+            steps[at]["key"] = key
+            plan["at"], plan["offered"] = at, False
+            return {"key": key}
+        plan["at"] = len(steps)
+        return {"finished": True}
+
+    def plan_stop(self, student=None):
+        self.plans.pop(student or self.student, None)
+
+    def _came_back(self, student, step):
+        """The sentence for a slip named on this step's problem that the topic has seen twice or more."""
+        record = self.items[student].get("cangur:" + str(step["key"])) or {}
+        counts = (self._summary(student).get((None, step["topic"])) or {"slips": {}})["slips"]
+        for slip in record.get("slips", []):
+            if counts.get(slip, 0) >= 2:
+                text = self._slip_text(slip)
+                if text:
+                    return text
+        return None
 
     def classroom(self):
         """The class, one row per pseudonym, in the order they sat down: no marks, no ranking."""

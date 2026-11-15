@@ -310,6 +310,43 @@ if (doc.querySelector("#mapbtn")) await step("the map: a new student, back to th
   }
 });
 
+if (doc.querySelector("#sessionbtn")) await step("today's session: the plan, its problems one after the other, and the end", async () => {
+  const map = $("#mappane");
+  check($("#sessionbar").hidden, "no session bar before a session");
+  await click($("#sessionbtn"));
+  check(!map.hidden && $("#tutorpane").hidden, "the plan takes the place of the tutor");
+  const total = map.querySelectorAll(".plan li").length;
+  check(total >= 1 && total <= 3, "a plan of up to three problems");
+  map.querySelector(".sgo").click(); map.querySelector(".sgo").click();  // a double click
+  await settle();
+  check(calls.filter(c => c === "api/sessionnext").length === 1, "a double click starts one problem");
+  check(map.hidden && !$("#tutorpane").hidden && !$("#sessionbar").hidden, "the first problem, with the session bar");
+  check(new RegExp(`problema 1 de ${total}`).test($("#sessionbar").textContent), "the bar says where we are: " + $("#sessionbar").textContent);
+  check(/Sessió d'avui, problema 1/.test($("#feed").firstElementChild.textContent), "and a line about the problem");
+  await click($("#sessionbtn"));
+  check(map.querySelectorAll(".plan li.now").length === 1 && /Continua/.test(map.querySelector(".sgo").textContent), "the plan marks the problem under way");
+  await click(map.querySelector(".sgo"));
+  for (let n = 2; n <= total; n++) {
+    const before = $("#img").src;
+    await click(letters()[0]);
+    await click($("#next"));
+    check($("#img").src !== before, "the session moves to another problem");
+    check(new RegExp(`problema ${n} de ${total}`).test($("#sessionbar").textContent), "the bar moves on");
+  }
+  await click($("#next"));
+  check($("#sessionbar").hidden && /acabada/.test($("#feed").firstElementChild.textContent), "the session ends with a line and no bar");
+  await click($("#feed").firstElementChild.querySelector(".inline"));
+  check(!map.hidden && map.querySelectorAll(".tile").length >= 1, "and leads to the map");
+  await click(map.querySelector(".msession"));
+  check(/Comença/.test(map.querySelector(".sgo").textContent), "a finished session makes room for a new plan");
+  await click(map.querySelector(".sgo"));
+  await click($("#sessionbar").querySelector(".pquit"));
+  check($("#sessionbar").hidden, "the session can be left");
+  const before = $("#img").src;
+  await click($("#next"));
+  check($("#img").src !== before && $("#sessionbar").hidden, "and the tutor picks the next problem again");
+});
+
 for (const t of timers) clearInterval(t);
 console.log(`OK: ${done.length} steps: ${done.join("; ")}`);
 process.exit(0);

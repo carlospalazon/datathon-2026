@@ -250,12 +250,137 @@ class FromPracticeAndTheExam(unittest.TestCase):
         self.assertEqual(items["cangur:" + blank]["outcome"], "first")  # a blank had not been tried
 
 
+class TheMapPlans(unittest.TestCase):
+    def mixed(self):
+        """A map with a shaky topic (on the other level), one just begun, and one new."""
+        skills, tutor = desk()
+        for key in keys(skills, 1, "medida")[:2]:
+            solve(tutor, key, "A")
+        solve(tutor, keys(skills, 0, "conteo")[0], "C")
+        return skills, tutor
+
+    def test_a_session_is_one_shaky_one_begun_and_one_new_topic(self):
+        skills, tutor = self.mixed()
+        plan = skills.plan_start(seen=tutor.seen, home=0)
+        self.assertEqual([(s["topic"], s["level"], s["state"]) for s in plan["steps"]],
+                         [("medida", 1, "shaky"), ("conteo", 0, "tried"), ("aritmetica", 0, "new")])
+        self.assertEqual((plan["at"], plan["total"], plan["active"], plan["finished"]), (-1, 3, False, False))
+        self.assertTrue(all(s["status"] == "todo" and s["outcome"] is None for s in plan["steps"]))
+
+    def test_an_empty_map_gives_three_new_topics_and_one_topic_gives_three_problems(self):
+        skills, tutor = desk()
+        plan = skills.plan_start(seen=tutor.seen, home=0)
+        self.assertEqual([s["state"] for s in plan["steps"]], ["new"] * 3)
+        self.assertEqual(len({s["topic"] for s in plan["steps"]}), 3)
+        problems = [p for p in catalogue() if p["level"] == 0 and p["topic"] == "medida"]
+        alone = SkillMap(problems)
+        self.assertEqual(alone.plan_start(home=0)["total"], 3)
+        got = [alone.plan_advance(seen=())["key"] for _ in range(3)]   # nothing answered: the same one is offered
+        self.assertEqual(len(got), 3)
+
+    def test_each_step_starts_a_problem_not_yet_seen_and_the_plan_ends(self):
+        skills, tutor = self.mixed()
+        skills.plan_start(seen=tutor.seen, home=0)
+        self.assertIsNone(SkillMap(catalogue()).plan_state())
+        started = []
+        for n in range(3):
+            step = skills.plan_advance(seen=tutor.seen)
+            self.assertNotIn(step["key"], tutor.seen)
+            started.append(step["key"])
+            solve(tutor, step["key"], "C")
+            state = skills.plan_state()
+            self.assertEqual((state["at"], state["active"]), (n, True))
+            self.assertEqual(state["steps"][n]["status"], "now")
+            self.assertEqual(state["steps"][n]["outcome"], "first")
+        self.assertEqual([skills.problems[k]["topic"] for k in started], ["medida", "conteo", "aritmetica"])
+        self.assertEqual(skills.plan_advance(seen=tutor.seen), {"finished": True})
+        state = skills.plan_state()
+        self.assertEqual((state["active"], state["finished"]), (False, True))
+        self.assertTrue(all(s["status"] == "done" for s in state["steps"]))
+        skills.plan_stop()
+        self.assertIsNone(skills.plan_state())
+        with self.assertRaises(ValueError):
+            skills.plan_advance()
+
+    def test_a_slip_that_came_back_gets_a_practice_offer_once_before_moving_on(self):
+        skills, tutor = desk()
+        a = keys(skills, 0, "aritmetica")
+        skills.tutor_event("slip", skills.problems[a[0]], {"code": "sum_all"})
+        skills.tutor_event("answer", skills.problems[a[0]], {"correct": False})
+        skills.plan_start(seen={a[0]}, home=0)
+        key = skills.plan_advance(seen={a[0]})["key"]
+        self.assertEqual(skills.problems[key]["topic"], "aritmetica")
+        self.assertIn("key", dict(skills.plans[skills.student]["steps"][0]))
+        skills.tutor_event("slip", skills.problems[key], {"code": "sum_all"})      # the same slip, on the step's problem
+        skills.tutor_event("answer", skills.problems[key], {"correct": False})
+        seen = {a[0], key}
+        step = skills.plan_advance(seen=seen, on_screen=key)
+        self.assertEqual(step["offer"]["topic"], "aritmetica")
+        self.assertIsNone(re.search(r"\d", step["offer"]["slip"]))
+        self.assertEqual(skills.plan_state()["at"], 0)                             # still on the same step
+        self.assertIn("key", skills.plan_advance(seen=seen, on_screen=key))        # asked again: on to the next one
+
+    def test_no_offer_without_a_practice_problem_or_for_a_slip_seen_once(self):
+        skills, tutor = desk()
+        skills.plan_start(home=0)
+        key = skills.plan_advance()["key"]
+        skills.tutor_event("slip", skills.problems[key], {"code": "sum_all"})
+        self.assertIn("key", skills.plan_advance(seen={key}, on_screen=key))       # once is not a pattern
+        skills, tutor = desk()
+        a = keys(skills, 0, "aritmetica")
+        skills.tutor_event("slip", skills.problems[a[0]], {"code": "sum_all"})
+        skills.plan_start(seen={a[0]}, home=0)
+        key = skills.plan_advance(seen={a[0]})["key"]
+        skills.tutor_event("slip", skills.problems[key], {"code": "sum_all"})
+        self.assertIn("key", skills.plan_advance(seen={a[0], key}, on_screen=None))  # no practice for this topic
+
+    def test_each_student_has_a_session_of_their_own(self):
+        skills, tutor = self.mixed()
+        skills.plan_start(seen=tutor.seen, home=0)
+        skills.new_student()
+        self.assertIsNone(skills.plan_state())
+        skills.switch(0)
+        self.assertEqual(skills.plan_state()["total"], 3)
+
+    def test_the_tutor_reads_the_map_for_its_next_problem(self):
+        skills, tutor = desk()
+        tutor.planner = lambda problem: skills.advice(problem, tutor.seen)
+        exam = Exam(catalogue(), clock=lambda: 0.0, seed=1)   # an exam makes "conteo" of the other level shaky
+        for key in keys(skills, 1, "conteo")[:2]:
+            skills._cangur(skills.student, skills.problems[key], "wrong")
+        a = keys(skills, 0, "aritmetica")
+        for key in a[:2]:
+            solve(tutor, key, "C")
+            self.assertEqual(tutor.next_problem()["problem"]["topic"], "aritmetica")   # two are not solid yet
+        solve(tutor, a[2], "C")
+        self.assertTrue(skills.advice(skills.problems[a[2]], tutor.seen)["solid"])
+        self.assertEqual(skills.advice(skills.problems[a[2]], tutor.seen)["topics"][0], "conteo")
+        self.assertEqual(tutor.next_problem()["problem"]["topic"], "conteo")           # where the map says it goes worst
+        del exam
+
+    def test_a_topic_the_map_calls_solid_is_left_before_the_streak(self):
+        skills, tutor = desk()
+        tutor.planner = lambda problem: skills.advice(problem, tutor.seen)
+        a = keys(skills, 0, "aritmetica")
+        for key in a[:3]:   # three right the first time in an exam: solid on the map, no streak in the tutor
+            skills._cangur(skills.student, skills.problems[key], "right")
+        solve(tutor, a[3], "C")
+        self.assertNotEqual(tutor.next_problem()["problem"]["topic"], "aritmetica")
+        plain = Tutor(catalogue())   # without a map the tutor's own rule is untouched
+        solve(plain, a[3], "C")
+        self.assertEqual(plain.next_problem()["problem"]["topic"], "aritmetica")
+
+
 class NothingLeaks(unittest.TestCase):
     def test_no_text_no_solution_and_no_right_letter_in_what_is_sent(self):
         skills, tutor = desk()
         solve(tutor, keys(skills, 0, "aritmetica")[0], "A", "C")
         skills.new_student()
-        for sent in (skills.view(seen=tutor.seen, home=0), skills.classroom(), sample_class(catalogue())):
+        plan = skills.plan_start(seen=tutor.seen, home=0)
+        step = skills.plan_advance(seen=tutor.seen)
+        self.assertEqual(set(step), {"key"})
+        for sent in (skills.view(seen=tutor.seen, home=0), skills.classroom(), sample_class(catalogue()),
+                     plan, skills.plan_state(), skills.advice(skills.problems[step["key"]])):
             text = json.dumps(sent)
             self.assertNotIn("SECRET", text)
             self.assertNotIn('"label"', text)
@@ -408,6 +533,32 @@ class ThroughTheServer(unittest.TestCase):
             call("student", {"n": "9"})
         self.assertTrue(call("classsample", {})["sample"])
         self.assertEqual(len(call("classmap", {})["students"]), 2)       # the sample class is kept nowhere
+
+    def test_a_session_through_the_server(self):
+        call = self.app.call
+        self.assertIsNone(call("state", {})["session"])
+        plan = call("session", {})["session"]
+        self.assertEqual((plan["total"], plan["at"]), (3, -1))
+        self.assertEqual(call("session", {})["session"], plan)            # asking again keeps the plan
+        topics = []
+        for n in range(3):
+            view = call("sessionnext", {})
+            self.assertEqual(view["session"]["at"], n)
+            self.assertEqual(call("state", {})["problem"]["key"], view["problem"]["key"])
+            self.assertEqual(call("state", {})["session"]["at"], n)
+            self.assertTrue(view["frames"])
+            self.assertNotIn('"label"', json.dumps(view))
+            self.assertNotIn("SECRET SOLUTION", json.dumps(view))   # the tutor's own view of the problem, no more
+            self.assertNotIn("SECRET HINT", json.dumps(view))
+            topics.append(view["problem"]["topic"])
+            call("answer", {"letter": "C"})
+        self.assertEqual(len(set(topics)), 3)
+        end = call("sessionnext", {})
+        self.assertTrue(end["finished"] and end["session"]["finished"])
+        self.assertEqual(call("session", {})["session"]["at"], -1)          # a finished session makes room for a new one
+        self.assertIsNone(call("sessionstop", {})["session"])
+        with self.assertRaises(ValueError):
+            call("sessionnext", {})
 
     def test_no_change_of_student_in_the_middle_of_a_paper(self):
         call = self.app.call
