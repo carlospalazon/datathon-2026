@@ -95,6 +95,8 @@ never problem text (M3Kang is research-use only).
   2. **The maths 1.5B was given 114 tokens** (median budget, from the assumed 3 tokens/s) and finished
      0 of 100. Its 21% is a forced letter (E 75 times). The run says "does not fit at the assumed speed";
      it says nothing about whether the model can do the maths.
+     Checked per row: in all three models every unfinished answer (63, 100 and 26) used its whole budget;
+     none stopped early with an answer the pattern missed. So on this benchmark the cause is the budget.
   3. `results/setup/*.jsonl`: the `direct` column is identical in all 466 rows of both models and
      `direct_read` is 0 everywhere, so it is not a per-model measurement. Do not quote it.
   4. `think600-q08` stopped at 447 rows and is not in `ablations.csv`.
@@ -129,7 +131,9 @@ never problem text (M3Kang is research-use only).
   text-with-options problems went to 60%, the total would be about 36%. **The evidence does not support
   45–50% by morning.** Honest range for tonight: 22–28% overall. A real first result would be one slice,
   n ≥ 100, text-only with options, whose interval starts above 25%.
-- **Prototype (no model):** `laptop/find_letter.py` + `tests/test_find_letter.py` (7 tests pass). Reads
+- **Prototype (no model):** `laptop/find_letter.py` + `tests/test_find_letter.py` (10 tests pass, on
+  invented strings only: read ten real texts by eye before trusting it; a letter needs a colon or "is"
+  before it, so "Answer B is too big" is not an answer). Reads
   the forms above, takes the last stated answer, and maps a stated value (`\boxed{12}`) to the one option
   with that value. Not yet wired into `bench_exam.py` or `answer_thinking`: one import each.
 - **Backlog changes:** see `IDEAS.md`. Dropped 6 (vote) and 10 (per-level prior: D is the commonest label
@@ -139,6 +143,9 @@ never problem text (M3Kang is research-use only).
   tokens, `boxed` style, **saving every text** to `~/unoq-local/` (not git) and scoring with `find_letter`.
   Decided beforehand: right in ≥ 32/80 (40%) → the model can do the maths and the night goes to making it
   fit (board timing, short working); ≤ 24/80 (30%) → drop the 1.5B and start idea 2. In between: 100 more
-  validation problems. The same saved texts settle ideas 1 and 7 on CPU.
+  validation problems. From the same run report: right and finished within 114 and within 200 written
+  tokens (does it fit?), and how many texts had no letter found (read ten of those). The same saved texts
+  settle ideas 1 and 7 on CPU. Until the user confirms another model may run on the board, start idea 2's
+  training for the rest of the night whatever this run says.
 - **For the user / organisers:** is a model other than Qwen3.5 0.8B allowed on the board, and is the
   hidden test M3Kang-style or 2026-style? Both answers change the ranking.

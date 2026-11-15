@@ -43,6 +43,19 @@ class FindLetter(unittest.TestCase):
         self.assertEqual(find_letter("Answer: 13", OPTIONS), "")
         self.assertEqual(find_letter("Answer: 7", {"A": "7", "B": "7", "C": "8", "D": "9", "E": "1"}), "")
 
+    def test_a_letter_named_in_passing_is_not_an_answer(self):
+        for text in ("Answer B is too big, so", "The answer cannot be C", "answers A and B are even"):
+            self.assertEqual(find_letter(text), "", text)
+
+    def test_more_forms(self):
+        self.assertEqual(find_letter("The answer is A because 3 < 4"), "A")
+        self.assertEqual(find_letter("La resposta és la B"), "B")
+        self.assertEqual(find_letter("\\boxed{\\textbf{(B)}}"), "B")
+        self.assertEqual(find_letter("\\boxed{\\frac{3}{4}}", OPTIONS), "D")
+
+    def test_only_the_last_stated_value_counts(self):
+        self.assertEqual(find_letter("the answer is 12 ... no, the answer is 13", OPTIONS), "")
+
     def test_a_letter_beats_a_value(self):
         self.assertEqual(find_letter("\\boxed{12}, which is option B.\nAnswer: A", OPTIONS), "A")
 
