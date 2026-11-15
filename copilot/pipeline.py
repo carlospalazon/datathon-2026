@@ -10,7 +10,7 @@ import time
 import urllib.error
 
 from .config import CONFIG
-from .llm import URL, answer_letter, answer_reasoned, answer_scores
+from .llm import URL, answer_letter, answer_reasoned, answer_scores, answer_thinking
 
 TIME_LIMIT = float(CONFIG["TIME_LIMIT_SECONDS"])
 FALLBACK = CONFIG["FALLBACK_ANSWER"]
@@ -114,15 +114,18 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
                 result["retrieval_error"] = type(error).__name__
         remaining = time_limit - (time.perf_counter() - start) - MARGIN
         reasoned = ""
-        if str(CONFIG.get("ANSWER_MODE", "")).strip().lower() == "reason" and problem.get("options"):
+        mode = str(CONFIG.get("ANSWER_MODE", "")).strip().lower()
+        if mode in ("reason", "think") and problem.get("options"):
             # Leave time for a plain one-letter question if the working runs out of tokens.
             result["passes"] = 1
+            ask = answer_reasoned if mode == "reason" else answer_thinking
             try:
-                reasoned, timings, _text = answer_reasoned(
+                reasoned, timings, _text = ask(
                     problem, examples, timeout=max(remaining - 12.0, 1.0), image_b64=image_b64, url=llm_url,
                     max_tokens=int(CONFIG.get("REASON_MAX_TOKENS", "160") or 160))
                 result["prompt_tokens"] = timings.get("prompt_n", 0)
                 result["answer_tokens"] = timings.get("predicted_n", 0)
+                result["reasoned"] = bool(reasoned)
             except (socket.timeout, TimeoutError, urllib.error.URLError, ValueError, KeyError) as error:
                 result["pass_error"] = f"reason: {type(error).__name__}"
             remaining = time_limit - (time.perf_counter() - start) - MARGIN

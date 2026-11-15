@@ -11,7 +11,8 @@ DEFAULTS = {
     "NO_OPTIONS_PRIOR": "",   # a letter: answer problems without options with it, no model call
     "LETTER_BIAS_FILE": "",   # JSON {"A": x, ..., "E": x}: per-letter log-probability offsets
     "OPTION_ORDERS": "1",     # 1..5 cyclic option orders to ask, time permitting
-    "ANSWER_MODE": "",        # "reason": one line of working before the letter (needs a model tuned for it)
+    "ANSWER_MODE": "",        # "reason": one line of working, then the letter (a model tuned for it);
+                              # "think": free step-by-step working, then the letter (an untuned model)
     "REASON_MAX_TOKENS": "160",
 }
 

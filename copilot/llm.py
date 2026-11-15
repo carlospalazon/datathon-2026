@@ -113,3 +113,28 @@ def answer_reasoned(problem, examples=(), timeout=60, image_b64=None, url=URL, m
     tail = text.rsplit("\nAnswer: ", 1)
     letter = tail[1].strip() if len(tail) == 2 else ""
     return (letter if len(letter) == 1 and letter in "ABCDE" else ""), response.get("timings", {}), text
+
+
+THINK_SYSTEM = ("You solve multiple-choice math competition problems for school students. "
+                "Work it out step by step, briefly and in plain text, then finish with a line "
+                "'Answer: <letter>'.")
+
+
+def answer_thinking(problem, examples=(), timeout=60, image_b64=None, url=URL, max_tokens=250):
+    """Return (letter or "", timings, text): free working by an untuned model, then "Answer: <letter>".
+
+    No grammar: the model may use several lines. The letter is the last "Answer: X" it wrote,
+    or "" if it ran out of tokens first.
+    """
+    import re
+    messages = build_messages(problem, examples, image_b64)
+    messages[0] = {"role": "system", "content": THINK_SYSTEM}
+    last = messages[-1]
+    if isinstance(last["content"], str) and last["content"].endswith("\nAnswer:"):
+        last["content"] = last["content"][: -len("\nAnswer:")]
+    payload = {"messages": messages, "max_tokens": int(max_tokens), "temperature": 0,
+               "seed": int(CONFIG["SEED"]), "cache_prompt": True}
+    response = post(url, payload, timeout=timeout)
+    text = response["choices"][0]["message"]["content"]
+    found = re.findall(r"Answer:\s*\**\(?([A-E])\b", text)
+    return (found[-1] if found else ""), response.get("timings", {}), text
