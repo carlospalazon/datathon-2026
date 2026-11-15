@@ -69,6 +69,17 @@
   details.debug pre { white-space: pre-wrap; margin: 4px 0 0; font: 12px/1.4 ui-monospace, monospace; }
   body.nodebug details.debug { display: none; }
   ol { padding-left: 22px; margin: 6px 0 0; }
+  /* "One like this, but yours": a practice problem made on the spot, as text */
+  .msg.practice { border-color: var(--green); background: var(--card); }
+  .msg.practice .ptext { font-size: 19px; margin: 8px 0 0; }
+  .msg.practice .letters { margin: 14px 0 6px; }
+  .msg.practice .letters button { width: auto; min-width: 72px; height: 54px; padding: 0 16px; font-size: 19px; }
+  .msg.practice .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
+  .msg.practice .preply { margin-top: 8px; }
+  .msg.practice .preply p { margin: 6px 0 0; }
+  .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
+  .msg .inline:hover { background: var(--soft); }
+  .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -85,6 +96,7 @@
     <div class="actions">
       <button id="help" class="primary">Una pista</button>
       <button id="solution">Veure la solució</button>
+      <button id="practice" hidden>Un de semblant</button>
       <button id="next">Següent problema</button>
     </div>
     <form id="chat" class="actions" autocomplete="off">
@@ -131,7 +143,8 @@ async function api(action, body) {
     : action === "respond" ? `respond/${enc(body.qid)}/${enc(String(body.value))}`
     : action === "start" ? `start/${enc(body.key)}`
     : action === "chat" ? `chat/${enc(body.text)}`
-    : action === "job" ? `job/${enc(body.id)}` : action;
+    : action === "job" ? `job/${enc(body.id)}`
+    : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}` : action;
   const r = await fetch("api/" + path);
   return r.json();
 }
@@ -166,7 +179,70 @@ function show(view) {
     box.append(b);
   }
   draw(view.frames);
+  // Offer a practice problem only where the server can make one for this kind of problem
+  canPractise = false;
+  $("#practice").hidden = true;
+  api("practiceok").then(r => { canPractise = !!(r && r.available); $("#practice").hidden = !canPractise; }).catch(() => {});
 }
+
+// --- "One like this, but yours": a fresh problem of the same kind, with the slip named ---
+let canPractise = false;
+async function practise() {
+  const r = await api("practice");
+  if (r.error) return say("Ara mateix no puc fer un problema semblant a aquest.", "help");
+  draw(r.frames);
+  document.querySelectorAll(".msg.practice").forEach(d => d.remove());
+  const div = document.createElement("div");
+  div.className = "msg practice";
+  div.innerHTML = `<strong>Un de semblant, però teu.</strong><span class="badge revisado">problema nou, resposta calculada</span>
+    <small>Acabat de fer per a tu, del mateix tipus. Resol-lo i després torna al teu problema.</small>
+    <p class="ptext">${esc(r.text)}</p>
+    <div class="letters" role="group" aria-label="Respostes del problema semblant"></div>
+    <div class="preply" aria-live="polite"></div>
+    <div class="actions">
+      <button class="pmore">Un altre</button>
+      <button class="psol" disabled>Com es resol</button>
+      <button class="pback">Torna al meu problema</button>
+    </div>`;
+  const box = div.querySelector(".letters"), reply = div.querySelector(".preply");
+  const lock = () => box.querySelectorAll("button").forEach(b => b.disabled = true);
+  for (const letter of "ABCDE") {
+    const b = document.createElement("button");
+    b.innerHTML = `<b>${letter}</b>${esc(r.options[letter])}`;
+    b.setAttribute("aria-label", `Resposta ${letter}: ${r.options[letter]}`);
+    b.onclick = async () => {
+      const a = await api("practiceanswer", { letter });
+      if (a.error) { reply.textContent = a.error; return; }
+      draw(a.frames);
+      b.classList.add(a.correct ? "right" : "wrong");
+      b.disabled = true;
+      div.querySelector(".psol").disabled = false;
+      if (a.correct) {
+        lock();
+        div.querySelector(".psol").hidden = true;
+        reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong><p>${esc(a.solution)}</p>
+          <p>Ara torna al teu problema: què tenen en comú tots dos?</p>`;
+      } else {
+        reply.innerHTML = `<strong>La ${letter} no és correcta.</strong> ${esc(a.mistake.text)}${badge(a.mistake.status)}`;
+      }
+    };
+    box.append(b);
+  }
+  div.querySelector(".pmore").onclick = practise;
+  div.querySelector(".psol").onclick = async () => {
+    const a = await api("practicesolution");
+    if (a.error) { reply.textContent = a.error; return; }
+    draw(a.frames);
+    lock();
+    box.children["ABCDE".indexOf(a.label)].classList.add("right");
+    reply.innerHTML = `<strong>La resposta és la ${esc(a.label)}: ${esc(a.answer)}.</strong><p>${esc(a.text)}</p>
+      <p>Ara torna al teu problema: què tenen en comú tots dos?</p>`;
+  };
+  div.querySelector(".pback").onclick = () => { div.remove(); $("#img").scrollIntoView({ behavior: "smooth", block: "start" }); };
+  $("#feed").prepend(div);
+  div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+$("#practice").onclick = practise;
 
 async function answer(letter, button) {
   const r = await api("answer", { letter });
@@ -178,7 +254,10 @@ async function answer(letter, button) {
   } else {
     button.disabled = true;
     say(`<strong>La ${letter} no és correcta.</strong> Torna-ho a provar o demana una pista.`
-      + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : ""), "bad");
+      + (r.feedback ? `<br>${esc(r.feedback.text)}${badge(r.feedback.status)}` : "")
+      + (canPractise ? `<br><button class="inline">Prova'n un de semblant, però teu</button>` : ""), "bad");
+    const offer = $("#feed").firstElementChild.querySelector(".inline");
+    if (offer) offer.onclick = practise;
   }
   draw(r.frames);
 }

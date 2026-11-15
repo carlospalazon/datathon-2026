@@ -24,6 +24,7 @@ from arduino.app_utils import App, Bridge, Frame, Leds  # noqa: E402
 
 from copilot.assistant import Assistant  # noqa: E402
 from copilot.matrix import frame, rgb  # noqa: E402
+from copilot.practice import Practice  # noqa: E402
 from copilot.tutor import Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -35,6 +36,7 @@ with open(os.path.join(HERE, "types.json")) as f:
     types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
 
 tutor = Tutor(problems, types, show=SHOW)
+practice = Practice(problems[0]["language"])  # practice problems made on the spot, apart from the tutor
 assistant = Assistant(tutor)  # free text, guardrails and the model (port 8081), in threads
 lock = threading.Lock()
 first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
@@ -109,6 +111,13 @@ ui.expose_api("GET", "/api/respond/{qid}/{value}",
 ui.expose_api("GET", "/api/solution", lambda: run(tutor.solution))
 ui.expose_api("GET", "/api/next", next_problem)
 ui.expose_api("GET", "/api/chat/{text}", chat)
+ui.expose_api("GET", "/api/practiceok",
+              lambda: run(lambda: {"available": practice.available(tutor.current["problem"]["topic"])}))
+ui.expose_api("GET", "/api/practice",
+              lambda: run(lambda: practice.new(tutor.current["problem"]["topic"])
+                          or {"error": "no practice for this kind of problem"}))
+ui.expose_api("GET", "/api/practiceanswer/{letter}", lambda letter: run(practice.answer, letter))
+ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
 ui.expose_api("GET", "/api/modelhint",
               lambda: run(lambda: {"kind": "job", "job": assistant.model_hint(), "events": [{"event": "thinking"}]}))
 ui.expose_api("GET", "/api/job/{job}", lambda job: run(assistant.job, job))
