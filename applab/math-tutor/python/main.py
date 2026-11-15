@@ -29,6 +29,7 @@ from copilot.matrix import frame, rgb  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
 from copilot.skillmap import SkillMap, sample_class  # noqa: E402
 from copilot.tutor import Tutor  # noqa: E402
+from copilot.warmup import Warmup  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOW = tuple(os.environ.get("TUTOR_SHOW", "revisado,preparado,generado").split(","))
@@ -52,19 +53,22 @@ first = min(problems, key=lambda p: (p["difficulty"], p["key"]))
 
 def sit(student):
     """Hand the board to a student: each has a tutor, a practice card and an exam of their own."""
-    global tutor, practice, exam, assistant, view
+    global tutor, practice, exam, assistant, view, warm
     if student not in seats:
         own = Tutor(problems, types, show=SHOW)
+        cards = Practice(LANGUAGE)  # practice problems made on the spot, apart from the tutor
         own.observer = lambda kind, problem, detail=None: skills.tutor_event(kind, problem, detail, student)
         own.planner = lambda problem: skills.advice(problem, own.seen, student)  # the map plans too
         seats[student] = {"tutor": own,
-                          "practice": Practice(LANGUAGE),  # practice problems made on the spot, apart from the tutor
+                          "practice": cards,
+                          # three short practice problems before the first Cangur problem, once
+                          "warm": Warmup(cards, lambda: skills.warmup_topics(cards.available, student)),
                           "exam": Exam(problems),  # a timed paper; the page's clock requests move the matrix countdown
                           "assistant": Assistant(own),  # free text, guardrails and the model (port 8081), in threads
                           "view": {"current": own.start(first["key"])}}
     seat = seats[student]
     tutor, practice, exam = seat["tutor"], seat["practice"], seat["exam"]
-    assistant, view = seat["assistant"], seat["view"]
+    assistant, view, warm = seat["assistant"], seat["view"], seat["warm"]
 
 
 sit(skills.student)
@@ -100,11 +104,35 @@ def run(action, *args):
 
 
 def state():
-    return run(lambda: {**view["current"], "session": skills.plan_state()})
+    return run(lambda: {**view["current"], "session": skills.plan_state(), "warmup": warm.state()})
+
+
+def begun(action):
+    """An action on a Cangur problem: after it the warm-up is not offered any more."""
+    def go(*args):
+        warm.close()
+        return action(*args)
+    return go
+
+
+def warmup_next():
+    """The warm-up's first problem, or the next one once this one is solved."""
+    made = dict(warm.next(tutor.current["problem"]["level"]))
+    if "text" in made:
+        made["reading"] = reading.of_text(made["text"])
+    else:  # over: the matrix goes back to the Cangur problem
+        made["events"] = [{"event": "level", "value": tutor.current["problem"]["level"]}]
+    return made
+
+
+def warmup_skip():
+    warm.close()
+    return {"finished": True, "done": False, "events": [{"event": "level", "value": tutor.current["problem"]["level"]}]}
 
 
 def start(key):
     def go():
+        warm.close()
         view["current"] = tutor.start(urllib.parse.unquote(key))
         return view["current"]
     return run(go)
@@ -112,6 +140,7 @@ def start(key):
 
 def next_problem():
     def go():
+        warm.close()
         nxt = tutor.next_problem()
         if nxt is not None:
             view["current"] = nxt
@@ -149,6 +178,7 @@ def session():
 
 
 def session_next():
+    warm.close()
     current = tutor.current["problem"]
     step = skills.plan_advance(seen=tutor.seen,
                                on_screen=current["key"] if practice.available(current["topic"]) else None)
@@ -166,6 +196,7 @@ def exam_review():
     """The next wrong or blank question of the paper handed in, opened in the tutor."""
     step = exam.review_next()
     if "key" in step:
+        warm.close()
         view["current"] = tutor.start(step["key"])
         return {**view["current"], "review": step}
     return {**step, "events": []}
@@ -187,6 +218,7 @@ def practice_new():
 
 def chat(text):
     def go():
+        warm.close()
         result = assistant.chat(urllib.parse.unquote(text))
         if result["kind"] == "next" and result.get("view"):
             view["current"] = result["view"]
@@ -197,11 +229,14 @@ def chat(text):
 ui = WebUI()
 ui.expose_api("GET", "/api/state", state)
 ui.expose_api("GET", "/api/start/{key}", start)
-ui.expose_api("GET", "/api/answer/{letter}", lambda letter: run(tutor.answer, letter))
-ui.expose_api("GET", "/api/help", lambda: run(tutor.help))
+ui.expose_api("GET", "/api/answer/{letter}", lambda letter: run(begun(lambda x: tutor.answer(x)), letter))
+ui.expose_api("GET", "/api/help", lambda: run(begun(lambda: tutor.help())))
 ui.expose_api("GET", "/api/respond/{qid}/{value}",
-              lambda qid, value: run(tutor.respond, urllib.parse.unquote(qid), urllib.parse.unquote(value)))
-ui.expose_api("GET", "/api/solution", lambda: run(tutor.solution))
+              lambda qid, value: run(begun(lambda a, b: tutor.respond(a, b)),
+                                     urllib.parse.unquote(qid), urllib.parse.unquote(value)))
+ui.expose_api("GET", "/api/solution", lambda: run(begun(lambda: tutor.solution())))
+ui.expose_api("GET", "/api/warmupnext", lambda: run(warmup_next))
+ui.expose_api("GET", "/api/warmupskip", lambda: run(warmup_skip))
 ui.expose_api("GET", "/api/next", next_problem)
 ui.expose_api("GET", "/api/chat/{text}", chat)
 # The page asks every two seconds while the think-first ring runs: each request moves the ring on the matrix
@@ -216,7 +251,8 @@ ui.expose_api("GET", "/api/practiceanswer/{letter}",
               lambda letter: run(hooked("practiceanswer", lambda x: practice.answer(x)), letter))
 ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
 ui.expose_api("GET", "/api/examinfo", lambda: run(exam.info))
-ui.expose_api("GET", "/api/examstart/{level}/{paper}", lambda level, paper: run(exam.start, level, paper))
+ui.expose_api("GET", "/api/examstart/{level}/{paper}",
+              lambda level, paper: run(begun(lambda a, b: exam.start(a, b)), level, paper))
 # Every exam request that finds the paper handed in (by the student or by the clock) feeds the skill map, once
 ui.expose_api("GET", "/api/examstate", lambda: run(hooked("examstate", lambda: exam.state())))
 ui.expose_api("GET", "/api/examanswer/{n}/{letter}",

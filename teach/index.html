@@ -72,13 +72,16 @@
   ol { padding-left: 22px; margin: 6px 0 0; }
   /* "One like this, but yours": a practice problem made on the spot, as text */
   .msg.practice { border-color: var(--green); background: var(--card); }
-  .msg.practice .ptext { font-size: 19px; margin: 8px 0 0; }
-  .msg.practice .ptext .rtext p { margin-top: 0; }
-  .msg.practice .letters { margin: 14px 0 6px; }
-  .msg.practice .letters button { width: auto; min-width: 72px; height: 54px; padding: 0 16px; font-size: 19px; }
-  .msg.practice .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
-  .msg.practice .preply { margin-top: 8px; }
-  .msg.practice .preply p { margin: 6px 0 0; }
+  .msg.practice .ptext, #warmpane .ptext { font-size: 19px; margin: 8px 0 0; }
+  .ptext .rtext p { margin-top: 0; }
+  .msg.practice .letters, #warmpane .letters { margin: 14px 0 6px; }
+  .msg.practice .letters button, #warmpane .letters button { width: auto; min-width: 72px; height: 54px; padding: 0 16px; font-size: 19px; }
+  .msg.practice .letters button b, #warmpane .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
+  .preply { margin-top: 8px; }
+  .preply p { margin: 6px 0 0; }
+  /* Warm-up of three: short practice problems in the tutor's place before the first Cangur problem; skippable */
+  #warmpane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
+  #warmpane .wstep { color: var(--green-dark); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; font-size: 14px; }
   .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -192,6 +195,7 @@
 <main>
   <section id="exampane" hidden></section>
   <section id="mappane" hidden></section>
+  <section id="warmpane" hidden></section>
   <section id="tutorpane">
     <div class="planbar" id="sessionbar" hidden><span class="ptxt"></span><button class="pquit">Surt de la sessió</button></div>
     <div class="planbar" id="reviewbar" hidden><span class="ptxt"></span><button class="pquit">Torna als resultats</button></div>
@@ -285,6 +289,8 @@ function badge(status) {
 
 function show(view) {
   const p = view.problem;
+  // Only the state of the board says a warm-up is on offer; any problem opened on purpose ends it
+  warm = view.warmup && (view.warmup.pending || view.warmup.active) ? view.warmup : null;
   $("#img").src = "img/" + encodeURIComponent(p.key) + ".png";
   $("#grade").textContent = `${p.grade}è de primària · dificultat ${p.difficulty}`;
   $("#topic").textContent = TOPICS[p.topic] || p.topic;
@@ -345,6 +351,8 @@ function paintReading() {
   }
   const card = document.querySelector(".msg.practice .ptext");  // the practice card follows the same switches
   if (card && practiceReading) card.innerHTML = readingHtml(practiceReading, true);
+  const warmText = document.querySelector("#warmpane .ptext");  // and so does the warm-up
+  if (warmText && warmReading) warmText.innerHTML = readingHtml(warmReading, true);
 }
 async function loadReading(change) {
   const run = ++readRun;
@@ -644,18 +652,21 @@ function examButton() {  // the header button: into the exam, back to its result
   $("#exambtn").hidden = inExam;
   $("#exambtn").textContent = exam.status === "finished" ? "Resultats de l'examen" : "Mode examen";
 }
-function showPane(side) {  // false: the tutor; true: the exam; "map": the skill map
-  const examSide = side === true, mapSide = side === "map";
-  if (side !== false) stopThink();                 // no ring, and no ring on the matrix, behind the exam or the map
+function showPane(side) {  // false: the tutor; true: the exam; "map": the skill map; "warm": the warm-up
+  if (side === false && warm) side = "warm";       // a warm-up on offer comes before the tutor's problem
+  const examSide = side === true, mapSide = side === "map", warmSide = side === "warm", away = side !== false;
+  if (away) stopThink();                           // no ring, and no ring on the matrix, behind the exam, the map or the warm-up
   else if ($("#tutorpane").hidden) startThink();   // back to the tutor: the server knows if any time is left
   pane.hidden = !examSide;
   $("#mappane").hidden = !mapSide;
-  $("#tutorpane").hidden = examSide || mapSide;
-  for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = examSide || mapSide;  // they describe the tutor's problem
+  $("#warmpane").hidden = !warmSide;
+  $("#tutorpane").hidden = away;
+  for (const id of ["#grade", "#topic", "#pid"]) $(id).hidden = away;  // they describe the tutor's problem
   examButton();
-  $("#mapbtn").hidden = examSide || mapSide;  // the map is reached from the tutor, never in the middle of a paper
-  $("#sessionbtn").hidden = examSide || mapSide;
-  if (mapSide) $("#exambtn").hidden = true;
+  $("#mapbtn").hidden = away;  // the map is reached from the tutor, never in the middle of a paper
+  $("#sessionbtn").hidden = away;
+  if (mapSide || warmSide) $("#exambtn").hidden = true;
+  if (warmSide) $("#warmpane").scrollIntoView({ block: "start" });
   if (examSide) pane.scrollIntoView({ block: "start" });
   if (mapSide) $("#mappane").scrollIntoView({ block: "start" });
 }
@@ -1060,11 +1071,90 @@ function sessionBar() {  // over the problem: where the student is in the sessio
   const step = session.steps[session.at];
   bar.querySelector(".ptxt").innerHTML = `<strong>Sessió d'avui</strong> · problema ${session.at + 1} de ${session.total} · ${esc(topicName(step.topic))}`;
 }
-async function loadState() {  // the problem on screen and the session of whoever is at the board
+async function loadState() {  // the problem on screen, the session and the warm-up of whoever is at the board
   const st = await api("state");
   session = st.session || null;
+  const offer = st.warmup && (st.warmup.pending || st.warmup.active);
+  if (offer) $("#tutorpane").hidden = true;  // before show(): the think-first time must not start behind the warm-up
   show(st);
   sessionBar();
+  if (offer) { warmIntro(); showPane("warm"); }
+}
+
+// --- Warm-up of three: before the first Cangur problem, three short practice problems, one per topic ---
+// The topics come from the student's map (the ones that went worst), or are three varied ones for a new student.
+let warm = null, warmReading = null, warmBusy = false;
+const warmPane = $("#warmpane");
+async function warmCall(action) {  // one request at a time: a double click must not skip a problem
+  if (warmBusy) return null;
+  warmBusy = true;
+  try { return await api(action); } catch (e) { return { error: "no answer" }; } finally { warmBusy = false; }
+}
+function warmIntro() {
+  const names = [...new Set(warm.topics)].map(t => esc(topicName(t)));
+  const list = names.length > 1 ? names.slice(0, -1).join(", ") + " i " + names[names.length - 1] : names.join("");
+  warmPane.innerHTML = `<h2>Escalfament</h2>
+    <p>Abans del primer problema del Cangur, ${plural(warm.total, "problema curt", "problemes curts")}, d'un minut cadascun, per posar el cap en marxa.
+      Són nous, acabats de fer, i si t'equivoques et diré on mirar.</p>
+    <p><strong>Avui:</strong> ${list}.${warm.from_map ? " Triats a partir del teu mapa." : ""}</p>
+    <div class="actions" style="margin-top:22px">
+      <button class="primary wgo">${warm.active ? "Continua l'escalfament" : "Comença l'escalfament"}</button>
+      <button class="wskip">Salta'l i ves al problema</button>
+    </div>`;
+  warmPane.querySelector(".wgo").onclick = warmNext;
+  warmPane.querySelector(".wskip").onclick = warmSkip;
+}
+function warmOver(r, line) {  // solved or skipped: the tutor's problem, and its think-first time starts now
+  warm = null;
+  warmReading = null;
+  draw(r.frames);
+  showPane(false);
+  if (line) say(line, "ok");
+}
+async function warmSkip() {
+  const r = await warmCall("warmupskip");
+  if (r && !r.error) warmOver(r, "");
+}
+async function warmNext() {
+  const r = await warmCall("warmupnext");
+  if (!r || r.error) return;
+  if (r.finished) return warmOver(r, r.done ? "<strong>Escalfament fet.</strong> Ara, el teu primer problema del Cangur. Pren-te el temps que et calgui." : "");
+  draw(r.frames);
+  const w = r.warmup, last = w.n === w.total;
+  warmReading = r.reading;
+  warmPane.innerHTML = `<span class="wstep">Escalfament · problema ${w.n} de ${w.total}</span>
+    <h2>${esc(topicName(r.topic))}</h2>
+    <div class="ptext">${readingHtml(warmReading, true)}</div>
+    <div class="letters" role="group" aria-label="Respostes del problema d'escalfament"></div>
+    <div class="preply" aria-live="polite"></div>
+    <div class="actions" style="margin-top:14px">
+      <button class="primary wnext" hidden>${last ? "Ara, el meu problema" : "Següent"}</button>
+      <button class="wskip">Salta l'escalfament</button>
+    </div>`;
+  const box = warmPane.querySelector(".letters"), reply = warmPane.querySelector(".preply");
+  for (const letter of "ABCDE") {
+    const b = document.createElement("button");
+    b.innerHTML = `<b>${letter}</b>${esc(r.options[letter])}`;
+    b.setAttribute("aria-label", `Resposta ${letter}: ${r.options[letter]}`);
+    b.onclick = async () => {
+      const a = await api("practiceanswer", { letter });
+      if (a.error) { reply.textContent = a.error; return; }
+      draw(a.frames);
+      b.classList.add(a.correct ? "right" : "wrong");
+      b.disabled = true;
+      if (a.correct) {
+        box.querySelectorAll("button").forEach(o => o.disabled = true);
+        reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong><p>${esc(a.solution)}</p>`;
+        warmPane.querySelector(".wnext").hidden = false;
+      } else {
+        reply.innerHTML = `<strong>La ${letter} no és correcta.</strong> ${esc(a.mistake.text)}${badge(a.mistake.status)}<p>Torna-ho a provar: no hi ha pressa.</p>`;
+      }
+    };
+    box.append(b);
+  }
+  warmPane.querySelector(".wnext").onclick = warmNext;
+  warmPane.querySelector(".wskip").onclick = warmSkip;
+  showPane("warm");
 }
 function sessionShow(s) {
   session = s;

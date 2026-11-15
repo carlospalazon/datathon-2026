@@ -29,6 +29,9 @@ TOPICS = ("aritmetica", "algebra", "conteo", "numeros", "patrones", "logica", "g
 WINDOW = 5   # a topic is judged on the last Cangur problems answered, so it can change
 SOLID = 3    # right the first time on this many of them (the tutor's own MASTERED), with one other at most
 SESSION = 3  # problems in "today's session": a shaky topic, one just begun, a new one
+WARMUP = 3   # problems in the warm-up before the first Cangur problem, one per topic
+# Warm-up topics for a student with nothing on the map yet, or to fill up: varied, friendly ones first
+WARMUP_DEFAULTS = ("aritmetica", "patrones", "geometria_plana", "conteo", "medida", "numeros", "algebra", "logica")
 BAR = 6      # tallest column of the LED view; the top row marks what to try next
 # Pseudonyms in the order students sit down. Animals of Catalonia, none of them a person's name.
 ANIMALS = ("Guineu", "Mussol", "Dofí", "Esquirol", "Llúdriga", "Falcó", "Eriçó", "Isard", "Granota", "Teixó",
@@ -136,9 +139,12 @@ class SkillMap:
             return
         student = student or self.student
         code = (result.get("mistake") or {}).get("code")
+        topic, level = current["topic"], current["level"]
+        if (level, topic) not in self.catalogue:  # a warm-up topic the level on screen does not have: the nearest level's tile
+            level = min((lv for lv, t in self.catalogue if t == topic), key=lambda lv: abs(lv - level), default=level)
         self.seq += 1
         self._record(student, f"practice:{self.seq}", {
-            "kind": "practice", "topic": current["topic"], "level": current["level"],
+            "kind": "practice", "topic": topic, "level": level,
             "outcome": "first" if result["correct"] else "open",
             "slips": [f"practice:{current['problem']['generator']}:{code}"] if code else []})
 
@@ -287,6 +293,32 @@ class SkillMap:
                      for c in row["cells"] if c["topic"] == problem["topic"]), None)
         nexts = self._next(student, levels, set(seen), self._home(problem["level"]), limit=len(self.topics))
         return {"solid": bool(here and here["state"] == "solid"), "topics": [n["topic"] for n in nexts]}
+
+    def warmup_topics(self, can=lambda topic: True, student=None):
+        """The topics of the warm-up, one short practice problem each: the ones that went worst so
+        far (a topic to reinforce first, then the most slips, then the lowest share of first-time
+        answers), filled up with WARMUP_DEFAULTS, which is all a new student gets, and where the
+        catalogue has fewer topics than that, with the same topics again (another kind of problem).
+        can(topic): can a practice problem be made for it? Only topics of the catalogue, so each
+        one has a tile on the map. Returns [{"topic", "from_map"}]."""
+        student = student or self.student
+        done = self._summary(student)
+        hard = []
+        for (level, topic), c in done.items():
+            if level is not None or topic not in self.topics or not can(topic):
+                continue
+            cell = self._cell(topic, c)
+            missed, slips = cell["tries"] - cell["clean"], sum(c["slips"].values())
+            if missed or slips or cell["blank"]:
+                share = cell["clean"] / cell["tries"] if cell["tries"] else 0.5
+                hard.append((cell["state"] != "shaky", -slips, share, topic))
+        picked = [{"topic": topic, "from_map": True} for *_, topic in sorted(hard)[:WARMUP]]
+        for topic in WARMUP_DEFAULTS:
+            if len(picked) < WARMUP and topic in self.topics and can(topic) and topic not in [p["topic"] for p in picked]:
+                picked.append({"topic": topic, "from_map": False})
+        for i in range(WARMUP - len(picked) if picked else 0):  # a catalogue of few topics: another kind of the same ones
+            picked.append(dict(picked[i]))
+        return picked
 
     def plan_start(self, seen=(), home=None, student=None):
         """Today's session: a topic that resists, one just begun and a new one, in that order. Where

@@ -128,6 +128,34 @@ await step("the page loads and shows a problem", async () => {
   check(lit() > 0, "the level on the matrix");
 });
 
+if (doc.querySelector("#warmpane")) await step("warm-up: three short problems in the tutor's place, a slip named, then the Cangur problem", async () => {
+  const warm = $("#warmpane");
+  check(!warm.hidden && $("#tutorpane").hidden, "the warm-up is offered before the first Cangur problem");
+  check(!calls.includes("api/think"), "and the think-first time has not started behind it");
+  check($("#mapbtn").hidden && $("#exambtn").hidden, "nothing else in the way");
+  check(warm.querySelector(".wskip") && /Avui/.test(warm.textContent), "it says its topics and can be skipped");
+  warm.querySelector(".wgo").click(); warm.querySelector(".wgo").click();  // a double click
+  await settle();
+  check(calls.filter(c => c === "api/warmupnext").length === 1, "a double click starts one problem");
+  let slips = 0;
+  for (let n = 1; n <= 3; n++) {
+    check(new RegExp(`problema ${n} de 3`).test(warm.textContent), "problem " + n + " of 3: " + warm.textContent.slice(0, 60));
+    check(warm.querySelector(".ptext").textContent.length > 20 && warm.querySelectorAll(".letters button").length === 5, "a problem as text with five options");
+    check(warm.querySelector(".wnext").hidden, "no way on before it is solved, only the skip");
+    for (const b of warm.querySelectorAll(".letters button")) {
+      await click(b);
+      if (b.classList.contains("right")) break;
+      check(b.classList.contains("wrong") && warm.querySelector(".preply").textContent.length > 30, "a sentence about the wrong option");
+      slips++;
+    }
+    check(warm.querySelectorAll(".letters button").every(b => b.disabled) && !warm.querySelector(".wnext").hidden, "solved: the way on appears");
+    await click(warm.querySelector(".wnext"));
+  }
+  check(warm.hidden && !$("#tutorpane").hidden && !$("#mapbtn").hidden, "after the third, the Cangur problem");
+  check(/Escalfament fet/.test($("#feed").firstElementChild.textContent), "with a line saying the warm-up is done");
+  check(calls.filter(c => c === "api/warmupnext").length === 4 && !calls.includes("api/practice"), "three problems asked for, none through the practice card");
+});
+
 if (doc.querySelector("#think")) await step("think first: a ring in the hint button's place, skipped after typing, and over by itself", async () => {
   const ringOn = () => !$("#think").hidden && $("#help").hidden;
   check(ringOn(), "a new problem starts with the ring, not the hint button");
@@ -371,6 +399,13 @@ if (doc.querySelector("#mapbtn")) await step("the map: a new student, back to th
   check(map.querySelectorAll(".heat tbody tr").length === 2, "two students in the class");
   check(map.querySelectorAll(".heat tr.me").length === 1, "the one at the board is marked");
   await click(map.querySelector(".mback"));
+  if (doc.querySelector("#warmpane")) {  // the new student is offered a warm-up of their own, and skips it
+    await click(map.querySelector(".mleave"));
+    check(!$("#warmpane").hidden && $("#tutorpane").hidden, "the new student gets the warm-up offer");
+    await click($("#warmpane").querySelector(".wskip"));
+    check($("#warmpane").hidden && !$("#tutorpane").hidden && $("#feed").elements.length === 0, "skipped: straight to the problem, no fuss");
+    await click($("#mapbtn"));
+  }
   await click(map.querySelectorAll(".seats button")[0]);
   check(map.querySelector(".mname").textContent === me, "the first student is back");
   check(map.querySelectorAll(".tile").some(t => !t.classList.contains("new")), "with their map");

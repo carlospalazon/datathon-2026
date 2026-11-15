@@ -15,7 +15,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | **built** (2026-11-15; not in the exam; the key condition of some problems reads like a hint; not seen in a real browser) |
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
-| 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
+| 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | **built** (2026-11-15; offered once per sitting, on every page load until begun or skipped; on the board the map is in memory, so a restart gives the default topics; not seen in a real browser) |
 | 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | **built** (2026-11-15; the queue is forgotten with "Un altre examen"; not seen in a real browser) |
 | 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | **built** (2026-11-15; the chat's "següent" still goes by the tutor's own rule; not seen in a real browser) |
 | 15 | **The class from several boards.** Each board saves its map file; the teacher's laptop reads the files of all the boards into one class view, and prints it. | A class has more than one board, and the teacher wants it on paper. | `copilot/skillmap.py` tables in the profile file | open |
@@ -435,3 +435,58 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   Catalan ("Com vols llegir?", "Dades clau", "Condició clau", "Aquest enunciat no té cap número
   escrit amb xifres.") needs a native read.
 - **Commit:** see `git log -1 -- copilot/reading.py`
+
+
+### 2026-11-15 · Warm-up of three (backlog 11)
+- **What:** when a student sits down, before the first Cangur problem, the tutor's place is
+  taken by **"Escalfament"**: three short generated problems, one per topic, "d'un minut
+  cadascun" (the smallest of the numbers drawn, as on the practice card; there is no clock).
+  **The topics come from the skill map:** the ones that went worst so far (a topic "Per
+  reforçar" first, then the most slips, then the lowest share of first-time answers), filled up
+  with defaults (calculation, patterns, plane geometry...), which is all a new student gets;
+  only topics a practice problem can be made for and that the catalogue has. The opening screen
+  names the topics ("Avui: ...", and "Triats a partir del teu mapa" when they are) and has two
+  buttons: **"Comença l'escalfament"** and **"Salta'l i ves al problema"**. Each problem is text
+  with five options; a wrong option names the slip ("Torna-ho a provar: no hi ha pressa"), the
+  right one shows the worked solution and the button "Següent" ("Ara, el meu problema" on the
+  third). "Salta l'escalfament" is on every screen. Afterwards the Cangur problem appears with
+  "Escalfament fet" and its think-first time starts then, not behind the warm-up. It is offered
+  once per sitting: it is over when solved, when skipped, or as soon as the student touches a
+  Cangur problem; each student who sits down ("Alumne nou") gets their own. A reload in the
+  middle comes back to the same problem. New module `copilot/warmup.py` (it owns no problems:
+  each one is the practice card's, so the slips, the map and the tutor's memory work as there),
+  `SkillMap.warmup_topics`, `warmup` in `state`, and two endpoints (`warmupnext`, `warmupskip`)
+  in `teach/server.py` and in the App Lab app. The reading modes apply to it.
+- **Why:** the first minutes decide the mood of a session. Three problems that work out, on the
+  very topics that went worst last time, are a start that succeeds and a use of the memory the
+  student can see.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650: the warm-up is
+  the first thing on screen. **"Comença l'escalfament"**, click a wrong option (the slip is
+  named), then the right one, **"Següent"**, twice more, **"Ara, el meu problema"**. To see the
+  skip: "El meu mapa" → "Alumne nou" → "Torna al tutor" → **"Salta'l i ves al problema"**. To
+  see the map choose: start with `--profile /tmp/cangur.db`, skip, answer the first problem
+  wrong twice, "Següent problema", wrong twice again, stop the server and start it again with
+  the same `--profile`: the warm-up now opens with that topic and says "Triats a partir del teu
+  mapa".
+- **Tests / checks run:** `python3 -m pytest -q`: 362 passed (12 new in `tests/test_warmup.py`
+  on a made-up catalogue: defaults for a new student, the worst topics first, only topics that
+  can be practised, each student their own, three problems then over, the same problem until
+  solved, the skip, a topic without a generator dropped, through the server the three reach the
+  map once each and no Cangur problem is touched, skipping or answering a Cangur problem ends
+  it, the topics of a student who comes back with a profile file; the page harness has a 13th
+  step: the offer before any think-first request, a double click, three problems with a named
+  slip, the way on only once solved, the Cangur problem after it, and a new student who skips).
+  Real catalogue, server started from a Python script with `--profile`: three problems of three
+  topics with no label sent, the think-first seconds still whole afterwards, the three on the
+  map; after two misses and a restart the warm-up opens with that topic; a new student gets the
+  defaults; servers stopped. The App Lab build imported with stand-ins: the same through its 36
+  routes.
+- **Not done:** not seen in a real browser, not run on the board. On the board the map is in
+  memory (backlog 16), so after a restart everybody gets the default topics. "Last time" is the
+  whole map, not the last sitting only (the map judges a topic on its last 5 problems). No
+  clock: "d'un minut" describes the size of the problems. The offer comes back on every reload
+  until it is begun or skipped. A slip named in the warm-up counts in the tutor's memory like
+  one on the practice card. With a catalogue of fewer than three topics a topic comes twice
+  (another kind of problem). The Catalan ("Escalfament", "per posar el cap en marxa", "Salta'l i
+  ves al problema", "Ara, el meu problema") needs a native read.
+- **Commit:** see `git log -1 -- copilot/warmup.py`

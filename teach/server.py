@@ -27,8 +27,12 @@ from copilot.matrix import frame  # noqa: E402
 from copilot.practice import Practice  # noqa: E402
 from copilot.skillmap import SkillMap, sample_class  # noqa: E402
 from copilot.tutor import STATUSES, Tutor  # noqa: E402
+from copilot.warmup import Warmup  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# What a student does on a Cangur problem: after any of these the warm-up is over for this sitting
+BEGUN = {"answer", "help", "respond", "solution", "next", "chat", "modelhint", "start", "sessionnext", "examstart",
+         "examreview"}
 THINK = 20  # think-first seconds on a new problem, unless --think says otherwise
 
 
@@ -88,11 +92,14 @@ class App:
             tutor.observer = lambda kind, problem, detail=None: self.skills.tutor_event(kind, problem, detail, student)
             tutor.planner = lambda problem: self.skills.advice(problem, tutor.seen, student)  # the map plans too
             first = min(self.problems, key=lambda p: (p["difficulty"], p["key"]))
-            self.seats[student] = {"tutor": tutor, "assistant": Assistant(tutor),
-                                   "practice": Practice(self.args.language),  # "one like this, but yours"
+            practice = Practice(self.args.language)  # "one like this, but yours"
+            self.seats[student] = {"tutor": tutor, "assistant": Assistant(tutor), "practice": practice,
                                    "exam": Exam(self.problems),               # exam mode: a timed paper
+                                   # three short practice problems before the first Cangur problem, once
+                                   "warm": Warmup(practice, lambda: self.skills.warmup_topics(practice.available, student)),
                                    "view": tutor.start(first["key"])}
         self.seat = self.seats[student]
+        self.warm = self.seat["warm"]
         self.tutor, self.assistant = self.seat["tutor"], self.seat["assistant"]
         self.practice, self.exam, self.view = self.seat["practice"], self.seat["exam"], self.seat["view"]
 
@@ -111,8 +118,21 @@ class App:
             return result
 
     def act(self, action, body):
+        if action in BEGUN:  # the student is on a Cangur problem: the warm-up is not offered any more
+            self.warm.close()
         if action == "state":
-            return with_frames({**self.view, "session": self.skills.plan_state()})
+            return with_frames({**self.view, "session": self.skills.plan_state(), "warmup": self.warm.state()})
+        if action == "warmupnext":  # the warm-up's first problem, or the next one once this one is solved
+            view = dict(self.warm.next(self.tutor.current["problem"]["level"]))
+            if "text" in view:
+                view["reading"] = reading.of_text(view["text"])
+            else:  # over: the matrix goes back to the Cangur problem
+                view["events"] = [{"event": "level", "value": self.tutor.current["problem"]["level"]}]
+            return with_frames(view)
+        if action == "warmupskip":
+            self.warm.close()
+            return with_frames({"finished": True, "done": False,
+                                "events": [{"event": "level", "value": self.tutor.current["problem"]["level"]}]})
         if action == "answer":
             return with_frames(self.tutor.answer(body.get("letter", "")))
         if action == "help":
