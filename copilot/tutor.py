@@ -116,6 +116,7 @@ class Tutor:
         restarts (no name, no personal data). None: kept in memory only.
         """
         self.problems = {p["key"]: p for p in problems}
+        self.stages = None  # school stages the next problem may come from (None: any), chosen by the student
         self.types = types or {}
         self.show = set(show)
         self.neighbours = neighbours
@@ -407,7 +408,8 @@ class Tutor:
         step = 1 if "difficulty" in problem else 3  # without the fine scale, move a whole level
         target = _difficulty(problem) + (step if first_try else -step)
         pool = [p for p in self.problems.values()
-                if p["key"] not in self.seen and p["language"] == problem["language"]]
+                if p["key"] not in self.seen and p["language"] == problem["language"]
+                and (not self.stages or p.get("stage") in self.stages)]
         if not pool:
             return None
         topic = problem["topic"]

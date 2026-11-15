@@ -31,7 +31,7 @@ from copilot.warmup import Warmup  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # What a student does on a Cangur problem: after any of these the warm-up is over for this sitting
-BEGUN = {"answer", "help", "respond", "solution", "next", "chat", "modelhint", "start", "sessionnext", "examstart",
+BEGUN = {"answer", "help", "respond", "solution", "next", "chat", "modelhint", "start", "stage", "sessionnext", "examstart",
          "examreview"}
 THINK = 20  # think-first seconds on a new problem, unless --think says otherwise
 
@@ -41,7 +41,7 @@ def parse_args():
     p.add_argument("--catalog", default="data/catalog/problems.jsonl")
     p.add_argument("--types", default="content/types_primaria.json")
     p.add_argument("--images", default="data/images")
-    p.add_argument("--stage", default="primaria")
+    p.add_argument("--stage", default="primaria", help="one stage or several with commas: primaria,eso,batxillerat")
     p.add_argument("--language", default="cat")
     p.add_argument("--show", default=",".join(STATUSES), help="content statuses the student may see")
     p.add_argument("--profile", default="", help="SQLite file that keeps what the student has done (empty: off)")
@@ -56,7 +56,7 @@ def load_problems(args):
     """The problems a student can work on: right stage and language, with options as text."""
     with open(os.path.join(ROOT, args.catalog)) as f:
         rows = [json.loads(line) for line in f if line.strip()]
-    return [r for r in rows if r["stage"] == args.stage and r["language"] == args.language and r["options"]]
+    return [r for r in rows if r["stage"] in args.stage.split(",") and r["language"] == args.language and r["options"]]
 
 
 def with_frames(result):
@@ -226,6 +226,19 @@ class App:
                 raise ValueError("an exam is running")
             self.sit(self.skills.new_student() if action == "studentnew" else self.skills.switch(body.get("n")))
             return self.map()
+        if action == "stages":  # the school stages this server holds, and the one of the problem on screen
+            have = {p.get("stage") for p in self.tutor.problems.values()}
+            return {"stages": [st for st in ("primaria", "eso", "batxillerat") if st in have],
+                    "current": self.tutor.current["problem"].get("stage")}
+        if action == "stage":  # the student picks a stage: its easiest problem not done yet, and the next ones stay there
+            pool = [p for p in self.tutor.problems.values() if p.get("stage") == body.get("name")]
+            if not pool:
+                raise KeyError("stage")
+            fresh = [p for p in pool if p["key"] not in self.tutor.seen] or pool
+            first = min(fresh, key=lambda p: (p["level"], p.get("difficulty", 0), p["key"]))
+            self.tutor.stages = {body["name"]}
+            self.view = self.tutor.start(first["key"])
+            return with_frames(self.view)
         if action == "start" and body.get("key") in self.tutor.problems:
             self.view = self.tutor.start(body["key"])
             return with_frames(self.view)
@@ -255,7 +268,7 @@ def make_handler(app):
                 names = {"answer": ["letter"], "practiceanswer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
                          "chat": ["text"], "job": ["id"], "examstart": ["level", "paper"],
                          "examanswer": ["n", "letter"], "student": ["n"], "readingmode": ["modes"],
-                         "practiceexplain": ["choice"]}.get(parts[1], [])
+                         "practiceexplain": ["choice"], "stage": ["name"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))

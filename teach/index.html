@@ -46,6 +46,10 @@
   details.dd.right > .panel { left: auto; right: 0; }
   details.dd > .panel button { width: 100%; text-align: left; }
   .actions details.dd > summary { font-size: 15px; padding: 12px 20px; border-radius: 16px; border-bottom-width: 5px; }
+  #stagepick .stages { display: flex; gap: 6px; margin-top: 4px; }
+  #stagepick button { flex: 1; width: auto; text-align: center; font: inherit; font-weight: 800; font-size: 13px; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
+  #stagepick button.picked { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+  #stagepick button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   #readdd { margin: 14px 0 0; }
   #readdd > summary { font-size: 13px; padding: 6px 12px; border-radius: 12px; border-bottom-width: 2px; text-transform: none; letter-spacing: 0; color: var(--muted); }
   #readdd > summary b { color: var(--accent); }
@@ -236,6 +240,10 @@
     <details class="dd right" id="menu">
       <summary>Menú</summary>
       <div class="panel">
+        <div id="stagepick" hidden>
+          <span class="muted">Nivell</span>
+          <div class="stages" role="group" aria-label="Nivell dels problemes"></div>
+        </div>
         <button id="sessionbtn">Sessió d'avui</button>
         <button id="mapbtn">El meu mapa</button>
         <button id="exambtn">Mode examen</button>
@@ -304,6 +312,9 @@ const TOPICS = { aritmetica: "Càlcul amb dades", algebra: "Número amagat (temp
   medida: "Mesura", visual: "Raonament visual", otros: "Altres" };
 const STATUS = { revisado: "revisat", preparado: "preparat", dataset: "problema del Cangur" };  // "generado" (a draft) carries no label
 const $ = s => document.querySelector(s);
+// Catalan school years from the catalogue's grade: 5-6 primary, 7-10 ESO, 11-12 batxillerat
+const ORD = ["", "1r", "2n", "3r", "4t"];
+const gradeLabel = g => g <= 6 ? `${g}è de primària` : g <= 10 ? `${ORD[g - 6]} d'ESO` : `${ORD[g - 10]} de batxillerat`;
 const CHAT_HINT = "Escriu al tutor: «no ho entenc», «què és un múltiple?»…";
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -329,6 +340,7 @@ async function api(action, body) {
     : action === "examstart" ? `examstart/${enc(body.level)}/${enc(body.paper)}`
     : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}`
     : action === "readingmode" ? `readingmode/${enc(body.modes)}`
+    : action === "stage" ? `stage/${enc(body.name)}`
     : action === "student" ? `student/${enc(body.n)}` : action;
   const r = await fetch("api/" + path);
   return r.json();
@@ -352,7 +364,7 @@ function show(view) {
   // Only the state of the board says a warm-up is on offer; any problem opened on purpose ends it
   warm = view.warmup && (view.warmup.pending || view.warmup.active) ? view.warmup : null;
   $("#img").src = "img/" + encodeURIComponent(p.key) + ".png";
-  $("#grade").textContent = `${p.grade}è de primària · dificultat ${p.difficulty}`;
+  $("#grade").textContent = `${gradeLabel(p.grade)} · dificultat ${p.difficulty}`;
   $("#topic").textContent = TOPICS[p.topic] || p.topic;
   $("#pid").textContent = p.id;
   $("#feed").innerHTML = "";
@@ -643,7 +655,7 @@ function showStep(r) {
   if (r.kind === "similar") {
     const p = r.problem;
     say(`<strong>Pista 1: un problema semblant, més fàcil.</strong>${badge("dataset")}
-      <small>Del mateix tipus, ${p.grade}è de primària. Mira com es resol i pensa què té en comú amb el teu.</small>
+      <small>Del mateix tipus, ${gradeLabel(p.grade)}. Mira com es resol i pensa què té en comú amb el teu.</small>
       <img src="img/${encodeURIComponent(p.key)}.png" alt="Problema semblant ${esc(p.id)}">
       <small>La resposta d'aquest problema és la ${esc(r.label)}.</small>`, "help");
   } else if (r.kind === "method") {
@@ -862,7 +874,7 @@ async function examSetup() {
     row.innerHTML = "";
     for (const l of info.levels) {
       const b = document.createElement("button");
-      b.textContent = l.grade ? `${l.grade}è de primària` : `Nivell ${l.level}`;
+      b.textContent = l.grade ? gradeLabel(l.grade) : `Nivell ${l.level}`;
       b.classList.toggle("picked", l === level);
       b.setAttribute("aria-pressed", String(l === level));
       b.onclick = () => { level = l; levels(); papers(); };
@@ -1066,7 +1078,7 @@ const WHY = { shaky: "encara es resisteix. Un problema fàcil d'aquest tema t'hi
   tried: "l'has començat. Amb un altre problema veuràs com va.", new: "encara no l'has provat." };
 const mapPane = $("#mappane");
 const topicName = t => TOPICS[t] || t;
-const gradeName = (grade, level) => grade ? `${grade}è de primària` : `Nivell ${level}`;
+const gradeName = (grade, level) => grade ? gradeLabel(grade) : `Nivell ${level}`;
 let mapBusy = false;
 async function mapCall(action, body) {  // one request at a time: a double click cannot seat two new students
   if (mapBusy) return null;
@@ -1368,6 +1380,35 @@ $("#exambtn").onclick = async () => {
   showPane(true);
 };
 
+// --- The school stage: primary, ESO or batxillerat, when the server holds more than one ---
+const STAGE = { primaria: "Primària", eso: "ESO", batxillerat: "Batxillerat" };
+async function loadStages() {
+  let r;
+  try { r = await api("stages"); } catch (e) { return; }
+  if (!r || r.error || r.stages.length < 2) return;
+  const row = $("#stagepick").querySelector(".stages");
+  row.innerHTML = "";
+  for (const name of r.stages) {
+    const b = document.createElement("button");
+    b.textContent = STAGE[name] || name;
+    b.classList.toggle("picked", name === r.current);
+    b.setAttribute("aria-pressed", String(name === r.current));
+    b.onclick = async () => {
+      if (session && session.active) await api("sessionstop");  // a session planned for another stage ends here
+      const view = await api("stage", { name });
+      if (!view || view.error) return;
+      review = null; reviewBar();
+      session = null; sessionBar();
+      show(view);
+      showPane(false);
+      say(`<strong>${esc(STAGE[name] || name)}.</strong> A partir d'ara els problemes són d'aquest nivell.`, "help");
+      loadStages();
+    };
+    row.append(b);
+  }
+  $("#stagepick").hidden = false;
+}
+
 // The logo: back to the start, the tutor's problem. A paper that is running is not left in silence:
 // the page asks first, with the same question as "Surt sense lliurar".
 $("#home").onclick = () => {
@@ -1385,6 +1426,7 @@ document.addEventListener("click", e => {
 });
 
 loadState().then(async () => {
+  loadStages();
   const r = await api("examstate");   // a reload in the middle of a paper goes back to it
   if (r.status === "running") examRun(r);
   else if (r.status === "finished") { exam = r; examButton(); }
