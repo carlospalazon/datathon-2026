@@ -15,6 +15,15 @@ A wrong option that matches none of them gets no mistake name: better silent tha
     practice.answer("B")                # {"correct": False, "mistake": {"text": ..., "code": ...}, ...}
     practice.solution()                 # only when the student asks for it
 
+"Explain it back": after a right answer the student picks, with one tap, which of three short
+explanations matches how they solved it: the method of the worked solution and two wrong
+methods, which are slips of the same generator whose results for these numbers are known
+(METHODS). It is only offered where that can be done honestly: two different slips that give
+two different wrong numbers for this draw. It never counts against the student.
+
+    result = practice.answer("C")       # right: result["explain"] = [{"id": 0, "text": ...}, ...] or absent
+    practice.explain(1)                 # {"correct": False, "right": 2, "text": ...}
+
 Standard library only. Nothing here touches the student memory or the tutor's session.
 """
 import importlib.util
@@ -332,6 +341,196 @@ NO_NAME = ("Aquest resultat no surt de cap dels errors habituals. Repassa els c�
            "This result does not come from any of the usual slips. Go over your working step by step.")
 
 
+# "Explain it back": how the problem is solved ("right") and how each slip is made, told as the
+# student would tell it: (Catalan, English). No numbers, as above. Only slips that are a way of
+# solving get a sentence (not "one step too few", and nothing for the film times, whose wrong
+# options are distances from the answer, or for the race, whose wrong options are not slips).
+# Catalan written by the team: needs a native read.
+METHODS = {
+    "shopping": {
+        "right": ("He calculat el que costa cada tipus de cosa, ho he sumat i ho he restat dels diners lliurats.",
+                  "I worked out what each kind of thing costs, added the two and took that from the money handed over."),
+        "one_purchase": ("He restat dels diners lliurats el que costa un dels dos tipus de cosa.",
+                         "I took what one of the two kinds of thing costs from the money handed over."),
+        "spent_not_change": ("He calculat el que costa cada tipus de cosa i ho he sumat. Aquest total és la resposta.",
+                             "I worked out what each kind of thing costs and added the two. That total is the answer."),
+        "same_price": ("He comptat totes les coses juntes, les he multiplicat per un dels preus i ho he restat dels diners lliurats.",
+                       "I counted all the things together, multiplied by one of the prices and took that from the money handed over."),
+        "added_spent": ("He calculat el que costa tot i ho he sumat als diners lliurats.",
+                        "I worked out what everything costs and added it to the money handed over."),
+    },
+    "sharing": {
+        "right": ("He tret primer els que es guarden i he repartit els que queden.",
+                  "I first took away the ones set aside and shared out the ones left."),
+        "shared_all": ("He repartit tots els que hi havia al principi, sense treure'n cap.",
+                       "I shared out all the ones there were at the start, without taking any away."),
+        "not_shared_yet": ("He restat els que es guarden dels que hi havia. Aquesta resta és la resposta.",
+                           "I took the ones set aside from the ones there were. That difference is the answer."),
+        "one_share_more": ("He tret els que es guarden i he repartit la resta comptant una persona més.",
+                           "I took away the ones set aside and shared the rest counting one person more."),
+    },
+    "fraction_two_step": {
+        "right": ("He restat el que es gasta el primer dia. Del que quedava, n'he calculat la segona fracció i també l'he restada.",
+                  "I took away what is used on the first day. Of what was left I worked out the second fraction and took that away too."),
+        "after_first_day": ("He calculat el que es gasta el primer dia i ho he restat del total. Això és el que queda.",
+                            "I worked out what is used on the first day and took it from the total. That is what is left."),
+        "second_day_used": ("He mirat què quedava després del primer dia i n'he calculat la segona fracció. Aquest resultat és la resposta.",
+                            "I found what was left after the first day and worked out the second fraction of it. That result is the answer."),
+        "fraction_of_whole": ("He calculat les dues fraccions sobre la quantitat del principi i les he restades totes dues.",
+                              "I worked out both fractions of the amount at the start and took both away."),
+        "used_not_left": ("He sumat el que es gasta el primer dia i el que es gasta el segon.",
+                          "I added what is used on the first day and what is used on the second."),
+        "first_day_forgotten": ("He restat del total només el que es gasta el segon dia.",
+                                "I took only what is used on the second day from the total."),
+    },
+    "average_missing": {
+        "right": ("He multiplicat la mitjana pel nombre total de partides i n'he restat els punts de les que ja sabia.",
+                  "I multiplied the average by the total number of games and took away the points of the games I knew."),
+        "the_mean": ("He pensat que l'última partida ha de ser com la mitjana i he respost la mitjana.",
+                     "I thought the last game must be like the average and answered the average."),
+        "four_games": ("He multiplicat la mitjana pel nombre de partides que ja sabia i n'he restat els seus punts.",
+                       "I multiplied the average by the number of games I knew and took away their points."),
+        "mean_of_four": ("He fet la mitjana de les partides que ja sabia.",
+                         "I worked out the average of the games I knew."),
+    },
+    "number_think": {
+        "right": ("He desfet els passos del final cap al principi, cadascun amb l'operació contrària.",
+                  "I undid the steps from the last to the first, each with the opposite operation."),
+        "not_undone": ("He començat pel resultat, hi he tornat a fer l'últim pas tal com el diu l'enunciat i després he dividit.",
+                       "I started from the result, did the last step again as the problem says it, and then divided."),
+        "step_skipped": ("He dividit el resultat pel nombre que multiplica, i prou.",
+                         "I divided the result by the number that multiplies, and that was all."),
+        "one_step_undone": ("He desfet només l'últim pas, el de sumar o restar.",
+                            "I undid only the last step, the adding or taking away."),
+    },
+    "coin_count": {
+        "right": ("He imaginat que totes les monedes eren de les petites i he mirat quants euros faltaven: cada euro que falta és una moneda de les grans.",
+                  "I imagined every coin was a small one and saw how many euros were missing: each missing euro is one of the big coins."),
+        "other_coins": ("He trobat quantes monedes hi ha de cada tipus i he respost les de menys valor.",
+                        "I found how many coins there are of each kind and answered the ones worth less."),
+        "all_twos": ("He dividit els diners totals pel valor de la moneda gran.",
+                     "I divided the total money by the value of the big coin."),
+    },
+    "ages": {
+        "right": ("He tret de la suma els anys que passaran per a tots dos i després la diferència d'edat, i n'he fet la meitat.",
+                  "I took from the sum the years that will pass for both, then the age difference, and halved what was left."),
+        "older_one": ("He trobat les dues edats d'avui i he respost la de la persona més gran.",
+                      "I found both ages today and answered the older person's."),
+        "future_age": ("He trobat l'edat que tindrà d'aquí a uns anys i he respost aquesta.",
+                       "I found the age in a few years' time and answered that one."),
+        "same_age": ("He tret de la suma els anys que passaran i l'he partida per la meitat, com si tinguessin la mateixa edat.",
+                     "I took from the sum the years that will pass and split it in half, as if both had the same age."),
+    },
+    "outfits": {
+        "right": ("He multiplicat les opcions de les tres coses, perquè cada tria es pot combinar amb totes les altres.",
+                  "I multiplied the choices of the three things, because each choice goes with every other one."),
+        "added_choices": ("He sumat les opcions de les tres coses.", "I added the choices of the three things."),
+        "two_of_three": ("He multiplicat les opcions de dues de les coses, i prou.",
+                         "I multiplied the choices of two of the things, and that was all."),
+        "added_one_kind": ("He multiplicat les opcions de dues coses i hi he sumat les de la tercera.",
+                           "I multiplied the choices of two things and added those of the third."),
+    },
+    "handshakes": {
+        "right": ("He multiplicat el nombre de persones pels altres que té cadascuna, i ho he dividit entre dos perquè cada parella surt dues vegades.",
+                  "I multiplied the number of people by the others each one has, and halved it because every pair comes up twice."),
+        "counted_twice": ("He multiplicat el nombre de persones pels altres que té cadascuna, i prou.",
+                          "I multiplied the number of people by the others each one has, and that was all."),
+        "one_person": ("He comptat amb quants altres tracta una persona.", "I counted how many others one person deals with."),
+    },
+    "remainder": {
+        "right": ("He buscat el múltiple més gran que no es passa i he mirat quant falta fins al nombre.",
+                  "I looked for the largest multiple that does not go past and saw how far it is from the number."),
+        "quotient": ("He fet la divisió i he respost quantes vegades hi cap.",
+                     "I did the division and answered how many times it fits."),
+        "missing_to_next": ("He mirat quant falta per arribar al múltiple següent.",
+                            "I saw how much is missing to reach the next multiple."),
+    },
+    "multiples_in_range": {
+        "right": ("He comptat els múltiples que hi ha fins al final i n'he tret els que hi ha abans del començament.",
+                  "I counted the multiples up to the end and took away the ones before the start."),
+        "from_one": ("He comptat tots els múltiples que hi ha fins al final, des de l'u.",
+                     "I counted all the multiples up to the end, from one."),
+        "range_length": ("He restat els dos extrems i he dividit la diferència.",
+                         "I took one end from the other and divided the difference."),
+    },
+    "arithmetic_sequence": {
+        "right": ("Des del primer nombre he fet un pas menys que la posició que demanen, i cada pas suma el mateix.",
+                  "From the first number I took one step fewer than the position asked for, and every step adds the same."),
+        "step_too_many": ("Des del primer nombre he fet tants passos com diu la posició.",
+                          "From the first number I took as many steps as the position says."),
+        "start_forgotten": ("He multiplicat la posició pel que suma cada pas.",
+                            "I multiplied the position by what each step adds."),
+    },
+    "rect_area": {
+        "right": ("He fet la meitat del perímetre, n'he restat el costat que sé per trobar l'altre, i he multiplicat els dos costats.",
+                  "I halved the perimeter, took away the side I know to find the other, and multiplied the two sides."),
+        "one_side_off": ("He restat del perímetre el costat que sé i he multiplicat el resultat per aquest costat.",
+                         "I took the side I know from the perimeter and multiplied the result by that side."),
+        "half_is_two_sides": ("He fet la meitat del perímetre i l'he multiplicada pel costat que sé.",
+                              "I halved the perimeter and multiplied it by the side I know."),
+        "square": ("He multiplicat el costat que sé per ell mateix.", "I multiplied the side I know by itself."),
+    },
+    "l_shape_area": {
+        "right": ("He calculat l'àrea del rectangle sencer i n'he restat l'àrea de la cantonada tallada.",
+                  "I worked out the area of the whole rectangle and took away the area of the cut corner."),
+        "whole_rectangle": ("He multiplicat els dos costats del rectangle gran, i prou.",
+                            "I multiplied the two sides of the big rectangle, and that was all."),
+        "corner_added": ("He calculat l'àrea del rectangle sencer i hi he sumat la de la cantonada.",
+                         "I worked out the area of the whole rectangle and added the corner's."),
+        "sides_shortened": ("He escurçat cada costat del rectangle amb la mida de la cantonada i he multiplicat els costats nous.",
+                            "I shortened each side of the rectangle by the corner's length and multiplied the new sides."),
+        "lengths_subtracted": ("He calculat l'àrea del rectangle sencer i n'he restat les dues mides de la cantonada.",
+                               "I worked out the area of the whole rectangle and took away the corner's two lengths."),
+    },
+    "ribbon_pieces": {
+        "right": ("Ho he passat tot a centímetres i he dividit per la llargada d'un tros.",
+                  "I turned everything into centimetres and divided by the length of one piece."),
+        "metre_is_ten": ("He comptat cada metre com a deu centímetres, ho he sumat tot i he dividit per la llargada d'un tros.",
+                         "I counted each metre as ten centimetres, added it all up and divided by the length of one piece."),
+        "cm_forgotten": ("He passat els metres a centímetres, he deixat de banda els centímetres de més i he dividit.",
+                         "I turned the metres into centimetres, left the extra centimetres aside and divided."),
+    },
+}
+# What the tutor says after the tap: (Catalan, English). The numbers go in with format().
+EXPLAINED = {
+    True: ("Sí: aquest és el camí que porta a la resposta.", "Yes: that is the way that leads to the answer."),
+    False: ("Amb aquest camí sortiria {value}, i tu has trobat {answer}, que és la resposta bona. "
+            "El camí que hi porta és el que ara veus marcat.",
+            "That way would give {value}, and you found {answer}, which is the right answer. "
+            "The way that leads to it is the one now marked."),
+}
+
+
+def explanations(problem, rng=random):
+    """Three ways of solving a generated problem, in a random order: the one of the worked solution
+    and two slips that give two different wrong numbers for this draw. None where that cannot be
+    done honestly. Each is {"code": "right" or the slip, "value": the number that way gives}."""
+    methods, rule = METHODS.get(problem["generator"]), MISTAKES.get(problem["generator"])
+    if not methods or not rule:
+        return None
+    answer, slips = rule(problem["params"])
+    if str(answer) != problem["answer"]:  # the generator changed: ask nothing rather than something wrong
+        return None
+    shown = set(problem["options"].values())
+    wrong = {}  # slip -> the number it gives; where a slip can give two, the one among the options
+    for value, code in slips:
+        if value is None or code not in methods or str(value) == problem["answer"] or str(value).startswith("-"):
+            continue
+        if code not in wrong or (str(value) in shown and str(wrong[code]) not in shown):
+            wrong[code] = value
+    picked, values = [], set()
+    # First the slips whose number the student has just seen among the options
+    for code in sorted(wrong, key=lambda c: (str(wrong[c]) not in shown, rng.random())):
+        if str(wrong[code]) not in values and len(picked) < 2:
+            picked.append({"code": code, "value": str(wrong[code])})
+            values.add(str(wrong[code]))
+    if len(picked) < 2:
+        return None
+    items = [{"code": "right", "value": problem["answer"]}] + picked
+    rng.shuffle(items)
+    return items
+
+
 # Generators whose wrong options are not slips: a way to check, instead of a mistake name
 CHECK = {"race_logic": ("Escriu els cinc noms en ordre i comprova que cada pista es compleix.",
                         "Write the five names in order and check that every clue holds.")}
@@ -391,7 +590,7 @@ class Practice:
         self.shown.add(problem["text"])
         self.count += 1
         self.current = {"problem": problem, "mistakes": mistakes(problem), "attempts": [],
-                        "topic": topic, "n": self.count}
+                        "topic": topic, "n": self.count, "shown": False, "explain": None, "explained": None}
         return {"n": self.count, "topic": topic, "kind": name, "text": problem["text"],
                 "options": problem["options"], "events": [{"event": "letter", "value": "?"}]}
 
@@ -412,6 +611,12 @@ class Practice:
                   "events": [{"event": "tick" if correct else "cross"}]}
         if correct:  # solved: now the worked solution is theirs to compare with
             result["solution"] = problem["rationale"]
+            if s["explain"] is None and not s["shown"]:  # "explain it back", where it can be asked honestly
+                s["explain"] = explanations(problem, self.rng) or []
+            if s["explain"] and s["explained"] is None:
+                texts = METHODS[problem["generator"]]
+                result["explain"] = [{"id": i, "text": texts[item["code"]][self.language == "eng"]}
+                                     for i, item in enumerate(s["explain"])]
         else:
             code = s["mistakes"].get(letter)
             texts = MESSAGES[problem["generator"]][code] if code else CHECK.get(problem["generator"], NO_NAME)
@@ -421,6 +626,29 @@ class Practice:
 
     def solution(self):
         """The answer and the worked solution: only when the student asks for it."""
-        problem = self._session()["problem"]
+        s = self._session()
+        problem = s["problem"]
+        s["shown"] = True  # the method has been read: no "explain it back" for this one
         return {"label": problem["label"], "answer": problem["answer"], "text": problem["rationale"],
                 "events": [{"event": "letter", "value": problem["label"]}]}
+
+    def explain(self, choice):
+        """The student's one tap: which of the three explanations is how they solved it. It checks
+        understanding and never counts against them: no cross, and a second tap is refused."""
+        s = self._session()
+        if not s["explain"] or s["problem"]["label"] not in s["attempts"]:
+            raise ValueError("nothing to explain yet")
+        if s["explained"] is not None:
+            raise ValueError("already explained")
+        try:
+            picked = s["explain"][int(choice)] if int(choice) >= 0 else None
+        except (TypeError, ValueError, IndexError):
+            picked = None
+        if picked is None:
+            raise ValueError("choose one of the explanations")
+        correct = picked["code"] == "right"
+        s["explained"] = correct
+        text = EXPLAINED[correct][self.language == "eng"].format(value=picked["value"], answer=s["problem"]["answer"])
+        return {"correct": correct, "picked": int(choice), "text": text, "status": "regla",
+                "right": next(i for i, item in enumerate(s["explain"]) if item["code"] == "right"),
+                "events": [{"event": "tick"}] if correct else []}

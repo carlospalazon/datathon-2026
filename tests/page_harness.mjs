@@ -262,6 +262,30 @@ await step("another practice problem, its solution on request, and back", async 
   check($("#feed").querySelectorAll(".msg.practice .letters button").every(b => !b.disabled), "the practice card still takes answers");
 });
 
+if (doc.querySelector("#warmpane")) await step("explain it back: after a right answer, one tap on the way it was solved; then the worked solution", async () => {
+  let asked = null;
+  for (let tries = 0; tries < 6 && !asked; tries++) {  // the kinds rotate: one that can be asked about comes within a few cards
+    await click($("#feed").querySelector(".msg.practice .pmore"));
+    const card = $("#feed").querySelector(".msg.practice");
+    for (const b of card.querySelectorAll(".letters button")) { await click(b); if (b.classList.contains("right")) break; }
+    if (card.querySelector(".xopt")) asked = card;
+    else check(/tenen en comú/.test(card.querySelector(".preply").textContent), "where it cannot be asked, the worked solution comes at once");
+  }
+  check(asked, "a practice problem that asks how it was solved");
+  const ways = asked.querySelectorAll(".xopt");
+  check(ways.length === 3 && ways.every(w => w.textContent.length > 15 && !/\d/.test(w.textContent)), "three ways of solving, in words");
+  check(!/tenen en comú/.test(asked.querySelector(".preply").textContent), "the worked solution waits for the tap");
+  ways[0].click(); ways[1].click();  // a double tap
+  await settle();
+  check(calls.filter(c => c.startsWith("api/practiceexplain/")).length === 1, "one tap counts");
+  check(ways.every(w => w.disabled) && asked.querySelectorAll(".xopt.match").length === 1, "the way that leads to the answer is marked");
+  check(asked.querySelector(".xreply").textContent.length > 20, "a line about the way picked: " + asked.querySelector(".xreply").textContent);
+  check(!asked.querySelector(".letters button.wrong.xopt") && /tenen en comú/.test(asked.querySelector(".preply").textContent), "and then the worked solution");
+  await click($("#mapbtn"));
+  check(/camí ben explicat en [01] de 1/.test($("#mappane").textContent), "the map counts it: " + ($("#mappane").textContent.match(/camí[^·<]{0,40}/) || [""])[0]);
+  await click($("#mappane").querySelector(".mleave"));
+});
+
 await step("the help ladder, the solution, the chat and the next problem", async () => {
   for (let i = 0; i < 8; i++) await click($("#help"));
   check($("#feed").querySelectorAll(".msg.help").length >= 2, "help messages");

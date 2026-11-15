@@ -249,7 +249,9 @@ ui.expose_api("GET", "/api/readingmode/{modes}", lambda modes: run(read, modes))
 ui.expose_api("GET", "/api/practice", lambda: run(hooked("practice", practice_new)))
 ui.expose_api("GET", "/api/practiceanswer/{letter}",
               lambda letter: run(hooked("practiceanswer", lambda x: practice.answer(x)), letter))
-ui.expose_api("GET", "/api/practicesolution", lambda: run(practice.solution))
+ui.expose_api("GET", "/api/practicesolution", lambda: run(lambda: practice.solution()))
+ui.expose_api("GET", "/api/practiceexplain/{choice}",
+              lambda choice: run(hooked("practiceexplain", lambda x: practice.explain(x)), choice))
 ui.expose_api("GET", "/api/examinfo", lambda: run(exam.info))
 ui.expose_api("GET", "/api/examstart/{level}/{paper}",
               lambda level, paper: run(begun(lambda a, b: exam.start(a, b)), level, paper))

@@ -220,6 +220,24 @@ class FromPracticeAndTheExam(unittest.TestCase):
         self.assertTrue(again["again"])
         self.assertEqual(tutor.errors, {("aritmetica", "practice:shopping:spent_not_change"): 2})
 
+    def test_explaining_back_is_a_count_of_its_own_and_never_counts_against_the_topic(self):
+        skills, tutor = desk()
+        tutor.start(keys(skills, 0, "aritmetica")[0])
+        before = dict(tutor.errors)
+        for picked in (True, False, False):
+            current = {"topic": "aritmetica", "level": 0, "problem": {"generator": "shopping"}}
+            skills.practice_answered(current, {"correct": True, "attempts": 1, "mistake": None})
+            skills.after("practiceexplain", tutor, type("Card", (), {"current": current}), None, {"correct": picked})
+        mine = cell(skills.view(seen=tutor.seen, home=0), 0, "aritmetica")
+        self.assertEqual((mine["practice"], mine["explained"], mine["explain_asked"]), (3, 1, 3))
+        self.assertEqual((mine["state"], mine["slip"], mine["tries"]), ("tried", None, 0))   # no slip, never shaky
+        self.assertEqual(tutor.errors, before)                                                # not in the tutor's memory
+        self.assertNotIn("explained", json.dumps(skills.classroom()))                         # and not in the class view
+        self.assertEqual(skills.warmup_topics()[0], {"topic": "aritmetica", "from_map": True})  # worth a warm-up problem
+        skills.practice_explained({"topic": "aritmetica"}, {"correct": True})                 # a card the map never saw
+        skills.practice_explained(None, {"correct": True})
+        self.assertEqual(cell(skills.view(seen=tutor.seen, home=0), 0, "aritmetica")["explain_asked"], 3)
+
     def test_a_practice_card_with_no_level_is_left_out(self):
         skills, _ = desk()
         skills.practice_answered({"topic": "aritmetica", "problem": {"generator": "shopping"}},
@@ -533,6 +551,29 @@ class ThroughTheServer(unittest.TestCase):
         self.assertEqual((sum(c["tries"] for c in other), sum(c["blank"] for c in other)), (1, 2))
         self.assertEqual(len(view["frames"]), 1)
         self.assertNotIn('"label"', json.dumps(view))
+
+    def test_explain_it_back_through_the_server_reaches_the_map(self):
+        call = self.app.call
+        topic, level = self.app.tutor.current["problem"]["topic"], self.app.tutor.current["problem"]["level"]
+        if topic != "aritmetica" or not call("practiceok", {})["available"]:
+            self.skipTest("needs the shopping generator")
+        call("practice", {})
+        self.assertIn("error", self._refused("practiceexplain", {"choice": "0"}))             # not before it is solved
+        result = call("practiceanswer", {"letter": self.app.practice.current["problem"]["label"]})
+        self.assertEqual(len(result["explain"]), 3)
+        self.assertNotIn("code", json.dumps(result["explain"]))
+        told = call("practiceexplain", {"choice": "0"})
+        self.assertIn(told["correct"], (True, False))
+        mine = cell(call("skillmap", {}), level, topic)
+        self.assertEqual((mine["explain_asked"], mine["explained"], mine["practice"]), (1, int(told["correct"]), 1))
+        self.assertIn("error", self._refused("practiceexplain", {"choice": "1"}))            # one tap
+
+    def _refused(self, action, body):
+        try:
+            self.app.call(action, body)
+        except ValueError as error:
+            return {"error": str(error)}
+        return {}
 
     def test_the_board_goes_from_one_student_to_the_next_and_back(self):
         call = self.app.call

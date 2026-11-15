@@ -79,6 +79,15 @@
   .msg.practice .letters button b, #warmpane .letters button b { color: var(--muted); font-weight: 800; margin-right: 8px; }
   .preply { margin-top: 8px; }
   .preply p { margin: 6px 0 0; }
+  /* "Explain it back": three ways of solving, one tap; the right way is marked afterwards, nothing in red */
+  .explain { margin-top: 10px; padding: 12px 14px; border: 2px solid var(--accent); border-radius: 16px; }
+  .xopts { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .xopt { font: inherit; font-weight: 700; text-align: left; padding: 10px 14px; border-radius: 14px; border: 2px solid var(--line); border-bottom-width: 4px; background: var(--card); color: var(--ink); cursor: pointer; }
+  .xopt:hover:not(:disabled) { border-color: var(--accent); }
+  .xopt:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .xopt:disabled { cursor: default; opacity: .75; }
+  .xopt.match { border-color: var(--green); background: var(--ok-bg); opacity: 1; }
+  .xopt.other { border-color: var(--warn); opacity: 1; }
   /* Warm-up of three: short practice problems in the tutor's place before the first Cangur problem; skippable */
   #warmpane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
   #warmpane .wstep { color: var(--green-dark); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; font-size: 14px; }
@@ -266,6 +275,7 @@ async function api(action, body) {
     : action === "chat" ? `chat/${enc(body.text)}`
     : action === "job" ? `job/${enc(body.id)}`
     : action === "practiceanswer" ? `practiceanswer/${enc(body.letter)}`
+    : action === "practiceexplain" ? `practiceexplain/${enc(body.choice)}`
     : action === "examstart" ? `examstart/${enc(body.level)}/${enc(body.paper)}`
     : action === "examanswer" ? `examanswer/${enc(body.n)}/${enc(body.letter)}`
     : action === "readingmode" ? `readingmode/${enc(body.modes)}`
@@ -414,6 +424,36 @@ async function skipThink() {  // after a clear attempt: the hint button comes ba
 $("#thinkskip").onclick = skipThink;
 $("#chattext").oninput = e => { if (thinkTimer !== null && e.target.value.trim().length >= 3) $("#thinkskip").hidden = false; };
 
+// --- "Explain it back": after a right answer on a practice problem, one tap on the explanation that matches the student's way ---
+// The three are the worked solution's method and two slips whose result is known. It never counts against the student.
+function explainBack(reply, letter, items, solved) {
+  reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong>
+    <div class="explain"><strong>Com l'has resolt?</strong>
+      <small>Tria l'explicació que més s'assembla al que has fet. No hi ha nota: és per veure si el camí és el bo.</small>
+      <div class="xopts" role="group" aria-label="Com l'has resolt"></div>
+      <p class="xreply" aria-live="polite"></p></div>`;
+  const row = reply.querySelector(".xopts");
+  let busy = false;
+  for (const item of items) {
+    const b = document.createElement("button");
+    b.className = "xopt";
+    b.textContent = item.text;
+    b.onclick = async () => {
+      if (busy) return;  // one tap
+      busy = true;
+      let r;
+      try { r = await api("practiceexplain", { choice: item.id }); } catch (e) { busy = false; return; }
+      if (r.error) { busy = false; return; }
+      draw(r.frames);
+      row.querySelectorAll("button").forEach((o, i) => { o.disabled = true; o.classList.toggle("match", i === r.right); });
+      if (!r.correct) b.classList.add("other");
+      reply.querySelector(".xreply").innerHTML = `${esc(r.text)}${badge(r.status)}`;
+      reply.insertAdjacentHTML("beforeend", solved);
+    };
+    row.append(b);
+  }
+}
+
 // --- "One like this, but yours": a fresh problem of the same kind, with the slip named ---
 let canPractise = false, practising = false;
 async function practise() {
@@ -454,8 +494,9 @@ async function practise() {
       if (a.correct) {
         lock();
         div.querySelector(".psol").hidden = true;
-        reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong><p>${esc(a.solution)}</p>
-          <p>Ara torna al teu problema: què tenen en comú tots dos?</p>`;
+        const solved = `<p>${esc(a.solution)}</p><p>Ara torna al teu problema: què tenen en comú tots dos?</p>`;
+        if (a.explain) explainBack(reply, letter, a.explain, solved);  // first the student's own way, then the worked solution
+        else reply.innerHTML = `<strong>Molt bé! La ${letter} és correcta.</strong>${solved}`;
       } else {
         reply.innerHTML = `<strong>La ${letter} no és correcta.</strong> ${esc(a.mistake.text)}${badge(a.mistake.status)}`
           + (a.again ? `<p class="again">Aquest error ja havia sortit en un altre problema de pràctica.${a.method_next ? " Quan tornis al teu problema, la propera pista serà com s'enfoca aquest tipus de problema." : ""}</p>` : "");
@@ -937,6 +978,7 @@ function tileNote(c) {
   const bits = [];
   if (c.tries) bits.push(`${c.clean} de ${c.tries} a la primera`);
   if (c.practice) bits.push(plural(c.practice, "problema de pràctica", "problemes de pràctica"));
+  if (c.explain_asked) bits.push(`camí ben explicat en ${c.explained} de ${c.explain_asked}`);
   if (c.blank) bits.push(`${c.blank} en blanc a l'examen`);
   if (!bits.length) bits.push(plural(c.problems, "problema per descobrir", "problemes per descobrir"));
   return bits.join(" · ");

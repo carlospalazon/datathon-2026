@@ -177,6 +177,8 @@ class App:
             return with_frames(self.practice.answer(body.get("letter", "")))
         if action == "practicesolution":
             return with_frames(self.practice.solution())
+        if action == "practiceexplain":  # "explain it back": the one tap after a right answer
+            return with_frames(self.practice.explain(body.get("choice")))
         if action == "examinfo":
             return self.exam.info()
         if action == "examstart":
@@ -252,7 +254,8 @@ def make_handler(app):
             if parts[0] == "api" and len(parts) >= 2:
                 names = {"answer": ["letter"], "practiceanswer": ["letter"], "respond": ["qid", "value"], "start": ["key"],
                          "chat": ["text"], "job": ["id"], "examstart": ["level", "paper"],
-                         "examanswer": ["n", "letter"], "student": ["n"], "readingmode": ["modes"]}.get(parts[1], [])
+                         "examanswer": ["n", "letter"], "student": ["n"], "readingmode": ["modes"],
+                         "practiceexplain": ["choice"]}.get(parts[1], [])
                 body = dict(zip(names, parts[2:]))
                 try:
                     return self.send(200, app.call(parts[1], body))

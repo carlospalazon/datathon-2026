@@ -71,6 +71,50 @@ class Mistakes(unittest.TestCase):
         self.assertEqual(P.mistakes(problem), {})
 
 
+class ExplainItBack(unittest.TestCase):
+    def test_every_way_is_a_slip_of_its_generator_and_has_no_number_in_it(self):
+        self.assertNotIn("film_end_time", P.METHODS)
+        self.assertNotIn("race_logic", P.METHODS)
+        for name, ways in P.METHODS.items():
+            _, slips = P.MISTAKES[name](GEN.generate(name, random.Random(0), "cat")["params"])
+            self.assertIn("right", ways)
+            self.assertGreaterEqual(len(ways), 3, name)
+            for code, texts in ways.items():
+                if code != "right":
+                    self.assertIn(code, [c for _, c in slips], f"{name}: {code}")
+                    self.assertIn(code, P.MESSAGES[name])
+                for text in texts:
+                    self.assertTrue(text.strip())
+                    self.assertIsNone(re.search(r"\d", text), text)
+            self.assertEqual(len({t for texts in ways.values() for t in texts}), 2 * len(ways), name)
+
+    def test_the_three_ways_are_the_checked_one_and_two_slips_with_two_other_numbers(self):
+        asked = total = 0
+        for name in P.METHODS:
+            for seed in SEEDS:
+                problem = GEN.generate(name, random.Random(seed), "cat")
+                items = P.explanations(problem, random.Random(seed))
+                total += 1
+                if items is None:
+                    continue
+                asked += 1
+                _, slips = P.MISTAKES[name](problem["params"])
+                self.assertEqual(len(items), 3)
+                self.assertEqual([i["value"] for i in items if i["code"] == "right"], [problem["answer"]])
+                wrong = [i for i in items if i["code"] != "right"]
+                self.assertEqual(len({i["code"] for i in wrong}), 2)
+                self.assertEqual(len({i["value"] for i in wrong} | {problem["answer"]}), 3, f"{name} seed {seed}")
+                for item in wrong:   # the number is really what that slip gives for this draw
+                    self.assertIn((item["value"], item["code"]), [(str(v), c) for v, c in slips])
+        self.assertGreater(asked / total, 0.7)
+
+    def test_a_changed_generator_is_not_asked_about(self):
+        problem = GEN.generate("shopping", random.Random(1), "cat")
+        self.assertIsNotNone(P.explanations(problem, random.Random(1)))
+        problem["params"]["pay"] += 1
+        self.assertIsNone(P.explanations(problem, random.Random(1)))
+
+
 class PracticeFlow(unittest.TestCase):
     def test_the_view_never_carries_the_answer(self):
         practice = P.Practice("cat", seed=3)
@@ -149,6 +193,54 @@ class PracticeFlow(unittest.TestCase):
         self.assertEqual(shown["label"], practice.current["problem"]["label"])
         self.assertEqual(shown["answer"], practice.current["problem"]["answer"])
         frame(shown["events"][0])
+
+    def test_a_right_answer_asks_how_it_was_solved_and_one_tap_answers(self):
+        for language in ("cat", "eng"):
+            practice = P.Practice(language, seed=11)
+            practice.new("aritmetica")  # the shopping problem: several slips, so it can always be asked
+            problem = practice.current["problem"]
+            with self.assertRaises(ValueError):
+                practice.explain(0)                                  # nothing to explain before it is solved
+            wrong = next(letter for letter in "ABCDE" if letter != problem["label"])
+            self.assertNotIn("explain", practice.answer(wrong))
+            result = practice.answer(problem["label"])
+            self.assertEqual([item["id"] for item in result["explain"]], [0, 1, 2])
+            self.assertEqual([set(item) for item in result["explain"]], [{"id", "text"}] * 3)   # no code, no number
+            self.assertEqual(len({item["text"] for item in result["explain"]}), 3)
+            right = next(i for i, item in enumerate(practice.current["explain"]) if item["code"] == "right")
+            for bad in ("", "x", 3, -1, None):
+                with self.assertRaises(ValueError):
+                    practice.explain(bad)
+            told = practice.explain(str(right))
+            self.assertEqual((told["correct"], told["right"], told["picked"]), (True, right, right))
+            self.assertEqual(told["events"], [{"event": "tick"}])
+            with self.assertRaises(ValueError):
+                practice.explain(right)                              # one tap
+
+    def test_picking_a_wrong_way_is_told_gently_with_the_number_it_gives(self):
+        practice = P.Practice("cat", seed=12)
+        practice.new("aritmetica")
+        problem = practice.current["problem"]
+        practice.answer(problem["label"])
+        items = practice.current["explain"]
+        other = next(i for i, item in enumerate(items) if item["code"] != "right")
+        told = practice.explain(other)
+        self.assertFalse(told["correct"])
+        self.assertEqual(told["events"], [])                         # no cross: it never counts against the student
+        self.assertIn(items[other]["value"], told["text"])
+        self.assertIn(problem["answer"], told["text"])               # the answer is already theirs
+        self.assertEqual(items[told["right"]]["code"], "right")
+
+    def test_no_explaining_back_after_the_solution_was_shown_or_where_it_cannot_be_honest(self):
+        practice = P.Practice("cat", seed=13)
+        practice.new("aritmetica")
+        practice.solution()
+        self.assertNotIn("explain", practice.answer(practice.current["problem"]["label"]))
+        practice.new("logica")       # the race: its wrong options are not slips
+        self.assertNotIn("explain", practice.answer(practice.current["problem"]["label"]))
+        practice.new("medida")       # the film: its wrong options are distances from the answer, not ways of solving
+        self.assertEqual(practice.current["problem"]["generator"], "film_end_time")
+        self.assertNotIn("explain", practice.answer(practice.current["problem"]["label"]))
 
     def test_bad_letters_are_refused(self):
         practice = P.Practice("cat", seed=2)

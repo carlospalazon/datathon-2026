@@ -11,7 +11,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 3 | **Cangur exam mode.** A timed paper built from the catalogue by level, with the real scoring (3/4/5 points, a quarter of the points lost per wrong answer, blank is free), a countdown on the LED matrix, and a review at the end that leads into the tutor. | The real competition experience; shows when leaving a blank is the right call. | catalogue levels, LED matrix, student memory | **built** (2026-11-15; scoring settings need checking; the student memory is not fed) |
 | 4 | **Skill map.** One screen (and a matrix view) of the student's topics by level: tried, mastered, shaky, with "what to try next". A teacher view of the class as a heat map, by pseudonym. | Students see progress; teachers see where the class is stuck. | SQLite student memory, topics | **built** (2026-11-15; students take turns at one board; not seen in a real browser) |
 | 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | **built** (2026-11-15; 20 seconds unless `--think` or `TUTOR_THINK` says otherwise; the dim ring not seen on the real matrix) |
-| 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked solution and two wrong methods that also give that number). | Checks understanding, not luck. | checked solutions, generators' typical mistakes | open |
+| 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked method and two wrong methods, each with the number it gives). | Checks understanding, not luck. | generators' typical mistakes (`copilot/practice.py`) | **built** (2026-11-15; on generated practice problems only, 15 kinds, where two slips give two other numbers; not on Cangur problems, not in the warm-up; not seen in a real browser) |
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | **built** (2026-11-15; not in the exam; the key condition of some problems reads like a hint; not seen in a real browser) |
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
@@ -490,3 +490,56 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   (another kind of problem). The Catalan ("Escalfament", "per posar el cap en marxa", "Salta'l i
   ves al problema", "Ara, el meu problema") needs a native read.
 - **Commit:** see `git log -1 -- copilot/warmup.py`
+
+
+### 2026-11-15 · Explain it back (backlog 6)
+- **What:** on the practice card, a right answer no longer shows the worked solution at once.
+  First comes **"Com l'has resolt?"** with three short explanations in the student's voice, in a
+  random order: the method of the worked solution and two wrong methods. One tap. If it is the
+  method that leads to the answer: "Sí: aquest és el camí que porta a la resposta." If not: "Amb
+  aquest camí sortiria 24, i tu has trobat 8, que és la resposta bona", and the right way is
+  marked in green; the one picked gets an amber border, nothing red, no cross on the matrix.
+  Then the worked solution, as before. **Only where it is honest:** the wrong methods are slips
+  of the same generator, and the number each gives for the numbers drawn is worked out again
+  from the generator's parameters (`METHODS` and `explanations()` in `copilot/practice.py`), so
+  it is asked only when two different slips give two different wrong numbers for this draw
+  (always for the shop, the two-day tank, the menu, the handshakes and the two area problems;
+  about a third of the time for sharing, the hidden number, the coins and the ribbon). Never for
+  the film times (their wrong options are distances from the answer, not ways of solving), the
+  race, after "Com es resol", or on a Cangur problem: no wrong explanation is invented. The
+  three sentences carry no number and no code, and the tap is checked on the server
+  (`practiceexplain/<n>`, in `teach/server.py` and the App Lab app). **It feeds the map and
+  never penalises:** the practice record keeps whether the way was recognised, the tile says
+  "camí ben explicat en 2 de 3", and a topic where it was not recognised becomes a candidate for
+  the warm-up. It is no slip, never makes a topic "Per reforçar", does not reach the tutor's
+  memory (no streak ended, no help reordered) and is not in the class view.
+- **Why:** five options can be guessed. Recognising your own method among two near misses
+  cannot, and it makes the student say how, which is where the understanding is.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650, "Salta'l i ves
+  al problema". The first problem is a measure problem, whose first practice kind (film times)
+  is not asked about: click "Següent problema" until the topic pill says "Càlcul amb dades" (or
+  use "El meu mapa" → "Prova'n un" on that topic), then **"Un de semblant"**, click options until
+  the right one: **"Com l'has resolt?"** appears with three explanations. Tap one. Then "El meu
+  mapa": the tile of the topic says "camí ben explicat en ... de 1".
+- **Tests / checks run:** `python3 -m pytest -q`: 372 passed (in one earlier run 2 tests of the
+  model lab's `tests/test_presolve.py` failed while the model lab was editing that file; not our
+  files, and they passed in the next run). New: 7 in `tests/test_practice.py` (every way is a slip of its generator and has no
+  digit; over 200 seeds of the 15 kinds the three ways are the checked one and two slips with two
+  other numbers that are really what those slips give; asked for more than 70% of the draws; a
+  changed generator is not asked about; the flow, one tap, a wrong way told with its number and
+  no cross, nothing after the solution was shown or for the film and the race), 2 in
+  `tests/test_skillmap.py` (a count of its own, never shaky, no slip, not in the tutor's memory
+  or the class view; through the server); the page harness has a 14th step (cards until one asks,
+  three ways in words, the solution waiting for the tap, a double tap counted once, the right
+  way marked, the map's count), run 6 times in a row. Real catalogue, server started from a
+  Python script: 20 practice problems asked about over 40 Cangur problems, a second tap refused,
+  the map's counts equal to the taps, no topic shaky from it; server stopped. The App Lab build
+  imported with stand-ins: 37 routes.
+- **Not done:** not seen in a real browser, not run on the board. Not in the warm-up (kept
+  short) and not on Cangur problems (their wrong methods are not known; the reviewed distractor
+  notes could carry some later). A student who solved it a third, valid way has to pick the
+  nearest one: the question says "la que més s'assembla". Where a slip can give two numbers (the
+  shop: either purchase) the one among the options is used. Only Catalan and English sentences.
+  **The 45 Catalan sentences of `METHODS` need a native read**, as do "Com l'has resolt?" and
+  "camí ben explicat en 2 de 3".
+- **Commit:** see `git log -1 -- tests/test_practice.py`

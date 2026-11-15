@@ -143,10 +143,20 @@ class SkillMap:
         if (level, topic) not in self.catalogue:  # a warm-up topic the level on screen does not have: the nearest level's tile
             level = min((lv for lv, t in self.catalogue if t == topic), key=lambda lv: abs(lv - level), default=level)
         self.seq += 1
-        self._record(student, f"practice:{self.seq}", {
+        current["map_item"] = (student, f"practice:{self.seq}")  # for "explain it back", which comes later
+        self._record(student, current["map_item"][1], {
             "kind": "practice", "topic": topic, "level": level,
             "outcome": "first" if result["correct"] else "open",
             "slips": [f"practice:{current['problem']['generator']}:{code}"] if code else []})
+
+    def practice_explained(self, current, result):
+        """'Explain it back' on a practice problem: did the student pick the way that leads to the
+        answer? Kept on the problem's record as a count of its own. It never makes a topic shaky,
+        is no slip, and does not reach the tutor's memory."""
+        student, item_id = (current or {}).get("map_item") or (None, None)
+        record = self.items.get(student, {}).get(item_id)
+        if record is not None and "correct" in result:
+            self._record(student, item_id, {**record, "explained": bool(result["correct"])})
 
     def exam_checked(self, paper, student=None):
         """Each question of a paper handed in, once per paper. A blank is not a miss."""
@@ -169,6 +179,8 @@ class SkillMap:
             if practice.current and result.get("attempts") == 1 and code:  # the first click, as on the map
                 told = tutor.practice_slip(practice.current["topic"], practice.current["problem"]["generator"], code)
                 result["again"], result["method_next"] = told["repeated"], told["method"]
+        elif action == "practiceexplain":
+            self.practice_explained(practice.current, result)
         elif action.startswith("exam"):
             self.exam_checked(exam.paper)
             tutor.exam_checked(exam.paper)  # the tutor's own memory: by topic, and the misses come back
@@ -180,9 +192,12 @@ class SkillMap:
         cells = {}
         for item in self.items[student].values():
             for where in ((item["level"], item["topic"]), (None, item["topic"])):
-                c = cells.setdefault(where, {"marks": [], "blank": 0, "practice": 0, "slips": {}})
+                c = cells.setdefault(where, {"marks": [], "blank": 0, "practice": 0, "slips": {}, "explain": [0, 0]})
                 if item["kind"] == "practice":
                     c["practice"] += 1
+                    if item.get("explained") is not None:  # "explain it back": [the right way picked, asked]
+                        c["explain"][0] += bool(item["explained"])
+                        c["explain"][1] += 1
                 elif item["outcome"] == "blank":
                     c["blank"] += 1
                 else:
@@ -194,10 +209,11 @@ class SkillMap:
     def _cell(self, topic, c, problems=0):
         c = c or {"marks": [], "blank": 0, "practice": 0, "slips": {}}
         marks = c["marks"][-WINDOW:]
+        explained, asked = c.get("explain") or (0, 0)
         again = [s for s, n in sorted(c["slips"].items(), key=lambda kv: -kv[1]) if n >= 2]
         return {"topic": topic, "state": state(sum(marks), len(marks), c["blank"] + c["practice"]),
                 "clean": sum(marks), "tries": len(marks), "done": len(c["marks"]), "blank": c["blank"],
-                "practice": c["practice"], "problems": problems,
+                "practice": c["practice"], "problems": problems, "explained": explained, "explain_asked": asked,
                 "slip": self._slip_text(again[0]) if again else None}
 
     def _slip_text(self, slip):
@@ -297,7 +313,7 @@ class SkillMap:
     def warmup_topics(self, can=lambda topic: True, student=None):
         """The topics of the warm-up, one short practice problem each: the ones that went worst so
         far (a topic to reinforce first, then the most slips, then the lowest share of first-time
-        answers), filled up with WARMUP_DEFAULTS, which is all a new student gets, and where the
+        answers; a practice problem whose way of solving was not recognised counts too), filled up with WARMUP_DEFAULTS, which is all a new student gets, and where the
         catalogue has fewer topics than that, with the same topics again (another kind of problem).
         can(topic): can a practice problem be made for it? Only topics of the catalogue, so each
         one has a tile on the map. Returns [{"topic", "from_map"}]."""
@@ -309,7 +325,7 @@ class SkillMap:
                 continue
             cell = self._cell(topic, c)
             missed, slips = cell["tries"] - cell["clean"], sum(c["slips"].values())
-            if missed or slips or cell["blank"]:
+            if missed or slips or cell["blank"] or cell["explain_asked"] > cell["explained"]:
                 share = cell["clean"] / cell["tries"] if cell["tries"] else 0.5
                 hard.append((cell["state"] != "shaky", -slips, share, topic))
         picked = [{"topic": topic, "from_map": True} for *_, topic in sorted(hard)[:WARMUP]]
