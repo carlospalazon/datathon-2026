@@ -22,7 +22,7 @@ import sqlite3
 TOPICS = ("aritmetica", "algebra", "conteo", "numeros", "patrones", "logica", "geometria_plana",
           "geometria_espacial", "medida", "visual", "otros")
 WINDOW = 5   # a topic is judged on the last Cangur problems answered, so it can change
-SOLID = 3    # right the first time on this many of them (the tutor's own MASTERED)
+SOLID = 3    # right the first time on this many of them (the tutor's own MASTERED), with one other at most
 BAR = 6      # tallest column of the LED view; the top row marks what to try next
 # Pseudonyms in the order students sit down. Animals of Catalonia, none of them a person's name.
 ANIMALS = ("Guineu", "Mussol", "Dofí", "Esquirol", "Llúdriga", "Falcó", "Eriçó", "Isard", "Granota", "Teixó",

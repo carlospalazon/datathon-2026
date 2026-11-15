@@ -152,8 +152,9 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   tutor (every answer and every solution shown, through a new optional `observer` on `Tutor`), by
   the practice card (the first click only) and by the exam (each question of a paper handed in,
   by the student or by the clock, once). A problem missed in an exam and then solved with the
-  tutor stays one record that improves. A topic is "Segur" only with 3 first-time right answers
-  among the last 5 Cangur problems; practice never makes it so. **Students take turns at the
+  tutor stays one record that improves. A topic is "Segur" only with at least 3
+  first-time right answers and at most one other among the last 5 Cangur problems; practice never
+  makes it so. **Students take turns at the
   board:** "Alumne nou" gives the next one the name of an animal (Guineu, Mussol, Dofí...), a tutor,
   practice card and exam of their own and an empty map; the buttons with the animals bring one
   back with their problem still on screen. **"Vista de la classe"** is one row per animal and one
@@ -174,7 +175,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   on the map: **"Alumne nou"** (the map empties and the name changes), then the first animal's
   button to come back. **"Vista de la classe"**, then **"Classe d'exemple"** for a full table.
   For the exam: "Mode examen", a "Tast", hand it in, "Torna al tutor", "El meu mapa".
-- **Tests / checks run:** `python3 -m pytest -q`: 302 passed, none skipped (26 new in
+- **Tests / checks run:** `python3 -m pytest -q`: the whole suite passed, none skipped (26 new in
   `tests/test_skillmap.py` on a made-up catalogue: the words, the three sources, once per practice
   problem and per paper, a blank is not a miss, one record per problem, what to try next, nothing
   with a text, a solution or a right letter in what is sent, pseudonyms, the class view, the sample
@@ -184,17 +185,21 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   `--profile`: empty map with three suggestions, tutor, practice and exam counted as expected, no
   `label`, `options`, `text`, `solution` or `hints` in the map, a suggestion opened, a new student
   and back, the sample class, a change of student refused while a paper runs, help, solution and
-  exam still answering, the map restored after a restart; server stopped. `node --check` on the
+  exam still answering, the map restored after a restart; server stopped. A real `Tutor` on the
+  real catalogue with the map listening: every wrong answer its rules diagnose leaves the slip on
+  the record, and 9 tiles name a slip that came back. `node --check` on the
   page script (run from Python): OK. `applab/package.py` built into a scratch folder and the app's
   `main.py` imported there with stand-ins for the board's libraries: the same flow through its 26
   routes, and the matrix drawn.
 - **Not done:** not seen in a real browser (the harness sees no CSS or layout) and not run on the
-  board. The tutor does not use the map: `next_problem` and the help ladder still read only the
+  board. **Practice and exam feed the map, not the tutor's own memory.** The tutor does not use the map: `next_problem` and the help ladder still read only the
   tutor's own memory (backlog 14). On the board the map is in memory and is lost when the app
   restarts (16); on the laptop only the first student's tutor memory goes to the profile file, the
   others keep theirs until the server stops (their maps are saved). One class per board (15).
   Anyone at the board can pick any animal: there is no lock, and the class view is not hidden from
-  students. A practice card left open while another student sits down is not counted. The model's
+  students. A practice card left open while another student sits down is not counted. A problem already
+  settled (solved, or its solution seen) is not rewritten by a later exam miss. A model hint still
+  being written when the board changes student comes back as "unknown job". The model's
   read-ahead on the board starts again for each new student. No Spanish or English page text; the
   Catalan (and the animal names as pseudonyms) needs a native read.
 - **Commit:** see `git log -1 -- copilot/skillmap.py`
