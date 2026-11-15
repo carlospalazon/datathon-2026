@@ -113,7 +113,8 @@ never problem text (M3Kang is research-use only).
     synthetic problems the value lands on an option 113/294 times and is right in 72 of them (64%); on
     Cangur it lands 15/172 times and is right 0 times; with the options shown, 78/172 and 18 right (23%,
     chance). Python doing the sums cannot help while the expression itself is wrong.
-  - Levels and topics: no cell with n ≥ 50 is outside 9–40%, and they move between runs; nothing to report.
+  - Levels and topics: the two cells with n ≥ 50 (algebra 54, numbers 52) swing between 8% and 40% from
+    run to run; nothing there is a pattern.
 - **A prior that is real on M3Kang and absent on the demo set.** Fixed on the training split only
   (1,181 problems whose five options are distinct numbers): the correct value is the middle one 31%, an
   extreme 9% and 11%. Validation: middle value 57/200 (28.5%, 23–35); replacing a model's extreme pick by
