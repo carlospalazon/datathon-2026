@@ -116,6 +116,19 @@ class Routing(unittest.TestCase):
             self.assertIn(word, r["text"], text)
             self.assertTrue(r["debug"]["matched"].startswith("glossary"), text)
 
+    def test_definitions_are_drafts_and_follow_what_the_tutor_may_show(self):
+        tutor = Tutor([PROBLEM], show={"revisado", "preparado"})
+        tutor.start("s1_cat")
+        r = Assistant(tutor, ask=fake_model("Una frase.")).chat("què és un nombre primer?")
+        self.assertNotEqual(r["kind"], "reply")
+
+    def test_the_off_topic_count_starts_again_with_a_new_problem(self):
+        for _ in range(5):
+            r = self.a.chat("qui va guanyar el partit ahir?")
+        self.assertTrue(r["locked"])
+        self.a.tutor.start("s2_cat")
+        self.assertFalse(self.a.chat("qui va guanyar el partit ahir?")["locked"])
+
     def test_a_definition_never_carries_the_answer(self):
         r = self.a.chat("què és un múltiple?")      # the example lists 5, 10, 15, 20 and the answer is 10
         self.assertEqual(r["kind"], "reply")

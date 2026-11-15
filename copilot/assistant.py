@@ -81,6 +81,7 @@ class Assistant:
         self.warmed = None  # key of the last problem the model was asked to read ahead
         self.warm_lock = threading.Lock()
         self.state = {"streak": 0}
+        self.state_for = None  # key of the problem the streak of off-topic messages belongs to
         self.jobs = {}
         self.ids = itertools.count(1)
         self.lock = threading.Lock()
@@ -91,6 +92,8 @@ class Assistant:
     def chat(self, text):
         """Route the student's text. Returns a reply, or {"job": id} when the model is working."""
         problem = self._problem()
+        if problem["key"] != self.state_for:  # a new problem: the page opens the chat again, so the count starts again
+            self.state, self.state_for = {"streak": 0}, problem["key"]
         letter = answer_letter(text)
         if letter:
             self.state = {"streak": 0}
@@ -113,7 +116,7 @@ class Assistant:
             return {"kind": "answer", **self.tutor.answer(letter), "debug": debug}
         if intent in ("pista", "repetir", "math"):  # written help that fits the question comes first
             found = syllabus(text, problem)  # "què és un nombre primer?": a written definition, not the model
-            if found:
+            if found and base_status(found["status"]) in self.tutor.show:
                 return {"kind": "reply", "text": found["text"], "status": found["status"], "tone": "help",
                         "debug": {**debug, "matched": found["source"]}, "events": []}
             reply = self._written(match.pick(text, self.tutor), debug)
