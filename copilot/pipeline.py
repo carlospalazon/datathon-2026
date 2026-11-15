@@ -11,6 +11,7 @@ import time
 import urllib.error
 
 from . import presolve as presolver
+from . import prior as letter_prior
 from .config import CONFIG, ROOT
 from .llm import (URL, answer_letter, answer_reasoned, answer_scores, answer_thinking, force_letter,
                   render_prompt, stated_letter, working_messages, write_working)
@@ -20,6 +21,7 @@ FALLBACK = CONFIG["FALLBACK_ANSWER"]
 MARGIN = 3.0  # seconds kept free for Python and for writing the answer
 FIXED_WORKING_TOKENS = 160  # the cap on the working when the server cannot count the prompt
 _PRESOLVE_INDEX = {}  # path -> index, or the name of the error that stopped it being built
+_PRIOR_TABLE = {}  # path -> table, or the name of the error that stopped it being loaded
 
 
 def _speed(name, default):
@@ -65,6 +67,27 @@ def _presolved(problem, exclude_id, result):
     except Exception as error:  # noqa: BLE001
         result["presolve_error"] = type(error).__name__
         return None
+
+
+def _prior_letter(problem, result):
+    """The letter of copilot.prior (counts from the training split, no model), or None. Never raises."""
+    path = str(CONFIG.get("PRIOR_TABLE", "") or "copilot/prior_table.json")
+    path = path if os.path.isabs(path) else os.path.join(ROOT, path)
+    if path not in _PRIOR_TABLE:
+        try:
+            _PRIOR_TABLE[path] = letter_prior.load(path)
+        except Exception as error:  # noqa: BLE001
+            _PRIOR_TABLE[path] = type(error).__name__
+    table = _PRIOR_TABLE[path]
+    if isinstance(table, str):
+        result["prior_error"] = table
+        return None
+    try:
+        letter, _scores = letter_prior.choose(problem, table)
+    except Exception as error:  # noqa: BLE001
+        result["prior_error"] = type(error).__name__
+        return None
+    return letter if letter in tuple("ABCDE") else None
 
 
 def save_text(problem, result, text, mode):
@@ -219,13 +242,22 @@ def solve(problem, index=None, k=0, exclude_id=None, image_b64=None, llm_url=URL
     try:
         prior = str(CONFIG.get("NO_OPTIONS_PRIOR", "")).strip().upper()
         prior_answers = prior in tuple("ABCDE") and not problem.get("options") and not image_b64
+        # ANSWER_PRIOR=1: every problem is answered from the table of copilot.prior, no model call.
+        table_answers = str(CONFIG.get("ANSWER_PRIOR", "")).strip() == "1"
         if str(CONFIG.get("PRESOLVE", "")).strip() == "1":
             hit = _presolved(problem, exclude_id, result)
             # A copied letter (no options to check it against) only replaces the fixed prior.
-            if hit and (hit["kind"] == "value" or prior_answers):
+            if hit and (hit["kind"] == "value" or prior_answers or table_answers):
                 result["answer"] = hit["answer"]
                 result["status"] = "presolve"
                 result["presolve"] = f"{hit['kind']}:{hit['source']}:{hit['similarity']}"
+                result["seconds"] = round(time.perf_counter() - start, 2)
+                return result
+        if table_answers:
+            letter = _prior_letter(problem, result)
+            if letter:  # no table, or a broken one: the model answers as if the setting were off
+                result["answer"] = letter
+                result["status"] = "prior"
                 result["seconds"] = round(time.perf_counter() - start, 2)
                 return result
         if prior_answers:

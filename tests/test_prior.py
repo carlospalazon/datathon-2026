@@ -5,14 +5,17 @@
 import json
 import os
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "laptop"))
 
 import build_prior  # noqa: E402
-from copilot import prior  # noqa: E402
+from copilot import pipeline, prior  # noqa: E402
+from copilot.config import CONFIG  # noqa: E402
 
 TABLE = os.path.join(ROOT, "copilot", "prior_table.json")
 
@@ -195,7 +198,6 @@ class CommittedTable(unittest.TestCase):
                     self.assertEqual(len(cell), 3)
 
     def test_load_rejects_an_unknown_feature(self):
-        import tempfile
         table = prior.load(TABLE)
         table["parts"]["options"]["features"].append("not_a_feature")
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
@@ -205,6 +207,89 @@ class CommittedTable(unittest.TestCase):
                 prior.load(f.name)
         finally:
             os.unlink(f.name)
+
+
+class Model:
+    """A fake post(): counts the calls and always answers C."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, url, payload, timeout):
+        self.calls += 1
+        return {"choices": [{"message": {"content": "C"}}], "timings": {"prompt_n": 7}}
+
+
+class Pipeline(unittest.TestCase):
+    """ANSWER_PRIOR=1 in copilot.pipeline.solve: the prior answers, the model is never called."""
+
+    OFF = {"ANSWER_PRIOR": "", "PRESOLVE": "", "NO_OPTIONS_PRIOR": "", "LETTER_BIAS_FILE": "",
+           "OPTION_ORDERS": "1", "ANSWER_MODE": "", "SAVE_TEXTS": ""}
+    ASKED = {"id": "new-1", "language": "eng", "text": "Which?", "options": options(10, 50, 30, 40, 20)}
+
+    def setUp(self):
+        for cache in (pipeline._PRIOR_TABLE, pipeline._PRESOLVE_INDEX):
+            cache.clear()
+            self.addCleanup(cache.clear)
+        rows = [problem(n, "B" if n % 4 else "E") for n in range(1, 41)]
+        for n in range(1, 41):
+            values = [30, 10, 50, 20, 40][n % 5:] + [30, 10, 50, 20, 40][:n % 5]
+            rows.append(problem(n + 100, "ABCDE"[values.index(30)], options(*values)))
+        self.table_path = self.temp(json.dumps(prior.fit(rows, options_features=("letter", "rank_mixed"))), ".json")
+        self.on = {**self.OFF, "ANSWER_PRIOR": "1", "PRIOR_TABLE": self.table_path}
+
+    def temp(self, text, suffix):
+        f = tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8")
+        f.write(text)
+        f.close()
+        self.addCleanup(os.unlink, f.name)
+        return f.name
+
+    def run_solve(self, settings, asked=None, **kw):
+        model = Model()
+        with mock.patch("copilot.llm.post", model), mock.patch.dict(CONFIG, settings):
+            out = pipeline.solve(asked or self.ASKED, llm_url="http://127.0.0.1:9/x", **kw)
+        return out, model.calls
+
+    def test_off_by_default_the_model_answers_and_no_table_is_read(self):
+        self.assertEqual(CONFIG["ANSWER_PRIOR"], "")
+        out, calls = self.run_solve({**self.OFF, "PRIOR_TABLE": self.table_path})
+        self.assertEqual((out["answer"], out["status"], calls), ("C", "ok", 1))
+        self.assertEqual(pipeline._PRIOR_TABLE, {})
+
+    def test_on_answers_with_and_without_options_and_never_calls_the_model(self):
+        out, calls = self.run_solve(self.on)
+        self.assertEqual((out["answer"], out["status"], calls, out["passes"]), ("C", "prior", 0, 0))
+        out, calls = self.run_solve(self.on, {"id": "new-2", "text": "No options."})
+        self.assertEqual((out["answer"], out["status"], calls), ("B", "prior", 0))
+        self.assertIn("seconds", out)
+
+    def test_same_letter_as_the_module(self):
+        table = prior.load(self.table_path)
+        for values in ([10, 50, 30, 40, 20], [50, 40, 10, 20, 30], [1, 2, 3, 4, 5]):
+            asked = {**self.ASKED, "options": options(*values)}
+            self.assertEqual(self.run_solve(self.on, asked)[0]["answer"], prior.choose(asked, table)[0])
+
+    def test_missing_or_broken_table_goes_to_the_model(self):
+        out, calls = self.run_solve({**self.on, "PRIOR_TABLE": "/nonexistent/prior.json"})
+        self.assertEqual((out["answer"], out["status"], calls, out["prior_error"]),
+                         ("C", "ok", 1, "FileNotFoundError"))
+        pipeline._PRIOR_TABLE.clear()
+        out, calls = self.run_solve({**self.on, "PRIOR_TABLE": self.temp("{not json", ".json")})
+        self.assertEqual((out["status"], calls, out["prior_error"]), ("ok", 1, "JSONDecodeError"))
+
+    def test_presolve_goes_first_and_its_copied_letter_counts(self):
+        train = [{"id": "t1", "language": "eng", "text": "How many legs do three green spiders have in total?",
+                  "options": options(12, 16, 24, 32, 40), "label": "C"}]
+        settings = {**self.on, "PRESOLVE": "1",
+                    "PRESOLVE_DATA": self.temp("\n".join(json.dumps(p) for p in train) + "\n", ".jsonl")}
+        twin = {"id": "new-3", "language": "eng", "text": train[0]["text"], "options": options(24, 12, 40, 16, 32)}
+        out, calls = self.run_solve(settings, twin)
+        self.assertEqual((out["answer"], out["status"], calls), ("A", "presolve", 0))
+        out, calls = self.run_solve(settings, {**twin, "options": {}})
+        self.assertEqual((out["answer"], out["status"], calls), ("C", "presolve", 0))
+        out, calls = self.run_solve(settings)
+        self.assertEqual((out["answer"], out["status"], calls), ("C", "prior", 0))
 
 
 if __name__ == "__main__":

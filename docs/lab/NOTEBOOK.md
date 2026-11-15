@@ -41,6 +41,7 @@ never problem text (M3Kang is research-use only).
 | Fine-tune on 3,883 Cangur worked solutions (reasoning): format learned, maths not | 18.3% (step 1000), 20.1% (step 500) on 562; arithmetic and set-up errors in the raw outputs |
 | Validation loss of that fine-tune was lowest at step 500 and rose after | 1.26 → 1.33 → 1.41 |
 | 40% of validation problems have no readable options; only 178 of 562 are solvable from text alone | `data/val.jsonl` counts |
+| A model-free prior (letter and option-shape counts from training) is a few points above always-D on validation, no more | 151/562 (26.9%) against 130/562 (23.1%); paired by id +3.7 points, 95% +0.6 to +6.9; with presolve first 164/562 (29.2%). Engineer, 15 Nov |
 
 ## Traps already paid for
 
@@ -440,3 +441,99 @@ never problem text (M3Kang is research-use only).
   on them will not make the 0.8B solve Cangur problems. The generator and fine-tuning routes are
   closed for the solver. What remains for the score on an M3Kang-like test is code that needs no
   model: the value copy from a twin training problem (measured) and the statistical prior (being built).
+
+### 2026-11-15 09:26 · Engineer · A statistical prior without the model: 26.9% on validation against 23.1% for always D
+- **What this is.** `copilot/prior.py` is a guess from counts, not the model and not maths: it solves
+  nothing. It counts, on `data/train.jsonl` only, which letter is right how often and what the right
+  option "looks like" among the five, and picks the option with the highest summed log-odds (naive Bayes,
+  20 pseudo-counts of smoothing per cell). The owner decides whether he wants this kind of answer in the
+  test. Table: `copilot/prior_table.json`, 24 cells of counts and weights, no text, 2 kB; built by
+  `python3 laptop/build_prior.py` (reads only the training split). Under 0.01 ms per problem, standard
+  library, deterministic. No model was run this round.
+- **Method.** 5 folds by problem id (crc32; both languages of an id in one fold). Candidates tried in a
+  fixed order on top of the letter counts; one is kept if its gain, paired by id, has z ≥ 1.64. Because
+  the eng and cat rows of an id share the label, 562 rows are 281 independent problems: intervals are
+  given per row (Wilson) and per id (wider, the honest one), and "beats always D" means the paired
+  difference by id has a 95% interval above zero. The table was committed (49eb133) BEFORE
+  `data/val.jsonl` was opened; validation was measured once and nothing was changed after.
+- **Without options (1,069 training rows): nothing beats always D.** D is right 299/1069 (28.0%, by id
+  24.5–31.9). Level band, section of the paper (question number), figure mentioned, text length and
+  language change no answer; per-level letters lose 3.3 points (z −3.4), per-year 2.1, band × section
+  0.9: the cells are too small and they fit noise. Letter counts inside a paper (level, year) are not
+  flatter than chance (mean chi-square 3.7 against 4 expected; "the letter the paper still owes" is right
+  20.5%), so there is nothing to learn from the other problems of the paper either. The chooser for
+  these problems IS always D.
+- **With options (1,863 training rows): three features kept, small gain.** always D 435/1863 (23.3%).
+  Kept: `rank_mixed` (when five numeric options are NOT written in order, the middle value is right
+  210/643 = 33%, the smallest 81/655 = 12%, the largest 73/653 = 11%; +2.6 points, z 2.4), `outlier` (the
+  value furthest from the others is right 54/699 = 8%; +0.3, z 1.7) and `textlength` (text options: the
+  single shortest or longest is right less often; +0.8, z 1.8). Not kept: round number, value written in
+  the statement, same number of digits, same last digit, "none of these", similarity to the other
+  options, duplicates, position per layout, level band, section, figure. When numeric options are in
+  ascending order the rank is the position, already in the letter counts (C 28%, D 28%, A 8%, E 13%).
+- **Cross-validated on training** (plain = with the selected features; nested = selection redone inside
+  each fold, the honest one):
+
+  | Slice | always D | prior, plain | prior, nested |
+  |---|---|---|---|
+  | without options | 299/1069 28.0% | 299/1069 28.0% (by id 24.5–31.9) | 299/1069 28.0% |
+  | with options | 435/1863 23.3% | 500/1863 26.8% (by id 24.2–29.7) | 466/1863 25.0% (by id 22.4–27.8) |
+  | numeric options | | 430/1534 28.0% (24.9–31.0) | |
+  | text options | | 70/329 21.3% (16.2–27.5) | |
+  | levels 0–1 / 2–3 / 4–5 / 6–7 | | 122/422 28.9% / 125/456 27.4% / 291/1040 28.0% / 261/1014 25.7% | |
+  | all rows | 734/2932 25.0% | 799/2932 27.3% (25.0–29.5) | 765/2932 26.1% (23.9–28.3) |
+
+  Nested against always D on the rows with options: +1.4 points (95% −1.5 to +4.3): not a result on its
+  own. The folds did not agree on the features (rank_mixed in 4 of 5, outlier in 4, textlength in 2).
+  With folds by whole year the selected set gives 457/1863 (24.5%).
+- **Validation, measured once** (`python3 laptop/build_prior.py --measure data/val.jsonl --languages
+  eng,cat`; 562 rows, 281 ids, 223 without options, 339 with):
+
+  | System | Right | Rows 95% | By id 95% | Against always D, paired by id |
+  |---|---|---|---|---|
+  | always D | 130/562 23.1% | 19.8–26.8 | 18.2–28.1 | |
+  | no-options chooser (D elsewhere) | 130/562 23.1% | 19.8–26.8 | 18.2–28.1 | 0.0: it is always D |
+  | with-options chooser (D elsewhere) | 151/562 26.9% | 23.4–30.7 | 21.8–32.0 | +3.7 (+0.6 to +6.9), z 2.4 |
+  | both together | 151/562 26.9% | 23.4–30.7 | 21.8–32.0 | +3.7 (+0.6 to +6.9), z 2.4 |
+  | presolve first, then both | 164/562 29.2% | 25.6–33.1 | 24.0–34.3 | +6.0 (+2.4 to +9.7), z 3.2 |
+
+  By slice: without options 58/223 (26.0%); with options 93/339 (27.4%) against always D 72/339 (21.2%);
+  numeric options 79/281 (28.1%), text options 14/58 (24.1%); levels 0–1 31/74, 2–3 22/82, 4–5 54/230,
+  6–7 44/176. Presolve: 10 value copies, 10 right; 22 letter copies, 11 right (same as the 02:45 entry).
+  Letters chosen: A 6, B 42, C 47, D 448, E 19 (true 110/124/104/130/94).
+- **Plainly.** The prior alone beats always D by the paired test, but only just: +3.7 points is the size
+  of the ±3.5 noise of 562 rows, the lower end of its interval is +0.6, and the nested training figure
+  says to expect about +1 point overall, not +4 (always D happened to be low on the validation rows with
+  options, 21.2% against 23.3% in training). With presolve first the gain is clear on validation
+  (+6.0, interval +2.4 to +9.7), but 2.3 of those points come from presolve, which only works when the
+  test repeats problems of training papers (true for a draw from M3Kang, not for 2026 problems: 0 answers
+  on the demo set). Against the model: 26.9% / 29.2% here, 22.8% untuned one letter, 18.3% tuned with
+  working, on the same 562 rows. All of them are guesses; this one is the best guess and costs no time.
+- **Wired, OFF by default** (the paired interval is above zero, so the rule to wire was met):
+  `ANSWER_PRIOR=1` answers every problem from the table with status `prior` and no model call;
+  `PRIOR_TABLE` (default `copilot/prior_table.json`) names the table; a missing or broken table is
+  recorded as `prior_error` and the model answers as before. With `PRESOLVE=1` presolve goes first (value
+  copies always, letter copies on problems without options). Checked through `pipeline.solve` on
+  validation: 151/562 with `ANSWER_PRIOR=1`, 164/562 with `PRESOLVE=1` too (530 `prior`, 32 `presolve`),
+  worst problem 0.05 s. To measure it the usual way, no server needed:
+
+      ANSWER_PRIOR=1 PRESOLVE=1 python3 eval.py --input data/val.jsonl --languages eng,cat --limit 0 --name prior
+
+  No default changed. Board: needs `copilot/prior.py` and `copilot/prior_table.json`; presolve also needs
+  `data/train.jsonl` on the board.
+- **Tests:** `python3 -m pytest tests -q`: 306 passed (28 new in `tests/test_prior.py`: parsing, features,
+  no text in any key, fit and choose, folds, selection, the committed table, the pipeline setting).
+- **Raw outputs checked:** not applicable (no model). The table was read cell by cell (it is 24 cells).
+- **Limits, so nobody reads more into it.** (1) Three layouts of the with-options features were tried on
+  training before freezing (letter per layout + rank; plain letter + rank everywhere; plain letter + rank
+  when unordered): the plain cross-validated figures (26.2–28.3%) have seen that search, the nested ones
+  (23.4–25.0%) and validation have not. A parsing bug (OCR option "13 2 1 3" read as 13213) was fixed
+  before the freeze. (2) The level is read from the `level` field or an id shaped `lvl-N_YYYY_Q`; the
+  kept features do not use it, so a test file with only `id`, `text` and `options` gets the same answers.
+  (3) It answers D on 80% of problems; on a test with all options readable and in order it is close to
+  "always C or D". (4) On 2026-style problems (demo set) it has not been measured: `data/demo` was not
+  touched this round.
+- **For Ideas / the owner:** is a positional guess acceptable as the submitted answer when the model is
+  at chance? If yes, the cheapest honest configuration for an M3Kang-like test is `ANSWER_PRIOR=1
+  PRESOLVE=1` (29.2% on validation, no model, milliseconds). If the model ever beats chance on a slice
+  (for example text-only problems with options), the prior should answer only the rest.

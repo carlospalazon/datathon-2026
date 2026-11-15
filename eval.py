@@ -24,7 +24,8 @@ from copilot.pipeline import TIME_LIMIT, solve
 
 LETTERS = "ABCDE"
 EXPERIMENT_ENV = ("NO_OPTIONS_PRIOR", "LETTER_BIAS_FILE", "OPTION_ORDERS", "ANSWER_MODE", "REASON_MAX_TOKENS",
-                  "BOARD_READ_TPS", "BOARD_WRITE_TPS", "PRESOLVE", "PRESOLVE_DATA", "SAVE_TEXTS")
+                  "BOARD_READ_TPS", "BOARD_WRITE_TPS", "PRESOLVE", "PRESOLVE_DATA", "SAVE_TEXTS",
+                  "ANSWER_PRIOR", "PRIOR_TABLE")
 DETAIL_COLUMNS = ["id", "language", "level", "has_options", "label", "answer", "correct", "seconds",
                   "status", "prompt_tokens", "retrieved", "topic", "needs_figure", "passes",
                   *[f"lp_{l}" for l in LETTERS],
