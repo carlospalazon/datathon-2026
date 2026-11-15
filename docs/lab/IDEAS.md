@@ -8,7 +8,7 @@ Merged on 15 November (round 2) from the round-1 backlog and two brainstorms: **
 and **B** (decoding and system). Ids: plain numbers are round-1 ideas, `M` measurement, `A`/`B` the
 brainstorms, `T`/`G`/`P` round 3. Under the owner's rules only the Qwen3.5 0.8B counts.
 
-**Estimate after round 3 (15 Nov 10:30, notebook entry of that time):** demo-like problems, 0.8B:
+**Estimate after round 3 (15 Nov 09:20, notebook entry of that time):** demo-like problems, 0.8B:
 **20–25%** by any route measured so far (letter, free working, two tunes: 16–23 of 100, all chance).
 More generators can add about 3.5 points per 10% of test problems that fall in a learned family, and
 only if T1 passes; a week of that gives 22–30%. 45% needs 71% of the test in learned families at the

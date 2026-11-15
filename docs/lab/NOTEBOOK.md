@@ -340,7 +340,7 @@ never problem text (M3Kang is research-use only).
   way to get Cangur-like coverage from code alone (many more generator families modelled on the
   TRAINING problems' types), and how many families would the demo-style test need?
 
-### 2026-11-15 10:30 · Ideas · Round 3: the 55% is real but it is template learning until shown otherwise; calculator and value matching are worth nothing
+### 2026-11-15 09:20 · Ideas · Round 3: the 55% is real but it is template learning until shown otherwise; calculator and value matching are worth nothing
 - **Read:** the three `v3mix-s2250` CSVs (demo 100, validation 562, fresh generated 300), the 339 + 100
   saved workings, `~/unoq-local/ft/v3_mix/train.jsonl`, the catalogue restricted to training ids.
   CPU only. Demo and validation were measured, never used to design anything.

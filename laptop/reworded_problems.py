@@ -1,7 +1,7 @@
 """A transfer test for a model tuned on laptop/synthetic_problems.py: same maths, new wording.
 
 Nine families the tuned model solves in their trained wording (46 of 50 on fresh numbers, lab
-notebook 15 Nov 10:30) are told here as another story with other sentences. The numbers are drawn
+notebook 15 Nov 09:20) are told here as another story with other sentences. The numbers are drawn
 the same way and the wrong options follow the same rules, so the only thing that changes is the
 text. A model that learned the maths keeps its score; a model that learned the templates falls to
 chance.
