@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 606" width="800" height="606" font-family="Helvetica, Arial, sans-serif">
+<rect width="800" height="606" fill="#ffffff"/>
+<text x="20" y="28" font-size="17" font-weight="bold" fill="#1a1a1a">The delivered configuration, group by group</text>
+<line x1="250.0" y1="50" x2="250.0" y2="566" stroke="#e3e3e3"/>
+<text x="250.0" y="582" font-size="11" fill="#555" text-anchor="middle">0%</text>
+<line x1="321.7" y1="50" x2="321.7" y2="566" stroke="#e3e3e3"/>
+<text x="321.7" y="582" font-size="11" fill="#555" text-anchor="middle">10%</text>
+<line x1="393.3" y1="50" x2="393.3" y2="566" stroke="#e3e3e3"/>
+<text x="393.3" y="582" font-size="11" fill="#555" text-anchor="middle">20%</text>
+<line x1="465.0" y1="50" x2="465.0" y2="566" stroke="#e3e3e3"/>
+<text x="465.0" y="582" font-size="11" fill="#555" text-anchor="middle">30%</text>
+<line x1="536.7" y1="50" x2="536.7" y2="566" stroke="#e3e3e3"/>
+<text x="536.7" y="582" font-size="11" fill="#555" text-anchor="middle">40%</text>
+<line x1="608.3" y1="50" x2="608.3" y2="566" stroke="#e3e3e3"/>
+<text x="608.3" y="582" font-size="11" fill="#555" text-anchor="middle">50%</text>
+<line x1="680.0" y1="50" x2="680.0" y2="566" stroke="#e3e3e3"/>
+<text x="680.0" y="582" font-size="11" fill="#555" text-anchor="middle">60%</text>
+<text x="20" y="72" font-size="12" font-weight="bold" fill="#333">Who answered</text>
+<text x="240" y="95" font-size="12" fill="#1a1a1a" text-anchor="end">Twin copy (code)</text>
+<rect x="250" y="83" width="387.0" height="16" fill="#1f5fa8"/>
+<text x="643.0" y="95" font-size="12" fill="#1a1a1a">54%  (27/50)</text>
+<text x="240" y="119" font-size="12" fill="#1a1a1a" text-anchor="end">The model</text>
+<rect x="250" y="107" width="168.0" height="16" fill="#1f5fa8"/>
+<text x="424.0" y="119" font-size="12" fill="#1a1a1a">23%  (120/512)</text>
+<text x="20" y="144" font-size="12" font-weight="bold" fill="#333">Difficulty</text>
+<text x="240" y="167" font-size="12" fill="#1a1a1a" text-anchor="end">Levels 0-3 (grades 5-8)</text>
+<rect x="250" y="155" width="257.3" height="16" fill="#1f5fa8"/>
+<text x="513.3" y="167" font-size="12" fill="#1a1a1a">36%  (56/156)</text>
+<text x="240" y="191" font-size="12" fill="#1a1a1a" text-anchor="end">Levels 4-7 (grades 9-12)</text>
+<rect x="250" y="179" width="160.6" height="16" fill="#1f5fa8"/>
+<text x="416.6" y="191" font-size="12" fill="#1a1a1a">22%  (91/406)</text>
+<text x="20" y="216" font-size="12" font-weight="bold" fill="#333">Language</text>
+<text x="240" y="239" font-size="12" fill="#1a1a1a" text-anchor="end">English</text>
+<rect x="250" y="227" width="178.5" height="16" fill="#1f5fa8"/>
+<text x="434.5" y="239" font-size="12" fill="#1a1a1a">25%  (70/281)</text>
+<text x="240" y="263" font-size="12" fill="#1a1a1a" text-anchor="end">Catalan</text>
+<rect x="250" y="251" width="196.4" height="16" fill="#1f5fa8"/>
+<text x="452.4" y="263" font-size="12" fill="#1a1a1a">27%  (77/281)</text>
+<text x="20" y="288" font-size="12" font-weight="bold" fill="#333">What the model sees</text>
+<text x="240" y="311" font-size="12" fill="#1a1a1a" text-anchor="end">With options</text>
+<rect x="250" y="299" width="181.8" height="16" fill="#1f5fa8"/>
+<text x="437.8" y="311" font-size="12" fill="#1a1a1a">25%  (86/339)</text>
+<text x="240" y="335" font-size="12" fill="#1a1a1a" text-anchor="end">Without options</text>
+<rect x="250" y="323" width="196.0" height="16" fill="#1f5fa8"/>
+<text x="452.0" y="335" font-size="12" fill="#1a1a1a">27%  (61/223)</text>
+<text x="240" y="359" font-size="12" fill="#1a1a1a" text-anchor="end">Needs the figure</text>
+<rect x="250" y="347" width="189.9" height="16" fill="#1f5fa8"/>
+<text x="445.9" y="359" font-size="12" fill="#1a1a1a">26%  (71/268)</text>
+<text x="240" y="383" font-size="12" fill="#1a1a1a" text-anchor="end">Text only</text>
+<rect x="250" y="371" width="185.3" height="16" fill="#1f5fa8"/>
+<text x="441.3" y="383" font-size="12" fill="#1a1a1a">26%  (76/294)</text>
+<text x="20" y="408" font-size="12" font-weight="bold" fill="#333">Topic (50 problems or more)</text>
+<text x="240" y="431" font-size="12" fill="#1a1a1a" text-anchor="end">Arithmetic</text>
+<rect x="250" y="419" width="242.7" height="16" fill="#1f5fa8"/>
+<text x="498.7" y="431" font-size="12" fill="#1a1a1a">34%  (21/62)</text>
+<text x="240" y="455" font-size="12" fill="#1a1a1a" text-anchor="end">Plane geometry</text>
+<rect x="250" y="443" width="206.3" height="16" fill="#1f5fa8"/>
+<text x="462.3" y="455" font-size="12" fill="#1a1a1a">29%  (38/132)</text>
+<text x="240" y="479" font-size="12" fill="#1a1a1a" text-anchor="end">Visual</text>
+<rect x="250" y="467" width="206.7" height="16" fill="#1f5fa8"/>
+<text x="462.7" y="479" font-size="12" fill="#1a1a1a">29%  (15/52)</text>
+<text x="240" y="503" font-size="12" fill="#1a1a1a" text-anchor="end">Numbers</text>
+<rect x="250" y="491" width="188.1" height="16" fill="#1f5fa8"/>
+<text x="444.1" y="503" font-size="12" fill="#1a1a1a">26%  (21/80)</text>
+<text x="240" y="527" font-size="12" fill="#1a1a1a" text-anchor="end">Counting</text>
+<rect x="250" y="515" width="165.4" height="16" fill="#1f5fa8"/>
+<text x="421.4" y="527" font-size="12" fill="#1a1a1a">23%  (12/52)</text>
+<text x="240" y="551" font-size="12" fill="#1a1a1a" text-anchor="end">Algebra</text>
+<rect x="250" y="539" width="135.4" height="16" fill="#1f5fa8"/>
+<text x="391.4" y="551" font-size="12" fill="#1a1a1a">19%  (17/90)</text>
+<line x1="393.3" y1="50" x2="393.3" y2="566" stroke="#c0392b" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="398.3" y="46" font-size="11" fill="#c0392b">chance, 20%</text>
+<text x="20" y="600" font-size="11" fill="#555">562 validation problems. Topics with fewer than 50 problems are left out: too few to read.</text></svg>

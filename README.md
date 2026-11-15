@@ -201,6 +201,10 @@ Of what we deliver: the 0.8B answering one letter, with the twin copy before it,
 
 **Overall: 147/562 = 26.2%.** The model alone gets 128/562 and always answering D gets 130/562.
 
+![Share of correct answers for every configuration we tried](docs/img/solver-configurations.svg)
+
+![The delivered configuration by who answered, difficulty, language, what the model sees and topic](docs/img/delivered-by-group.svg)
+
 | Who answered | Problems | Right |
 |---|---|---|
 | Twin copy (code, no model) | 50 | 27 (54%) |
@@ -236,6 +240,8 @@ What the numbers say:
 - **Language makes no difference** (25% English, 27% Catalan).
 - **Topics**: with 562 problems, cells under about 50 problems cannot support a claim (logic 22, patterns 18, measurement 14). Among the larger ones, algebra (19%) and space geometry (15%) are the weakest and arithmetic (34%) the strongest, all inside or near the noise.
 - **Speed is not the limit.** On the board: 8.5 s per problem on average, 15.2 s the worst, none over 60 s (30 validation problems), and 7.3 s on the 100 sample problems.
+
+![Trained wording against reworded problems, and a worked example with and without a near-identical problem](docs/img/what-the-model-learns.svg)
 
 Why the model fails, from the experiments in [Results](#results): it imitates wording instead of solving (88% on a problem family in its trained wording, 35% when the same problems are told as another story); a worked example helps only when it is almost the same problem; when it sets up an expression for Python to compute, the value is a listed option in 15 of 172 Kangaroo problems and right in none; and giving it all the time it wants gets 26 of 100 text-only problems. Three limits stand behind that: 40% of the problems arrive without their options, about half need a figure the model does not see, and a 0.8B model reasons too little for competition problems.
 

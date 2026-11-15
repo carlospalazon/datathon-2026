@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 294" width="800" height="294" font-family="Helvetica, Arial, sans-serif">
+<rect width="800" height="294" fill="#ffffff"/>
+<text x="20" y="28" font-size="17" font-weight="bold" fill="#1a1a1a">The model imitates wording; it does not carry a method over</text>
+<line x1="290.0" y1="50" x2="290.0" y2="254" stroke="#e3e3e3"/>
+<text x="290.0" y="270" font-size="11" fill="#555" text-anchor="middle">0%</text>
+<line x1="368.0" y1="50" x2="368.0" y2="254" stroke="#e3e3e3"/>
+<text x="368.0" y="270" font-size="11" fill="#555" text-anchor="middle">20%</text>
+<line x1="446.0" y1="50" x2="446.0" y2="254" stroke="#e3e3e3"/>
+<text x="446.0" y="270" font-size="11" fill="#555" text-anchor="middle">40%</text>
+<line x1="524.0" y1="50" x2="524.0" y2="254" stroke="#e3e3e3"/>
+<text x="524.0" y="270" font-size="11" fill="#555" text-anchor="middle">60%</text>
+<line x1="602.0" y1="50" x2="602.0" y2="254" stroke="#e3e3e3"/>
+<text x="602.0" y="270" font-size="11" fill="#555" text-anchor="middle">80%</text>
+<line x1="680.0" y1="50" x2="680.0" y2="254" stroke="#e3e3e3"/>
+<text x="680.0" y="270" font-size="11" fill="#555" text-anchor="middle">100%</text>
+<text x="20" y="72" font-size="12" font-weight="bold" fill="#333">Fine-tuned model, generated problems of nine kinds it was trained on</text>
+<text x="280" y="95" font-size="12" fill="#1a1a1a" text-anchor="end">In the wording it was trained on</text>
+<rect x="290" y="83" width="344.5" height="16" fill="#1f5fa8"/>
+<text x="640.5" y="95" font-size="12" fill="#1a1a1a">88%  (159/180)</text>
+<text x="280" y="119" font-size="12" fill="#1a1a1a" text-anchor="end">Same problems, told as another story</text>
+<rect x="290" y="107" width="136.5" height="16" fill="#1f5fa8"/>
+<text x="432.5" y="119" font-size="12" fill="#1a1a1a">35%  (63/180)</text>
+<text x="20" y="144" font-size="12" font-weight="bold" fill="#333">Untuned model, one similar solved problem shown as an example</text>
+<text x="280" y="167" font-size="12" fill="#1a1a1a" text-anchor="end">Nearly the same problem: no example</text>
+<rect x="290" y="155" width="30.0" height="16" fill="#8fb3d9"/>
+<text x="326.0" y="167" font-size="12" fill="#1a1a1a">8%  (1/13)</text>
+<text x="280" y="191" font-size="12" fill="#1a1a1a" text-anchor="end">Nearly the same problem: with it</text>
+<rect x="290" y="179" width="210.0" height="16" fill="#1f5fa8"/>
+<text x="506.0" y="191" font-size="12" fill="#1a1a1a">54%  (7/13)</text>
+<text x="280" y="215" font-size="12" fill="#1a1a1a" text-anchor="end">Only a similar problem: no example</text>
+<rect x="290" y="203" width="96.9" height="16" fill="#8fb3d9"/>
+<text x="392.9" y="215" font-size="12" fill="#1a1a1a">25%  (81/326)</text>
+<text x="280" y="239" font-size="12" fill="#1a1a1a" text-anchor="end">Only a similar problem: with it</text>
+<rect x="290" y="227" width="74.2" height="16" fill="#1f5fa8"/>
+<text x="370.2" y="239" font-size="12" fill="#1a1a1a">19%  (62/326)</text>
+<line x1="368.0" y1="50" x2="368.0" y2="254" stroke="#c0392b" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="373.0" y="46" font-size="11" fill="#c0392b">chance, 20%</text>
+<text x="20" y="288" font-size="11" fill="#555">Top: 180 problems each. Bottom: the 339 validation problems with options, split by how close the example is.</text></svg>

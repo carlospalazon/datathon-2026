@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 366" width="800" height="366" font-family="Helvetica, Arial, sans-serif">
+<rect width="800" height="366" fill="#ffffff"/>
+<text x="20" y="28" font-size="17" font-weight="bold" fill="#1a1a1a">What we tried: share of correct answers</text>
+<line x1="290.0" y1="50" x2="290.0" y2="326" stroke="#e3e3e3"/>
+<text x="290.0" y="342" font-size="11" fill="#555" text-anchor="middle">0%</text>
+<line x1="355.0" y1="50" x2="355.0" y2="326" stroke="#e3e3e3"/>
+<text x="355.0" y="342" font-size="11" fill="#555" text-anchor="middle">10%</text>
+<line x1="420.0" y1="50" x2="420.0" y2="326" stroke="#e3e3e3"/>
+<text x="420.0" y="342" font-size="11" fill="#555" text-anchor="middle">20%</text>
+<line x1="485.0" y1="50" x2="485.0" y2="326" stroke="#e3e3e3"/>
+<text x="485.0" y="342" font-size="11" fill="#555" text-anchor="middle">30%</text>
+<line x1="550.0" y1="50" x2="550.0" y2="326" stroke="#e3e3e3"/>
+<text x="550.0" y="342" font-size="11" fill="#555" text-anchor="middle">40%</text>
+<line x1="615.0" y1="50" x2="615.0" y2="326" stroke="#e3e3e3"/>
+<text x="615.0" y="342" font-size="11" fill="#555" text-anchor="middle">50%</text>
+<line x1="680.0" y1="50" x2="680.0" y2="326" stroke="#e3e3e3"/>
+<text x="680.0" y="342" font-size="11" fill="#555" text-anchor="middle">60%</text>
+<text x="20" y="72" font-size="12" font-weight="bold" fill="#333">Delivered</text>
+<text x="280" y="95" font-size="12" fill="#1a1a1a" text-anchor="end">0.8B, one letter, with the twin copy</text>
+<rect x="290" y="83" width="170.0" height="16" fill="#1f5fa8"/>
+<text x="466.0" y="95" font-size="12" fill="#1a1a1a">26%  (147/562)</text>
+<text x="20" y="120" font-size="12" font-weight="bold" fill="#333">References</text>
+<text x="280" y="143" font-size="12" fill="#1a1a1a" text-anchor="end">Always answer D (no model)</text>
+<rect x="290" y="131" width="150.4" height="16" fill="#8fb3d9"/>
+<text x="446.4" y="143" font-size="12" fill="#1a1a1a">23%  (130/562)</text>
+<text x="280" y="167" font-size="12" fill="#1a1a1a" text-anchor="end">0.8B, one letter</text>
+<rect x="290" y="155" width="148.0" height="16" fill="#8fb3d9"/>
+<text x="444.0" y="167" font-size="12" fill="#1a1a1a">23%  (128/562)</text>
+<text x="20" y="192" font-size="12" font-weight="bold" fill="#333">Experiments</text>
+<text x="280" y="215" font-size="12" fill="#1a1a1a" text-anchor="end">0.8B, free working, 250 tokens</text>
+<rect x="290" y="203" width="143.4" height="16" fill="#8fb3d9"/>
+<text x="439.4" y="215" font-size="12" fill="#1a1a1a">22%  (124/562)</text>
+<text x="280" y="239" font-size="12" fill="#1a1a1a" text-anchor="end">2B, working with a loose budget</text>
+<rect x="290" y="227" width="138.8" height="16" fill="#8fb3d9"/>
+<text x="434.8" y="239" font-size="12" fill="#1a1a1a">21%  (120/562)</text>
+<text x="280" y="263" font-size="12" fill="#1a1a1a" text-anchor="end">2B, working inside the board's 60 s</text>
+<rect x="290" y="251" width="122.6" height="16" fill="#8fb3d9"/>
+<text x="418.6" y="263" font-size="12" fill="#1a1a1a">19%  (106/562)</text>
+<text x="280" y="287" font-size="12" fill="#1a1a1a" text-anchor="end">0.8B fine-tuned on Kangaroo solutions</text>
+<rect x="290" y="275" width="119.1" height="16" fill="#8fb3d9"/>
+<text x="415.1" y="287" font-size="12" fill="#1a1a1a">18%  (103/562)</text>
+<text x="280" y="311" font-size="12" fill="#1a1a1a" text-anchor="end">0.8B fine-tuned on the mix</text>
+<rect x="290" y="299" width="119.1" height="16" fill="#8fb3d9"/>
+<text x="415.1" y="311" font-size="12" fill="#1a1a1a">18%  (103/562)</text>
+<line x1="420.0" y1="50" x2="420.0" y2="326" stroke="#c0392b" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="425.0" y="46" font-size="11" fill="#c0392b">chance, 20%</text>
+<text x="20" y="360" font-size="11" fill="#555">562 validation problems (M3Kang, English and Catalan). Darker bar: what is delivered.</text></svg>
