@@ -76,7 +76,11 @@ def main(argv=None):
     p.add_argument("--checkpoint", type=int, default=0, help="use the adapter saved at this step, not the last")
     p.add_argument("--base", default="Qwen/Qwen3.5-0.8B")
     p.add_argument("--models", default=str(HOME / "models"))
-    p.add_argument("--llama-src", default=str(HOME / "src" / "llama.cpp-b12383"))
+    board_src = HOME / "src" / "llama.cpp-board"
+    p.add_argument("--llama-src", default=str(board_src if board_src.is_dir() else HOME / "src" / "llama.cpp-b12383"),
+                   help="folder with convert_hf_to_gguf.py. It MUST be the board's own llama.cpp version "
+                        "(copy convert_hf_to_gguf.py, gguf-py/ and conversion/ from the board): a newer "
+                        "converter writes merged tensors that the board's server refuses to load")
     p.add_argument("--quantize", default=str(HOME / "llama.cpp" / "b12383" / "llama-b12383" / "llama-quantize"))
     p.add_argument("--work", default=str(HOME / "ft" / "work"))
     args = p.parse_args(argv)

@@ -312,3 +312,30 @@ never problem text (M3Kang is research-use only).
   this round's scope.
 - **For Ideas:** presolve counts above: keep or drop? And is value matching in `find_letter` wanted in
   the pipeline once ten real texts have been read?
+
+### 2026-11-15 09:12 · Coordinator (as Engineer) · v3_mix scored: learns generated problems, not Cangur
+- **Tried:** the 0.8B tuned on the mix (`v3_mix`, 2,500 steps). Dev loss on held-out Cangur rows:
+  1.30, 1.26, 1.30, 1.14, 1.13, 1.22, 1.22, 1.13, **1.09 (step 2250)**, 1.25. Checkpoint 2250 chosen
+  by dev loss, converted, scored through the predict path (`ANSWER_MODE=reason`, token budget 11/6).
+- **Result (step 2250):**
+  - demo, 100 problems: **20/100 (20.0%, 13-29)**; English 11/50, Catalan 9/50; working finished on
+    83, letter forced on 17; mean 124 tokens written; letters chosen A19 B12 C20 D12 E37.
+  - validation, 562: **103/562 (18.3%, 15-22)**; with options 67/339 (19.8%), without 36/223;
+    letters A160 B57 C78 D47 E220 against true 110/124/104/130/94.
+  - 300 fresh generated problems (new seeds, all 57 generators): **164/300 (54.7%, 49-60)**; easy
+    generators 88/140 (63%), hard 76/160 (48%); English 90/150, Catalan 74/150.
+- **Raw outputs checked:** yes, six fresh generated problems: short correct working with the new
+  "<value> is option X." line on four; one wrong sum, one wrong undo of steps.
+- **Conclusion:** the training recipe works where the data matches (from about 19% to 55% on
+  generated problems), and the A habit is gone, but nothing transfers to real Cangur problems: still
+  chance on both honest sets. The new habit is E on validation (220 of 562).
+- **Trap found:** GGUF files made with the Mac's converter (llama.cpp b12383) do NOT load on the
+  board (`tensor 'blk.0.ssm_beta.weight' not found`): that converter merges tensors the board's build
+  (commit 2cbe0ec) expects separately. `laptop/adapter_to_gguf.py` now defaults to the board's own
+  converter, copied to `~/unoq-local/src/llama.cpp-board`. Board-layout file:
+  `~/unoq-local/models/ft-v3-mix-s2250-board-Q8_0.gguf`. Loading and timing it on the board: running.
+- **Also learned:** agents stall for hours when a shell command needs an approval nobody is awake to
+  give. Brief them to use only `python3 ...` and `git add/commit/status/diff/log`.
+- **For Ideas:** the model can learn a problem family it has seen thousands of. Is there an honest
+  way to get Cangur-like coverage from code alone (many more generator families modelled on the
+  TRAINING problems' types), and how many families would the demo-style test need?
