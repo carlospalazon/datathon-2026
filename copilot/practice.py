@@ -36,7 +36,7 @@ TOPICS = {
     "numeros": ["remainder", "multiples_in_range"],
     "patrones": ["arithmetic_sequence"],
     "geometria_plana": ["rect_area", "l_shape_area"],
-    "medida": ["ribbon_pieces", "film_end_time"],
+    "medida": ["film_end_time", "ribbon_pieces"],
     "logica": ["race_logic"],
 }
 DRAWS = 8  # problems drawn each time; the one with the smallest numbers is shown
@@ -48,7 +48,10 @@ def load_generators():
         if os.path.exists(path):
             spec = importlib.util.spec_from_file_location("synthetic_problems", path)
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            try:
+                spec.loader.exec_module(module)
+            except Exception:  # noqa: BLE001  a generator file mid-edit turns practice off, not the tutor
+                return None
             return module
     return None
 
@@ -258,18 +261,18 @@ MESSAGES = {
                            "Here two things were multiplied and the third was added. The third multiplies too."),
     },
     "handshakes": {
-        "counted_twice": ("Aquí cada encaixada s'ha comptat dues vegades, una per cada persona.",
-                          "Here every handshake was counted twice, once for each person."),
-        "one_person": ("Aquestes són les encaixades d'una sola persona. Et demanen les de tot el grup.",
-                       "These are one person's handshakes. The question asks for the whole group's."),
+        "counted_twice": ("Aquí cada parella s'ha comptat dues vegades, una per cada persona.",
+                          "Here every pair was counted twice, once for each person."),
+        "one_person": ("Això és el que fa una sola persona. Et demanen el total de tot el grup.",
+                       "This is what one person alone does. The question asks for the total of the whole group."),
     },
     "remainder": {
-        "quotient": ("Aquest és el quocient: quantes vegades hi cap. El residu és el que sobra.",
-                     "This is the quotient: how many times it fits. The remainder is what is left over."),
-        "missing_to_next": ("Això és el que falta per arribar al múltiple següent. El residu és el que sobra de l'anterior.",
-                            "This is what is missing to reach the next multiple. The remainder is what is left over from the one before."),
-        "divisor": ("Aquest és el nombre pel qual divideixes. El residu sempre és més petit.",
-                    "This is the number you divide by. The remainder is always smaller."),
+        "quotient": ("Aquest és el nombre de grups sencers que es fan. Et demanen el que sobra.",
+                     "This is the number of full groups. The question asks for what is left over."),
+        "missing_to_next": ("Això és el que falta per completar un grup més. Et demanen el que sobra.",
+                            "This is what is missing to complete one more group. The question asks for what is left over."),
+        "divisor": ("Aquesta és la mida de cada grup. El que sobra sempre és més petit.",
+                    "This is the size of each group. What is left over is always smaller."),
     },
     "multiples_in_range": {
         "from_one": ("Aquests són tots els múltiples començant per l'u. Els d'abans del començament no hi compten.",

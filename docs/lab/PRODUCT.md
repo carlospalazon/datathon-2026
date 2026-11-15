@@ -80,5 +80,6 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   name. No practice for `visual`, `geometria_espacial` and `otros` (button hidden). Of 8 draws the page shows the one
   with most named options and then the smallest numbers; they are not purpose-made small numbers. Practice does not feed the student memory. The
   page stays Catalan-only; Spanish messages not written. Catalan sentences need a native read.
-- **Commit:** see `git log -1 -- copilot/practice.py`
+- **Commit:** 3595d99, and a follow-up that makes the sentences fit every wording of a generator
+  (see `git log -2 -- copilot/practice.py`)
 
