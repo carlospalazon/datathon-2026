@@ -251,7 +251,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   plan). A problem opened from the map or the exam review during a session does not count as a
   step. The plan is kept in memory: a restart forgets it. The Catalan needs a native read
   ("un tema que encara es resisteix", "t'ajudarà a caçar-lo").
-- **Commit:** see `git log -1 -- tests/page_harness.mjs` at this date ("Today's session")
+- **Commit:** 11ac06e
 
 
 ### 2026-11-15 · The exam feeds the tutor (backlog 12)
@@ -292,7 +292,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   in the middle of the review loses the bar; "Resultats de l'examen" leads back to it. Exam
   answers do not name a slip (no diagnosis is run on them). On the board the tutor's memory is
   in memory only. The Catalan needs a native read.
-- **Commit:** see `git log -1 -- copilot/exam.py`
+- **Commit:** 1c44db2
 
 
 ### 2026-11-15 · Practice feeds the memory (backlog 9)
@@ -328,9 +328,11 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 - **Not done:** not seen in a real browser, not run on the board. The page harness does not
   click this (a practice card's slip is random). A practice problem solved right the first time
   counts on the map but not in the tutor's memory. A slip on practice does not change the help
-  of the *next* Cangur problems of the topic, only of the one on screen. The new line needs a
+  of the *next* Cangur problems of the topic, only of the one on screen. Without a map (the tutor used alone) a slip that came
+  back keeps its topic first for good; with the map it stops once the map calls the topic
+  "Segur". The new line needs a
   native read.
-- **Commit:** see `git log -1 -- tests/test_tutor.py` at this date ("Practice feeds the memory")
+- **Commit:** 026380d (and the follow-up after 3d55933: with a map, a slip puts a topic first only while the map still wants it)
 
 
 ### 2026-11-15 · Think-first time (backlog 5)
@@ -376,4 +378,6 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   every two seconds while the ring runs. The length is one setting for the whole server, not
   per student or level. The Catalan ("Primer, pensa-hi tu. La pista arriba de seguida.", "Ja hi
   he pensat") needs a native read.
-- **Commit:** see `git log -1 -- copilot/matrix.py`
+- **Commit:** 3d55933, and a follow-up: the seconds count from the first time the page asks for
+  the problem (the first problem is started when the server comes up), and no ring is started
+  behind the map or the exam

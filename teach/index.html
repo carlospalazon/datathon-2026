@@ -278,7 +278,8 @@ function show(view) {
   canPractise = false;
   $("#practice").hidden = true;
   api("practiceok").then(r => { canPractise = !!(r && r.available); $("#practice").hidden = !canPractise; }).catch(() => {});
-  startThink();
+  // Behind the map or the exam nobody is looking at the problem yet: the ring starts when the tutor is back (showPane)
+  if ($("#tutorpane").hidden) stopThink(); else startThink();
 }
 
 // --- Think-first time: the server says how long is left for the problem on screen; a ring takes the hint button's place ---
@@ -803,7 +804,8 @@ function reviewBar() {
 }
 async function reviewNext() {
   const r = await examCall("examreview");
-  if (!r || r.error) return;
+  if (!r) return;
+  if (r.error) { review = null; reviewBar(); return $("#next").onclick(); }  // the paper is gone: the usual next problem
   if (!r.problem) {  // the queue is over: back to the result
     review = null;
     reviewBar();
@@ -1012,7 +1014,8 @@ async function openSession() {
 }
 async function sessionNext() {  // the next step: a problem, a practice problem offered first, or the end
   const r = await mapCall("sessionnext");
-  if (!r || r.error) return;
+  if (!r) return;
+  if (r.error) { session = null; sessionBar(); return $("#next").onclick(); }  // the session is gone: the usual next problem
   session = r.session;
   if (r.problem) {
     show(r);

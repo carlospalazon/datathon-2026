@@ -403,6 +403,19 @@ class PracticeFeedsTheMemory(unittest.TestCase):
                     tutor.next_problem()
             self.assertEqual(tutor.next_problem()["problem"]["topic"], slipped)
 
+    def test_with_a_map_a_slip_only_counts_for_topics_the_map_still_wants(self):
+        for wanted, expected in ((["medida", "geometria_plana"], "geometria_plana"), (["medida"], "medida")):
+            tutor = Tutor(self.catalogue())
+            tutor.planner = lambda problem: {"solid": False, "topics": wanted}
+            tutor.practice_slip("geometria_plana", "rect_area", "perimeter")
+            tutor.practice_slip("geometria_plana", "rect_area", "perimeter")
+            tutor.start("a0_eng")
+            for n in range(3):
+                tutor.answer("C")
+                if n < 2:
+                    tutor.next_problem()
+            self.assertEqual(tutor.next_problem()["problem"]["topic"], expected)
+
 
 class ThinkFirst(unittest.TestCase):
     """The think-first time of a new problem: owned by the tutor's clock, ended by time or by an attempt."""
@@ -424,6 +437,13 @@ class ThinkFirst(unittest.TestCase):
         self.assertEqual(tutor.think(20)["events"], [])       # said once
         tutor.start("p3_eng")
         self.assertEqual(tutor.think(20)["left"], 20)          # a new problem, a new time
+
+    def test_the_seconds_count_from_the_first_time_the_page_asks(self):
+        tutor, now = self.desk()
+        now[0] += 3600                                         # started when the server came up, opened an hour later
+        self.assertEqual(tutor.think(20)["left"], 20)
+        now[0] += 5
+        self.assertEqual(tutor.think(20)["left"], 15)          # a reload gets what is left
 
     def test_an_answer_a_help_step_or_the_solution_end_it_and_leave_the_matrix_alone(self):
         for act in (lambda t: t.answer("A"), lambda t: t.help(), lambda t: t.solution()):

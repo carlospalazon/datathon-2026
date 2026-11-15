@@ -142,7 +142,7 @@ class Tutor:
         problem = self.problems[key]
         self.current = {"problem": problem, "attempts": [], "rejected": [], "errors": [], "solution_shown": False,
                         "queue": self._plan(problem), "done": 0, "questions": {}, "said": set(),
-                        "started": self.clock(), "think_skipped": False, "think_over": False}
+                        "started": None, "think_skipped": False, "think_over": False}
         self.seen.add(key)
         self.review = [item for item in self.review if item[0] != key]  # on screen now: no need to come back
         self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
@@ -153,6 +153,8 @@ class Tutor:
         """The think-first time left for the problem on screen: for its first seconds the page shows
         a calm ring where the hint button is, and the board the same ring on the matrix.
 
+        The seconds count from the first time the page asks, not from start(): the first problem is
+        started when the server comes up, before any student is looking.
         It is over when the seconds have gone, at the first answer, help step or solution, or when
         the student skips it after an attempt (skip=True). It only tells the page: help() is never
         locked. Events: the ring while it runs; once, when it ends untouched, the problem's level
@@ -161,6 +163,8 @@ class Tutor:
         s = self._session()
         if skip:
             s["think_skipped"] = True
+        if s["started"] is None:
+            s["started"] = self.clock()
         touched = bool(s["attempts"] or s["done"] or s["solution_shown"])
         seconds = max(0, int(seconds))
         left = 0 if touched or s["think_skipped"] else max(0, math.ceil(seconds - (self.clock() - s["started"])))
@@ -418,8 +422,9 @@ class Tutor:
             if skill:
                 skill["streak"] = 0
                 self._save_skill(topic)
-            topic = min(others, key=lambda t: (not self._slipped(t), wanted.index(t) if t in wanted else len(wanted),
-                                               self._mastery(t)))
+            # A slip that came back puts a topic first, unless the map no longer wants it (it calls it solid)
+            topic = min(others, key=lambda t: (not (self._slipped(t) and (advice is None or t in wanted)),
+                                               wanted.index(t) if t in wanted else len(wanted), self._mastery(t)))
             target = _difficulty(problem)
         pool.sort(key=lambda p: (p["topic"] != topic, abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))
