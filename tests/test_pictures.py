@@ -159,6 +159,11 @@ class Cubes(unittest.TestCase):
             tops = {(x, y) for x, y, z, side in self.seen(heights) if side == "top"}
             self.assertEqual(tops, {(x, y) for x, y, _ in cubes}, f"seed {seed}")             # the top of every pile is in sight
             self.assertEqual(p["figure"], {"kind": "cubes", "heights": heights})
+        for language, holes, tops in (("cat", "sense forats", "De cada pila se'n veu el cub de dalt"),
+                                      ("eng", "no holes", "The top cube of every pile can be seen")):
+            text = X.generate("cube_stack", random.Random(1), language)["text"]   # and the statement says both
+            self.assertIn(holes, text)
+            self.assertIn(tops, text)
 
     def test_each_slip_is_what_it_says_seen_from_the_viewer(self):
         hidden = 0

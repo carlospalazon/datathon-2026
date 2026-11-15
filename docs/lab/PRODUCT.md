@@ -412,7 +412,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   espai"**; click one again to turn it off. "Següent problema": the choice stays. Click "Un de
   semblant": the practice card is laid out the same way. "El meu mapa" → "Alumne nou" → "Torna al
   tutor": the plain page; the first animal's button brings the choice back.
-- **Tests / checks run:** `python3 -m pytest -q`: 350 passed (14 new in `tests/test_reading.py`
+- **Tests / checks run:** `python3 -m pytest -q`: 350 passed (15 new in `tests/test_reading.py`
   on made-up statements: the lines rejoin to the statement, numbers with a comma, colon or slash
   stay whole, the word after a number, key data marked, key data that leaks or has a status not
   shown left out, never the first step or the strategy, the choice per student and across a
@@ -523,7 +523,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   mapa": the tile of the topic says "camí ben explicat en ... de 1".
 - **Tests / checks run:** `python3 -m pytest -q`: 372 passed (in one earlier run 2 tests of the
   model lab's `tests/test_presolve.py` failed while the model lab was editing that file; not our
-  files, and they passed in the next run). New: 7 in `tests/test_practice.py` (every way is a slip of its generator and has no
+  files, and they passed in the next run). New: 6 in `tests/test_practice.py` (every way is a slip of its generator and has no
   digit; over 200 seeds of the 15 kinds the three ways are the checked one and two slips with two
   other numbers that are really what those slips give; asked for more than 70% of the draws; a
   changed generator is not asked about; the flow, one tap, a wrong way told with its number and
@@ -561,7 +561,8 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
      face by face: "Quants cubs té?", the hidden ones too. Slips: only the cubes in sight, one
      per pile, the faces in sight counted instead of the cubes. **The drawing settles the count:**
      the piles never get taller towards the viewer, so the top of every pile is in sight, and the
-     statement says there are no holes; at least one cube is always hidden.
+     statement says both things (no holes, and the top cube of every pile can be seen); at least
+     one cube is always hidden.
   The options are five different numbers in increasing order and the answer's place is drawn at
   random (A to E about equally often). `copilot/practice.py` takes these kinds for the two topics
   (they need nothing from the model lab's generators, which are not edited), names the slip
@@ -606,6 +607,6 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   idealised zigzag with equal layers. The smallest of 8 draws is shown, so the strip usually has
   one dotted line; two lines come up as the single-line ones are used. No Spanish. The Catalan
   ("quadradets", "es plega en ziga-zaga fins a fer 4 capes", "sense forats: sota de cada cub n'hi
-  ha un altre o hi ha la taula", the 11 slip sentences and 12 ways of `copilot/pictures.py`)
+  ha un altre o hi ha la taula", "De cada pila se'n veu el cub de dalt", the 11 slip sentences and 12 ways of `copilot/pictures.py`)
   needs a native read.
 - **Commit:** see `git log -1 -- copilot/pictures.py`

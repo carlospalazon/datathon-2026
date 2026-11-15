@@ -46,10 +46,10 @@ class Lines(unittest.TestCase):
         self.assertEqual(" ".join(found), " ".join(STATEMENT.split()))
 
     def test_numbers_with_a_point_a_comma_a_colon_or_a_slash_stay_whole(self):
-        text = "El tren surt a les 17:45 del 5/5/2015. Pesa 3,5 kg. Costa 2.50 € i fa 12 cm."
+        text = "El tren surt a les 17:45 del 23/4/2031. Pesa 3,5 kg. Costa 2.50 € i fa 12 cm."
         self.assertEqual(len(R.lines(text)), 3)
         self.assertEqual([(n["n"], n["what"]) for n in R.numbers(text)],
-                         [("17:45", ""), ("5/5/2015", ""), ("3,5", "kg"), ("2.50", "€"), ("12", "cm")])
+                         [("17:45", ""), ("23/4/2031", ""), ("3,5", "kg"), ("2.50", "€"), ("12", "cm")])
 
     def test_the_word_after_a_number_only_when_it_says_what_is_counted(self):
         found = {n["n"]: n["what"] for n in R.numbers("Són 4 amics, 3 més que ahir, a 5è, 9 s'han quedat i 6 Pomes.")}

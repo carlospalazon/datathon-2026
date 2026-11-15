@@ -26,7 +26,7 @@ import sqlite3
 from .tutor import STATUSES, base_status, leaks_answer
 
 MODES = ("lines", "space", "key", "numbers")
-# 12, 3,5, 17:45, 5/5/2015: one number each; not the 5 of "5è"
+# 12, 3,5, 17:45, 23/4/2031: one number each; not the 5 of "5è"
 NUMBER = re.compile(r"(?<![^\W_])\d+(?:[.,:/]\d+)*(?![^\W\d_])")
 UNITS = {"%", "€", "cm", "mm", "m", "km", "kg", "g", "l", "h", "s"}
 # Words that follow a number without saying what it counts (Catalan, English)

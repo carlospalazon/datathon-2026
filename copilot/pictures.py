@@ -13,7 +13,7 @@ inline SVG. No image file, no M3Kang data.
 
 Every figure can be read without doubt: the stair is drawn square by square; the strip shows
 every layer and every cut; and the cube piles never get taller towards the viewer, so the top
-of every pile is in sight and, with no holes, the count is settled.
+of every pile is in sight, and the statement says so and that there are no holes: the count is settled.
 
     problem = pictures.generate("cube_stack", random.Random(1), "cat")
     problem["figure"]    # {"kind": "cubes", "heights": [[3, 2], [1, 1]]}
@@ -152,10 +152,11 @@ def _text(name, p, eng):
                 + ("Després es tallen totes les capes per la línia de punts. " if one else
                    "Després es tallen totes les capes per cadascuna de les 2 línies de punts. ")
                 + "Quants trossos de paper queden després de tallar?")
+    # Both conditions are needed for the drawing to settle the count: no holes, and no pile out of sight
     return ("This building is made of equal cubes piled on a table, with no holes: under every cube there is another "
-            "cube or the table. How many cubes does it have?" if eng else
+            "cube or the table. The top cube of every pile can be seen. How many cubes does it have?" if eng else
             "Aquesta construcció està feta de cubs iguals apilats sobre una taula, sense forats: sota de cada cub "
-            "n'hi ha un altre o hi ha la taula. Quants cubs té?")
+            "n'hi ha un altre o hi ha la taula. De cada pila se'n veu el cub de dalt. Quants cubs té?")
 
 
 def _rationale(name, p, answer, eng):
