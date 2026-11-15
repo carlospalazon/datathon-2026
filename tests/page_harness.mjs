@@ -240,7 +240,7 @@ if (doc.querySelector("#exambtn")) await step("exam: answer, change, blank, hand
   await click(pane.querySelector(".confirm .yes"));
 });
 
-if (doc.querySelector("#exambtn")) await step("exam: the result, the review with the tutor and the way back", async () => {
+if (doc.querySelector("#exambtn")) await step("exam: the result, the misses as one review queue and the way back", async () => {
   const pane = $("#exampane");
   check(/\d/.test(pane.querySelector(".score").textContent), "a score: " + pane.querySelector(".score").textContent);
   const rows = pane.querySelectorAll(".review li");
@@ -250,13 +250,31 @@ if (doc.querySelector("#exambtn")) await step("exam: the result, the review with
   const ticks = calls.filter(c => c.includes("examtick")).length;
   await new Promise(r => setTimeout(r, 200));
   check(calls.filter(c => c.includes("examtick")).length === ticks, "no more clock requests after handing in");
-  await click(rows[1].querySelector("button"));
-  check(!$("#tutorpane").hidden && $("#exampane").hidden, "the tutor is back");
-  check($("#img").src === pane.querySelectorAll(".review li")[1].getAttribute("data-img"), "with the question picked");
-  check(letters().length === 5 && letters().every(b => !b.disabled), "ready to answer");
-  check(!$("#exambtn").hidden && /Resultats/.test($("#exambtn").textContent), "the header leads back to the result");
-  await click(letters()[0]);
-  await click($("#exambtn"));
+  check(pane.querySelectorAll(".review li button").length === 0, "no button per question");
+  const missed = rows.filter(r => !r.classList.contains("right"));
+  check(missed.length >= 1, "something to go over");
+  check(/fallat/.test(pane.querySelector(".ereview").textContent), "one button for the whole review");
+  check($("#reviewbar").hidden, "no review bar yet");
+  pane.querySelector(".ereview").click(); pane.querySelector(".ereview").click();  // a double click
+  await settle();
+  check(calls.filter(c => c === "api/examreview").length === 1, "a double click opens one question");
+  for (let i = 0; i < missed.length; i++) {
+    check(!$("#tutorpane").hidden && $("#exampane").hidden, "the tutor is back");
+    check($("#img").src === missed[i].getAttribute("data-img"), "with the next question missed, in paper order");
+    check(letters().length === 5 && letters().every(b => !b.disabled), "ready to answer");
+    check(new RegExp(`${i + 1} de ${missed.length}`).test($("#reviewbar").textContent) && !$("#reviewbar").hidden, "the bar counts the review: " + $("#reviewbar").textContent);
+    check(/de l'examen/.test($("#feed").firstElementChild.textContent), "a line about what was marked");
+    if (i === 0) {  // the header leads back to the result, which now offers to go on
+      check(!$("#exambtn").hidden && /Resultats/.test($("#exambtn").textContent), "the header leads back to the result");
+      await click($("#exambtn"));
+      check(missed.length === 1 ? /totes/.test(pane.textContent) : /Continua/.test(pane.querySelector(".ereview").textContent), "the result knows how far the review got");
+      await click(pane.querySelector(".eleave"));
+    }
+    await click(letters()[0]);
+    await click($("#next"));
+  }
+  check(!pane.hidden && $("#reviewbar").hidden, "after the last one, back to the result");
+  check(/Ja les has repassat totes/.test(pane.textContent), "which says the review is done");
   check(pane.querySelectorAll(".review li").length === 3, "the result again");
   await click(pane.querySelector(".eagain"));
   check(pane.querySelectorAll(".paperpick button").length >= 1, "another paper can be chosen");

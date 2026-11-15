@@ -26,7 +26,7 @@ import server  # noqa: E402
 def catalogue():
     rows = []
     for block in range(3):
-        for i in range(3):
+        for i in range(6):   # enough for the tutor, an exam, its review and a session without running out
             n = block * 8 + i + 1
             rows.append({"key": f"lvl-0_2020_{n}_cat", "id": f"lvl-0_2020_{n}", "language": "cat", "stage": "primaria",
                          "level": 0, "grade": 5, "block": block, "question_number": n, "difficulty": block,

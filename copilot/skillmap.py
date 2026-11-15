@@ -161,6 +161,7 @@ class SkillMap:
             self.practice_answered(practice.current, result)
         elif action.startswith("exam"):
             self.exam_checked(exam.paper)
+            tutor.exam_checked(exam.paper)  # the tutor's own memory: by topic, and the misses come back
 
     # --- The map ---------------------------------------------------------------------------
 

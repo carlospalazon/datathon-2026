@@ -107,8 +107,6 @@
   .review li b { min-width: 28px; }
   .review li .what { flex: 1; min-width: 180px; }
   .review li .delta { font-variant-numeric: tabular-nums; font-weight: 800; }
-  .review li button { font: inherit; font-weight: 800; font-size: 14px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
-  .review li button:hover { background: var(--soft); }
   /* The skill map: topics by level (new, tried, shaky, solid), what to try next, and the class by pseudonym */
   .hbtns { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
   #mapbtn, #sessionbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--green-dark); border-bottom-width: 4px; background: var(--green); color: #fff; cursor: pointer; }
@@ -171,6 +169,7 @@
   <section id="mappane" hidden></section>
   <section id="tutorpane">
     <div class="planbar" id="sessionbar" hidden><span class="ptxt"></span><button class="pquit">Surt de la sessió</button></div>
+    <div class="planbar" id="reviewbar" hidden><span class="ptxt"></span><button class="pquit">Torna als resultats</button></div>
     <img class="problem-img" id="img" alt="Enunciat del problema">
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
@@ -480,6 +479,7 @@ $("#solution").onclick = async () => {
 };
 
 $("#next").onclick = async () => {
+  if (review) return reviewNext();                      // going over an exam: the next question missed
   if (session && session.active) return sessionNext();  // in a session the map picks the next problem
   const r = await api("next");
   if (r.error) return say(esc(r.error));
@@ -694,7 +694,7 @@ const OUTCOME = { right: "Encertada", wrong: "Equivocada", blank: "En blanc" };
 function examDone(r) {
   exam = r;
   draw(r.frames);
-  const g = r.guess;
+  const g = r.guess, rv = r.review || { total: 0, left: 0 };
   const tip = g.pays_from === null ? "Amb aquestes regles, respondre a l'atzar fa perdre punts de mitjana: si dubtes, deixa-la en blanc."
     : g.pays_from === 0 ? "Amb aquestes regles, respondre sempre surt a compte, encara que dubtis."
     : `Si no pots descartar ${g.pays_from === 1 ? "cap opció" : "almenys " + g.pays_from + " opcions"}, respondre a l'atzar ${g.sign_with_none_out === 0 && g.pays_from === 1 ? "no et fa guanyar ni perdre punts de mitjana" : "no surt a compte"}. `
@@ -706,10 +706,14 @@ function examDone(r) {
     ${r.wrong ? `<p>Les respostes equivocades t'han restat ${plural(r.lost, "punt", "punts")}. Deixant-les en blanc tindries ${plural(r.if_blank, "punt", "punts")}.</p>` : ""}
     <p><strong>Quan val la pena arriscar?</strong> ${esc(tip)}</p>
     <h3>Repàs</h3>
-    <p class="muted">Aquí no es diu quina era la resposta correcta: torna a provar cada pregunta amb el tutor, amb pistes si et calen.</p>
+    ${rv.total ? `<p>${plural(rv.total, "pregunta per repassar", "preguntes per repassar")}: les equivocades i les que has deixat en blanc, una darrere l'altra amb el tutor, amb pistes si et calen.
+        ${rv.left ? "" : "<strong>Ja les has repassat totes.</strong>"}</p>
+      <div class="actions"><button class="primary ereview">${rv.left === rv.total ? "Repassa les que has fallat" : rv.left ? `Continua el repàs (${rv.left === 1 ? "en queda 1" : "en queden " + rv.left})` : "Torna-les a repassar"}</button></div>`
+      : `<p>Les has encertat totes: no hi ha res per repassar.</p>`}
+    <p class="muted">Aquí no es diu quina era la resposta correcta: la trobaràs tu amb el tutor.</p>
     <ul class="review"></ul>
     <div class="actions" style="margin-top:22px">
-      <button class="primary eagain">Un altre examen</button>
+      <button class="${rv.total ? "" : "primary "}eagain">Un altre examen</button>
       <button class="eleave">Torna al tutor</button>
     </div>`;
   const list = pane.querySelector(".review");
@@ -718,22 +722,43 @@ function examDone(r) {
     li.className = q.outcome;
     li.setAttribute("data-img", "img/" + encodeURIComponent(q.key) + ".png");
     li.innerHTML = `<b>${q.n}</b><span class="what">${OUTCOME[q.outcome]}${q.given ? ` (has marcat la ${esc(q.given)})` : ""} · val ${plural(q.points, "punt", "punts")}</span>
-      <span class="delta">${q.delta > 0 ? "+" : ""}${num(q.delta)}</span>
-      <button>${q.outcome === "right" ? "Torna-la a veure" : "Repassa-la amb el tutor"}</button>`;
-    li.querySelector("button").onclick = async () => {
-      const view = await api("start", { key: q.key });
-      if (view.error) return;
-      show(view);
-      showPane(false);
-      say(`<strong>Pregunta ${q.n} de l'examen.</strong> ${q.outcome === "blank" ? "L'havies deixada en blanc." : q.outcome === "wrong" ? `Havies marcat la ${esc(q.given)}, que no és correcta.` : "L'havies encertada: sabries explicar per què?"}
-        Ara tens pistes i tot el temps que vulguis. Per tornar al repàs, prem «Resultats de l'examen» a dalt.`, "help");
-    };
+      <span class="delta">${q.delta > 0 ? "+" : ""}${num(q.delta)}</span>`;
     list.append(li);
   }
-  pane.querySelector(".eagain").onclick = async () => { await api("examclose"); exam = { status: "none" }; examSetup(); };
+  if (rv.total) pane.querySelector(".ereview").onclick = reviewNext;
+  pane.querySelector(".eagain").onclick = async () => { await api("examclose"); exam = { status: "none" }; review = null; reviewBar(); examSetup(); };
   pane.querySelector(".eleave").onclick = () => showPane(false);
   showPane(true);
 }
+
+// The wrong and blank questions of the paper as one queue: each opens in the tutor, "Següent problema" brings the next
+let review = null;
+function reviewBar() {
+  $("#reviewbar").hidden = !review;
+  if (review) $("#reviewbar").querySelector(".ptxt").innerHTML = `<strong>Repàs de l'examen</strong> · pregunta ${review.n} · ${review.at} de ${review.total}`;
+}
+async function reviewNext() {
+  const r = await examCall("examreview");
+  if (!r || r.error) return;
+  if (!r.problem) {  // the queue is over: back to the result
+    review = null;
+    reviewBar();
+    const e = await api("examstate");
+    return e.status === "finished" ? examDone(e) : showPane(false);
+  }
+  review = r.review;
+  show(r);
+  showPane(false);
+  reviewBar();
+  say(`<strong>Pregunta ${review.n} de l'examen.</strong> ${review.outcome === "blank" ? "L'havies deixada en blanc." : `Havies marcat la ${esc(review.given)}, que no és correcta.`}
+    Ara tens pistes i tot el temps que vulguis. Amb «Següent problema» passes a la següent del repàs${review.at === review.total ? " (aquesta és l'última)" : ""}.`, "help");
+}
+$("#reviewbar").querySelector(".pquit").onclick = async () => {
+  review = null;
+  reviewBar();
+  const e = await api("examstate");
+  if (e.status === "finished") examDone(e);
+};
 
 // --- The skill map: what has been tried, by topic and level, and what to try next ---
 // The words describe a topic, never a student. Students go by the name of an animal.
@@ -833,6 +858,8 @@ async function mapSeat(action, body) {  // the board goes to another student: th
   const r = await mapCall(action, body);
   if (!r) return;
   if (r.error) { mapPane.querySelector(".mmsg").textContent = "Ara mateix no es pot canviar d'alumne."; return; }
+  review = null;
+  reviewBar();
   await loadState();
   const e = await api("examstate");
   exam = e.status === "finished" ? e : { status: "none" };
@@ -952,7 +979,10 @@ $("#sessionbar").querySelector(".pquit").onclick = async () => {
 };
 
 $("#exambtn").onclick = async () => {
-  if (exam.status === "finished") return examDone(exam);
+  if (exam.status === "finished") {  // asked again: how much of the review is left may have changed
+    const e = await api("examstate");
+    return examDone(e.status === "finished" ? e : exam);
+  }
   await examSetup();
   showPane(true);
 };

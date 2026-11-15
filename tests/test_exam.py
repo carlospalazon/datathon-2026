@@ -195,6 +195,38 @@ class Time(unittest.TestCase):
         self.assertEqual(exam.state(), {"status": "none", "events": []})
 
 
+class ReviewQueue(unittest.TestCase):
+    def test_wrong_and_blank_questions_are_one_queue_in_paper_order(self):
+        exam, _, _ = sit("curt")
+        with self.assertRaises(RuntimeError):
+            exam.review_next()                       # not while the paper runs
+        for n, letter in {1: "C", 2: "A", 4: "C", 5: "E", 9: "C"}.items():
+            exam.answer(n, letter)
+        result = exam.finish()
+        self.assertEqual(result["review"], {"total": 6, "left": 6})   # 2 wrong and 4 blank
+        got = [exam.review_next() for _ in range(6)]
+        self.assertEqual([g["n"] for g in got], [2, 3, 5, 6, 7, 8])
+        self.assertEqual([g["outcome"] for g in got], ["wrong", "blank", "wrong", "blank", "blank", "blank"])
+        self.assertEqual([g["given"] for g in got], ["A", None, "E", None, None, None])
+        self.assertEqual([(g["at"], g["total"]) for g in got], [(i, 6) for i in range(1, 7)])
+        self.assertEqual(got[0]["key"], result["questions"][1]["key"])
+        self.assertEqual(exam.results()["review"], {"total": 6, "left": 0})
+        self.assertEqual(exam.review_next(), {"done": True, "total": 6})
+        self.assertEqual(exam.review_next()["n"], 2)                  # asked again, it starts over
+        for word in ("label", "SECRET", "solution", "hints"):
+            self.assertNotIn(word, json.dumps(got + [exam.results()]))
+
+    def test_a_paper_with_nothing_missed_has_no_queue_and_close_forgets_it(self):
+        exam, _, state = sit("tast")
+        for q in state["questions"]:
+            exam.answer(q["n"], "C")
+        self.assertEqual(exam.finish()["review"], {"total": 0, "left": 0})
+        self.assertEqual(exam.review_next(), {"done": True, "total": 0})
+        exam.close()
+        with self.assertRaises(RuntimeError):
+            exam.review_next()
+
+
 class Matrix(unittest.TestCase):
     def shape(self, grid):
         self.assertEqual(len(grid), ROWS)

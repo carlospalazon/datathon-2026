@@ -22,6 +22,7 @@ What the tutor remembers about the student, and the rules that use it:
   errors[topic, code]  problems where a rule diagnosed that mistake. The second time, the next
                        help step is the method of the topic, not one more detail of the problem.
   review               problems that went wrong come back REVIEW_AFTER problems later.
+An exam handed in counts too (exam_checked): its questions by topic in skill, the wrong ones in review.
 
 The guide, in order, skipping steps that have no content or aren't safe to show.
 Help about the problem on screen comes first, the general method after it:
@@ -138,6 +139,7 @@ class Tutor:
         self.current = {"problem": problem, "attempts": [], "rejected": [], "errors": [], "solution_shown": False,
                         "queue": self._plan(problem), "done": 0, "questions": {}, "said": set()}
         self.seen.add(key)
+        self.review = [item for item in self.review if item[0] != key]  # on screen now: no need to come back
         self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
         return {"problem": self.public(problem),
                 "events": [{"event": "level", "value": problem["level"]}]}
@@ -391,6 +393,25 @@ class Tutor:
         pool.sort(key=lambda p: (p["topic"] != topic, abs(_difficulty(p) - target),
                                  not p.get("options"), _rank(problem["key"] + p["key"])))
         return self.start(pool[0]["key"])
+
+    def exam_checked(self, paper):
+        """An exam handed in feeds the memory, once per paper: each question answered counts in its
+        topic like a problem met here (right the first time, or not), a wrong one also comes back
+        later unless the student goes over it before, and a blank ends the topic's streak. A problem
+        already settled with the tutor is not counted again, and going over a miss afterwards does
+        not count it twice."""
+        if not paper or not paper.get("finished") or paper.get("remembered"):
+            return
+        paper["remembered"] = True
+        for n, q in enumerate(paper["questions"], 1):
+            problem, given = q["problem"], paper["answers"].get(n)
+            if given is None:
+                skill = self.skill.setdefault(problem["topic"], {"streak": 0, "done": 0, "right": 0})
+                skill["streak"] = 0
+                self._save_skill(problem["topic"])
+            else:
+                self.seen.add(problem["key"])
+                self._remember(problem, given == problem["label"])
 
     def _mastery(self, topic):
         """Sort key: the topic with the lowest share of first-try right answers first; untried ones at 0.5."""

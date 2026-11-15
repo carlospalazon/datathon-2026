@@ -16,7 +16,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | half built (2026-11-15: the skill map records it and names a slip that comes back; the tutor's own choice of help and of next problem does not use it yet) |
 | 10 | **Practice for the picture topics.** Generators with a figure drawn by the page (grids to count, folded paper, cube nets) so `visual` and `geometria_espacial` get a practice problem too. | 28 of the 154 primary problems have no practice today. | new generators of our own, SVG drawn by the page | open |
 | 11 | **Warm-up of three.** Before the first Cangur problem, three one-minute generated problems, one per topic the student found hardest last time. | A start that always succeeds, and it uses the memory. | `copilot/practice.py`, student memory | open |
-| 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | half built (2026-11-15: the skill map records every question of a paper handed in; the queue is not built) |
+| 12 | **The exam feeds the memory and the tutor.** Wrong and blank exam questions go to the student memory by topic, and the result offers "repassa les que has fallat" as one queue instead of one button per question. | The exam becomes the tutor's plan for the next session. | `copilot/exam.py` results, SQLite student memory | **built** (2026-11-15; the queue is forgotten with "Un altre examen"; not seen in a real browser) |
 | 14 | **The map plans the session.** "Sessió d'avui": three problems chosen from the map (one shaky topic, one just begun, one new), with a practice problem between them when a slip comes back; the tutor's own `next_problem` reads the map too. | The map stops being a report and becomes the plan. | `copilot/skillmap.py`, `copilot/tutor.py` | **built** (2026-11-15; the chat's "següent" still goes by the tutor's own rule; not seen in a real browser) |
 | 15 | **The class from several boards.** Each board saves its map file; the teacher's laptop reads the files of all the boards into one class view, and prints it. | A class has more than one board, and the teacher wants it on paper. | `copilot/skillmap.py` tables in the profile file | open |
 | 16 | **Come back as the same animal after a restart on the board.** The App Lab app keeps the map in a file on the board, and each animal's tutor memory with it. | Today the board forgets the class when the app restarts. | `copilot/skillmap.py`, `applab/math-tutor/python/main.py` | open |
@@ -252,3 +252,44 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   step. The plan is kept in memory: a restart forgets it. The Catalan needs a native read
   ("un tema que encara es resisteix", "t'ajudarà a caçar-lo").
 - **Commit:** see `git log -1 -- tests/page_harness.mjs` at this date ("Today's session")
+
+
+### 2026-11-15 · The exam feeds the tutor (backlog 12)
+- **What:** on the exam result, the button per question is gone: one button, **"Repassa les que
+  has fallat"**, opens the wrong and blank questions one after the other in the tutor, in paper
+  order. Over the problem a bar says "Repàs de l'examen · pregunta 4 · 2 de 3", a line says what
+  had been marked ("Havies marcat la B, que no és correcta" or "L'havies deixada en blanc", never
+  the right letter), and "Següent problema" brings the next one; after the last one the page goes
+  back to the result, which says "Ja les has repassat totes". Leaving half way and coming back
+  ("Resultats de l'examen") offers "Continua el repàs (en queden 2)". The queue lives in
+  `copilot/exam.py` (`review_next`, and `review: {total, left}` in the result), behind a new
+  endpoint `examreview` in `teach/server.py` and in the App Lab app. **The tutor's own memory is
+  fed** by `Tutor.exam_checked(paper)`, once per paper handed in (by the student or the clock):
+  a question answered counts in its topic's `skill` like a problem met with the tutor (right the
+  first time or not), a wrong one enters the tutor's own review list so it comes back three
+  problems later if the student skips the queue, and a blank ends the topic's streak and stays
+  free to be offered. Opening a problem takes it off that list, so nothing comes back twice, and
+  a miss solved in the review counts once. With `--profile` it is saved.
+- **Why:** the exam becomes the tutor's plan: one click to work through everything missed, and
+  the tutor's next problems (which topic, how hard) now know what the exam showed.
+- **See it:** `python3 teach/server.py --port 8650`, open http://127.0.0.1:8650, "Mode examen",
+  "Tast · 3 preguntes · 3 minuts", "Comença l'examen". Mark a letter on question 1, leave the
+  others blank, "Lliura l'examen", "Sí, lliura'l". On the result click **"Repassa les que has
+  fallat"**: the first miss opens in the tutor with the bar; "Següent problema" for the next;
+  after the last one the result is back. "Torna als resultats" on the bar leaves the review.
+- **Tests / checks run:** `python3 -m pytest -q`: 321 passed (2 new in `tests/test_exam.py`: the
+  queue in paper order, what it sends, nothing while the paper runs, done and start over, a paper
+  with nothing missed, close; 3 new in `tests/test_tutor.py`: right, wrong and blank by topic,
+  once per paper, a miss gone over counts once and does not come back twice, a problem settled
+  with the tutor is not rewritten; the page harness's exam step now clicks the whole queue, a
+  double click, the way back half way and the end). Real catalogue, server started from a Python
+  script on a free port with `--profile`: a paper with two wrong and one blank, the three opened
+  in order in the tutor with hints answering, `left` 0, the tutor's skill rows in the profile
+  file; server stopped. The App Lab build imported with stand-ins: the same through its 30 routes.
+- **Not done:** not seen in a real browser, not run on the board. A question answered right can
+  no longer be opened from the result (the per-question buttons are gone). "Un altre examen"
+  forgets the queue (the wrong ones still come back through the tutor's own list). A page reload
+  in the middle of the review loses the bar; "Resultats de l'examen" leads back to it. Exam
+  answers do not name a slip (no diagnosis is run on them). On the board the tutor's memory is
+  in memory only. The Catalan needs a native read.
+- **Commit:** see `git log -1 -- copilot/exam.py`

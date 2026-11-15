@@ -156,6 +156,15 @@ def session_stop():
     return {"session": None}
 
 
+def exam_review():
+    """The next wrong or blank question of the paper handed in, opened in the tutor."""
+    step = exam.review_next()
+    if "key" in step:
+        view["current"] = tutor.start(step["key"])
+        return {**view["current"], "review": step}
+    return {**step, "events": []}
+
+
 def chat(text):
     def go():
         result = assistant.chat(urllib.parse.unquote(text))
@@ -191,6 +200,7 @@ ui.expose_api("GET", "/api/examanswer/{n}/{letter}",
               lambda n, letter: run(hooked("examanswer", lambda a, b: exam.answer(a, b)), n, letter))
 ui.expose_api("GET", "/api/examtick", lambda: run(hooked("examtick", lambda: exam.tick())))
 ui.expose_api("GET", "/api/examfinish", lambda: run(hooked("examfinish", lambda: exam.finish())))
+ui.expose_api("GET", "/api/examreview", lambda: run(hooked("examreview", exam_review)))
 ui.expose_api("GET", "/api/examclose", lambda: run(exam.close))
 ui.expose_api("GET", "/api/skillmap", lambda: run(skill_map))
 ui.expose_api("GET", "/api/session", lambda: run(session))

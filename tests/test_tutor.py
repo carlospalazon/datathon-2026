@@ -297,5 +297,44 @@ class Matrix(unittest.TestCase):
             frame({"event": "fireworks"})
 
 
+class ExamFeedsTheMemory(unittest.TestCase):
+    """An exam handed in: by topic in the tutor's skill, the misses come back, nothing counted twice."""
+
+    def paper(self, answers, finished=True):
+        keys = ["p2_eng", "p3_eng", "p4_eng", "p5_eng"]   # labels A, B, C, C; p4 is geometry
+        byk = {p["key"]: p for p in CATALOGUE}
+        return {"questions": [{"problem": byk[k]} for k in keys], "answers": answers, "finished": finished}
+
+    def test_right_wrong_and_blank_count_by_topic_once_per_paper(self):
+        tutor = Tutor(CATALOGUE, TYPES)
+        paper = self.paper({1: "A", 2: "A", 3: "A"})      # right, wrong, wrong (geometry), blank
+        running = self.paper({1: "A"}, finished=False)
+        tutor.exam_checked(running)
+        self.assertEqual(tutor.skill, {})                  # nothing while the paper runs
+        tutor.exam_checked(paper)
+        tutor.exam_checked(paper)
+        self.assertEqual(tutor.skill["aritmetica"], {"streak": 0, "done": 2, "right": 1})   # the blank ended the streak
+        self.assertEqual(tutor.skill["geometria_plana"], {"streak": 0, "done": 1, "right": 0})
+        self.assertEqual(tutor.seen, {"p2_eng", "p3_eng", "p4_eng"})                       # the blank can still be offered
+        self.assertEqual([k for k, _ in tutor.review], ["p3_eng", "p4_eng"])               # the misses come back
+
+    def test_a_miss_gone_over_with_the_tutor_counts_once_and_does_not_come_back_twice(self):
+        tutor = Tutor(CATALOGUE, TYPES)
+        tutor.exam_checked(self.paper({2: "A"}))
+        tutor.start("p3_eng")                              # the review queue opens it
+        self.assertEqual(tutor.review, [])
+        self.assertTrue(tutor.answer("B")["correct"])
+        self.assertEqual(tutor.skill["aritmetica"], {"streak": 0, "done": 1, "right": 0})
+        self.assertEqual(len(tutor.history), 1)
+
+    def test_a_problem_settled_with_the_tutor_is_not_rewritten_by_an_exam(self):
+        tutor = Tutor(CATALOGUE, TYPES)
+        tutor.start("p2_eng")
+        tutor.answer("A")
+        tutor.exam_checked(self.paper({1: "B", 2: "B", 3: "C", 4: "C"}))   # the first one wrong this time
+        self.assertEqual(tutor.skill["aritmetica"], {"streak": 3, "done": 3, "right": 3})
+        self.assertEqual(tutor.review, [])
+
+
 if __name__ == "__main__":
     unittest.main()

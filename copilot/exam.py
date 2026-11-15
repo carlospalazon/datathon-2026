@@ -3,9 +3,9 @@
 A paper takes the same number of problems from each of the three blocks of a level
 (the easy third, the middle third, the hard third of the real papers). While it runs
 the student gets no feedback: an answer can be changed or left blank until the paper
-is handed in or the time runs out. The result says what each wrong answer cost and
-which questions to go over with the tutor. It never contains a right letter: the
-student finds it with the tutor.
+is handed in or the time runs out. The result says what each wrong answer cost, and
+the wrong and blank questions become one queue to go over with the tutor, one after
+the other. It never contains a right letter: the student finds it with the tutor.
 
 It keeps its own state, apart from the tutor's session, and uses no model.
 Standard library only.
@@ -178,6 +178,32 @@ class Exam:
         self.paper = None
         return {"status": "none", "events": [{"event": "clear"}]}
 
+    # --- The review queue ------------------------------------------------------------
+
+    def _missed(self):
+        """The numbers of the questions answered wrong or left blank, in paper order."""
+        paper = self.paper
+        return [n for n, q in enumerate(paper["questions"], 1) if paper["answers"].get(n) != q["problem"]["label"]]
+
+    def review_next(self):
+        """The next wrong or blank question of the paper handed in, for the tutor to open: one queue
+        instead of a button per question. After the last one it says so once; asked again, it
+        starts over. No right letter here either."""
+        paper = self._running()
+        if not paper["finished"]:
+            raise RuntimeError("the exam is still running")
+        missed = self._missed()
+        if "queue" not in paper or (not paper["queue"] and paper.get("review_over")):
+            paper["queue"], paper["review_over"] = list(missed), False
+        if not paper["queue"]:
+            paper["review_over"] = True
+            return {"done": True, "total": len(missed)}
+        n = paper["queue"].pop(0)
+        q = paper["questions"][n - 1]
+        given = paper["answers"].get(n)
+        return {"n": n, "key": q["problem"]["key"], "given": given, "outcome": "blank" if given is None else "wrong",
+                "at": len(missed) - len(paper["queue"]), "total": len(missed)}
+
     # --- The result ------------------------------------------------------------------
 
     def results(self):
@@ -211,6 +237,8 @@ class Exam:
                 "if_blank": _num(score + lost + Fraction(s["blank"]) * counts["wrong"]),
                 "maximum": _num(start + sum(q["points"] for q in paper["questions"])),
                 "guess": self.guess(),
+                "review": {"total": counts["wrong"] + counts["blank"],
+                           "left": len(paper.get("queue", self._missed()))},
                 "events": [{"event": "number", "value": counts["right"]}]}
 
     def guess(self, options=5):

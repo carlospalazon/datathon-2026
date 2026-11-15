@@ -146,6 +146,12 @@ class App:
             return with_frames(self.exam.tick())
         if action == "examfinish":
             return with_frames(self.exam.finish())
+        if action == "examreview":  # the next wrong or blank question of the paper, opened in the tutor
+            step = self.exam.review_next()
+            if "key" in step:
+                self.view = self.tutor.start(step["key"])
+                return with_frames({**self.view, "review": step})
+            return with_frames({**step, "events": []})
         if action == "examclose":
             return with_frames(self.exam.close())
         if action == "skillmap":
