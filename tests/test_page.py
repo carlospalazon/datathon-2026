@@ -45,7 +45,8 @@ class Page(unittest.TestCase):
             with open(path, "w") as f:
                 f.writelines(json.dumps(r) + "\n" for r in catalogue())
             args = argparse.Namespace(catalog=path, types="content/types_primaria.json", images=tmp, stage="primaria",
-                                      language="cat", show="revisado,preparado,generado", profile="")
+                                      language="cat", show="revisado,preparado,generado", profile="",
+                                      think=1)  # one second of think-first time: the harness waits for it
             app = server.App(args)
             handler = server.make_handler(app)
             handler.log_message = lambda *a: None
@@ -59,7 +60,7 @@ class Page(unittest.TestCase):
                 httpd.shutdown()
                 httpd.server_close()
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            self.assertIn("OK: 10 steps", run.stdout)
+            self.assertIn("OK: 11 steps", run.stdout)
 
 
 if __name__ == "__main__":

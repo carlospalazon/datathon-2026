@@ -28,6 +28,7 @@ from copilot.skillmap import SkillMap, sample_class  # noqa: E402
 from copilot.tutor import STATUSES, Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+THINK = 20  # think-first seconds on a new problem, unless --think says otherwise
 
 
 def parse_args():
@@ -39,6 +40,8 @@ def parse_args():
     p.add_argument("--language", default="cat")
     p.add_argument("--show", default=",".join(STATUSES), help="content statuses the student may see")
     p.add_argument("--profile", default="", help="SQLite file that keeps what the student has done (empty: off)")
+    p.add_argument("--think", type=int, default=THINK,
+                   help="think-first seconds before the hint button appears on a new problem (0: off)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8010)
     return p.parse_args()
@@ -64,6 +67,7 @@ class App:
         with open(os.path.join(ROOT, args.types)) as f:
             types = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
         self.types = types
+        self.think = max(0, int(getattr(args, "think", THINK)))
         # The skill map: fed by the tutor, the practice card and the exam; kept in the profile file if there is one
         self.skills = SkillMap(self.problems, path=args.profile or None, language=args.language)
         self.seats = {}  # pseudonym -> that student's own tutor, practice card, exam and problem on screen
@@ -125,6 +129,10 @@ class App:
                                 "events": [{"event": "thinking"}]})
         if action == "job":
             return with_frames(self.assistant.job(body.get("id", 0)))
+        if action == "think":  # the think-first time left; asking also moves the ring on the board
+            return with_frames(self.tutor.think(self.think))
+        if action == "thinkskip":  # the student made an attempt and wants the hint button now
+            return with_frames(self.tutor.think(self.think, skip=True))
         if action == "practiceok":  # can the page offer a practice problem for the one on screen?
             return {"available": self.practice.available(self.tutor.current["problem"]["topic"])}
         if action == "practice":

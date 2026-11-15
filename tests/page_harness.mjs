@@ -128,6 +128,33 @@ await step("the page loads and shows a problem", async () => {
   check(lit() > 0, "the level on the matrix");
 });
 
+if (doc.querySelector("#think")) await step("think first: a ring in the hint button's place, skipped after typing, and over by itself", async () => {
+  const ringOn = () => !$("#think").hidden && $("#help").hidden;
+  check(ringOn(), "a new problem starts with the ring, not the hint button");
+  check($("#thinkskip").hidden, "no way round it before an attempt");
+  check(lit() > 20, "the ring on the matrix: " + lit());
+  $("#chattext").value = "crec que";
+  $("#chattext").oninput({ target: $("#chattext") });
+  await click($("#thinkskip"));
+  $("#chattext").value = "";
+  check(!ringOn() && !$("#help").hidden && $("#think").hidden, "after typing something the student can have the button back");
+  check(calls.includes("api/thinkskip") && lit() < 20, "and the ring leaves the matrix");
+  await click($("#next"));
+  check(ringOn(), "the next problem starts with the ring again");
+  await new Promise(r => setTimeout(r, 1600));  // real time: the server owns the think-first seconds (1 in this test)
+  await settle();
+  check(!ringOn() && !$("#help").hidden, "the hint button comes back by itself");
+  const asked = calls.filter(c => c === "api/think").length;
+  await new Promise(r => setTimeout(r, 200));
+  check(calls.filter(c => c === "api/think").length === asked && timers.size === 0, "and the page stops asking");
+  await click($("#next"));
+  check(ringOn(), "a third problem, the ring again");
+  await click(letters()[0]);
+  check(!ringOn(), "an answer ends it");
+  check($("#matrix").querySelectorAll("span.on").length < 20, "and the tick or cross stays on the matrix");
+  await click($("#next"));
+});
+
 await step("a wrong letter, then the practice card from the red message", async () => {
   // The page never learns the right letter; try letters until one is wrong
   let wrong = null;

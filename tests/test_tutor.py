@@ -404,5 +404,64 @@ class PracticeFeedsTheMemory(unittest.TestCase):
             self.assertEqual(tutor.next_problem()["problem"]["topic"], slipped)
 
 
+class ThinkFirst(unittest.TestCase):
+    """The think-first time of a new problem: owned by the tutor's clock, ended by time or by an attempt."""
+
+    def desk(self):
+        now = [100.0]
+        tutor = Tutor(CATALOGUE, TYPES)
+        tutor.clock = lambda: now[0]
+        tutor.start("p1_eng")
+        return tutor, now
+
+    def test_it_counts_down_and_ends_by_itself_with_the_level_back_on_the_matrix_once(self):
+        tutor, now = self.desk()
+        self.assertEqual(tutor.think(20), {"left": 20, "of": 20, "events": [{"event": "think", "value": 20, "of": 20}]})
+        now[0] += 7.5
+        self.assertEqual(tutor.think(20)["left"], 13)
+        now[0] += 13
+        self.assertEqual(tutor.think(20), {"left": 0, "of": 20, "events": [{"event": "level", "value": 2}]})
+        self.assertEqual(tutor.think(20)["events"], [])       # said once
+        tutor.start("p3_eng")
+        self.assertEqual(tutor.think(20)["left"], 20)          # a new problem, a new time
+
+    def test_an_answer_a_help_step_or_the_solution_end_it_and_leave_the_matrix_alone(self):
+        for act in (lambda t: t.answer("A"), lambda t: t.help(), lambda t: t.solution()):
+            tutor, _ = self.desk()
+            act(tutor)
+            self.assertEqual(tutor.think(20), {"left": 0, "of": 20, "events": []})
+
+    def test_the_student_can_skip_it_and_the_length_is_a_setting(self):
+        tutor, now = self.desk()
+        self.assertEqual(tutor.think(5)["left"], 5)
+        self.assertEqual(tutor.think(5, skip=True), {"left": 0, "of": 5, "events": [{"event": "level", "value": 2}]})
+        self.assertEqual(tutor.think(5)["left"], 0)
+        tutor.start("p3_eng")
+        self.assertEqual(tutor.think(0), {"left": 0, "of": 0, "events": []})   # 0 turns it off
+        self.assertEqual(tutor.think(-3)["left"], 0)
+
+    def test_help_is_never_locked_by_it(self):
+        tutor, _ = self.desk()
+        self.assertEqual(tutor.think(20)["left"], 20)
+        self.assertEqual(tutor.help()["kind"], "hint")
+
+    def test_the_ring_on_the_matrix_is_dim_and_empties(self):
+        full = frame({"event": "think", "value": 20, "of": 20})
+        self.assertEqual((len(full), {len(row) for row in full}), (ROWS, {COLS}))
+        edge = 2 * COLS + 2 * (ROWS - 2)
+        count = lambda grid: sum(1 for row in grid for v in row if v)
+        self.assertEqual(count(full), edge)
+        self.assertEqual({v for row in full for v in row}, {0, 2})             # quiet: never full brightness
+        self.assertFalse(any(v for row in full[1:-1] for v in row[1:-1]))      # only the edge
+        half = frame({"event": "think", "value": 10, "of": 20})
+        last = frame({"event": "think", "value": 1, "of": 20})
+        self.assertEqual((count(half), count(last)), (edge // 2, 2))
+        self.assertTrue(last[0][0])                                            # it empties towards where it starts
+        for odd in ({"event": "think", "value": 0, "of": 20}, {"event": "think", "value": 5, "of": 0},
+                    {"event": "think", "value": 99, "of": 20}, {"event": "think", "value": -1}):
+            self.assertIn(count(frame(odd)), (0, edge))
+        self.assertEqual(rgb({"event": "think"}), (0, 0, 1))
+
+
 if __name__ == "__main__":
     unittest.main()

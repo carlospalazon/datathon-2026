@@ -6,6 +6,7 @@ frame to the sketch over the Bridge; on a laptop, FakeMatrix prints it.
 Standard library only: no numpy here, so the tutor runs anywhere.
 """
 ROWS, COLS, ON = 8, 13, 7
+DIM = 2  # a quiet light, for the think-first ring (the sketch draws 3 bits of brightness)
 
 # The matrix is blue and monochrome. The App Lab app shows these same events
 # in colour on the UNO Q's built-in RGB LED 1 (LED 2 indicates system status).
@@ -19,6 +20,7 @@ RGB = {
     "help_step": (1, 0, 1),  # hint or guide step
     "clock": (0, 0, 1),      # exam countdown
     "skills": (0, 0, 1),     # the skill map
+    "think": (0, 0, 1),      # think-first time: a quiet ring
     "clear": (0, 0, 0),
 }
 
@@ -120,6 +122,15 @@ def frame(event):
                 grid[ROWS - 1 - r][left + i] = ON
         if event.get("next") is not None and 0 <= event["next"] < len(values):
             grid[0][left + event["next"]] = ON
+        return grid
+    if kind == "think":  # think-first time: a dim ring round the edge that empties as the time goes
+        ring = ([(0, c) for c in range(COLS)] + [(r, COLS - 1) for r in range(1, ROWS - 1)]
+                + [(ROWS - 1, c) for c in range(COLS - 1, -1, -1)] + [(r, 0) for r in range(ROWS - 2, 0, -1)])
+        left, of = max(0, int(event["value"])), event.get("of") or 0
+        lit = min(len(ring), -(-len(ring) * left // of)) if of > 0 else 0
+        grid = blank()
+        for r, c in ring[:lit]:
+            grid[r][c] = DIM
         return grid
     if kind == "clear":
         return blank()

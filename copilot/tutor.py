@@ -36,8 +36,10 @@ Help about the problem on screen comes first, the general method after it:
 The solution is never a step: the student asks for it on purpose.
 """
 import hashlib
+import math
 import re
 import sqlite3
+import time
 from datetime import datetime, timezone
 
 STATUSES = ("revisado", "preparado", "generado")
@@ -125,6 +127,7 @@ class Tutor:
         self.current = None
         self.observer = None  # observer(kind, problem, detail): told of answers, solutions and slips
         self.planner = None   # planner(problem) -> {"solid", "topics"}: the skill map's advice, if there is one
+        self.clock = time.monotonic  # for the think-first time; a test can put its own
         self.profile_path = profile_path
         if profile_path:
             self._load_profile()
@@ -138,12 +141,37 @@ class Tutor:
     def start(self, key):
         problem = self.problems[key]
         self.current = {"problem": problem, "attempts": [], "rejected": [], "errors": [], "solution_shown": False,
-                        "queue": self._plan(problem), "done": 0, "questions": {}, "said": set()}
+                        "queue": self._plan(problem), "done": 0, "questions": {}, "said": set(),
+                        "started": self.clock(), "think_skipped": False, "think_over": False}
         self.seen.add(key)
         self.review = [item for item in self.review if item[0] != key]  # on screen now: no need to come back
         self._save("INSERT OR IGNORE INTO history (key, seen_at) VALUES (?, ?)", (key, _now()))
         return {"problem": self.public(problem),
                 "events": [{"event": "level", "value": problem["level"]}]}
+
+    def think(self, seconds, skip=False):
+        """The think-first time left for the problem on screen: for its first seconds the page shows
+        a calm ring where the hint button is, and the board the same ring on the matrix.
+
+        It is over when the seconds have gone, at the first answer, help step or solution, or when
+        the student skips it after an attempt (skip=True). It only tells the page: help() is never
+        locked. Events: the ring while it runs; once, when it ends untouched, the problem's level
+        again so the ring leaves the matrix; nothing after an answer (its tick or cross stays).
+        """
+        s = self._session()
+        if skip:
+            s["think_skipped"] = True
+        touched = bool(s["attempts"] or s["done"] or s["solution_shown"])
+        seconds = max(0, int(seconds))
+        left = 0 if touched or s["think_skipped"] else max(0, math.ceil(seconds - (self.clock() - s["started"])))
+        events = []
+        if left:
+            events = [{"event": "think", "value": left, "of": seconds}]
+        elif seconds and not touched and not s["think_over"]:
+            events = [{"event": "level", "value": s["problem"]["level"]}]
+        if not left:
+            s["think_over"] = True
+        return {"left": left, "of": seconds, "events": events}
 
     # --- Answers -----------------------------------------------------------------
 

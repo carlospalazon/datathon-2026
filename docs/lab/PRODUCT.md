@@ -10,7 +10,7 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
 | 2 | **Mistake names on generated problems.** Each wrong option of a generated problem is the result of a known slip: say which ("you added the prices but forgot the quantities"), without giving the answer. | Feedback that is specific, instant and needs no model. | generators' wrong-option formulas, `copilot/diagnose.py` | **built** (2026-11-15; 16 generators, slips worked out again from `params`) |
 | 3 | **Cangur exam mode.** A timed paper built from the catalogue by level, with the real scoring (3/4/5 points, a quarter of the points lost per wrong answer, blank is free), a countdown on the LED matrix, and a review at the end that leads into the tutor. | The real competition experience; shows when leaving a blank is the right call. | catalogue levels, LED matrix, student memory | **built** (2026-11-15; scoring settings need checking; the student memory is not fed) |
 | 4 | **Skill map.** One screen (and a matrix view) of the student's topics by level: tried, mastered, shaky, with "what to try next". A teacher view of the class as a heat map, by pseudonym. | Students see progress; teachers see where the class is stuck. | SQLite student memory, topics | **built** (2026-11-15; students take turns at one board; not seen in a real browser) |
-| 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | open |
+| 5 | **Think-first timer.** The page hides the hint button for the first seconds of a new problem and shows a calm progress ring; the board uses that time to get the help ready. | Encourages a real attempt, and makes the wait invisible. | read-ahead of the problem (already in the app), LED matrix | **built** (2026-11-15; 20 seconds unless `--think` or `TUTOR_THINK` says otherwise; the dim ring not seen on the real matrix) |
 | 6 | **Explain it back.** After a right answer, one tap picks which of three explanations matches how the student solved it (the checked solution and two wrong methods that also give that number). | Checks understanding, not luck. | checked solutions, generators' typical mistakes | open |
 | 7 | **Reading modes.** One idea per line, larger spacing, key data highlighted, a "numbers only" strip; chosen by the student, remembered, never labelled. | Dyslexia- and dyscalculia-friendly without a separate product. | key data and key condition already in the catalogue | open |
 | 9 | **Practice feeds the memory.** A slip named on a practice problem counts in the student memory (topic, slip), so the second time the tutor goes to the method card, and the skill map (4) can show it. | The tutor learns from practice too, not only from Cangur problems. | `copilot/practice.py` codes, SQLite `errors` table | **built** (2026-11-15; only the first click of a practice problem counts; a practice problem solved right the first time does not count in the tutor's memory) |
@@ -331,3 +331,49 @@ Memory of the **Product** role. Newest "Built" entry at the bottom. No problem t
   of the *next* Cangur problems of the topic, only of the one on screen. The new line needs a
   native read.
 - **Commit:** see `git log -1 -- tests/test_tutor.py` at this date ("Practice feeds the memory")
+
+
+### 2026-11-15 · Think-first time (backlog 5)
+- **What:** for the first seconds of a new problem the "Una pista" button is not there: in its
+  place a small ring empties calmly next to "Primer, pensa-hi tu. La pista arriba de seguida."
+  (no numbers, nothing red). The LED matrix shows the same countdown as a dim ring round its
+  edge (brightness 2 of 7) that empties, and the problem's level comes back when it ends. It ends
+  by itself, **at the first answer** (the tick or cross stays on the matrix), or **after typing**:
+  three characters in the box to the tutor bring up "Ja hi he pensat", which gives the button
+  back, and sending a message does the same. "Veure la solució" is not hidden. **The length is a
+  setting:** `python3 teach/server.py --think 30` (seconds; `0` turns it off; 20 if not given),
+  and `TUTOR_THINK` on the board. The server owns the time (`Tutor.think`, from when the problem
+  was started), so a reload, the way back from the map or the exam, and a student who comes back
+  get what is left, not a new wait; a problem already answered or helped never gets one. Two
+  endpoints (`think`, `thinkskip`) in `teach/server.py` and in the App Lab app; a `think` event
+  in `copilot/matrix.py`. `Tutor.help` itself is never locked: the time only tells the page.
+- **Why:** a hint asked for in the first second replaces the attempt. Twenty quiet seconds make
+  the student read the problem, and on the board they are the seconds the model uses to read
+  the problem ahead, so the wait is not seen.
+- **See it:** `python3 teach/server.py --port 8650 --think 20`, open http://127.0.0.1:8650. The
+  first problem shows the ring where the hint button was, and the matrix under the page a ring
+  round its edge. Wait 20 seconds: the button is back. "Següent problema": the ring again; type
+  "crec que" in the box: **"Ja hi he pensat"** appears; click it. "Següent problema" again and
+  click a letter: the ring goes at once. Restart with `--think 5` or `--think 0` to see the
+  setting.
+- **Tests / checks run:** `python3 -m pytest -q`: 333 passed (5 new in `tests/test_tutor.py`
+  with a clock of their own: the countdown, the end said once, a new time per problem, an
+  answer, a help step and the solution end it without touching the matrix, the skip, the
+  setting and 0, help never locked, the ring's 38 dim LEDs and how it empties; 1 new in
+  `tests/test_skillmap.py` through the server, also per student; the page harness has an 11th
+  step with one second of think-first time: the ring in the button's place and on the matrix,
+  no skip before typing, the skip, the end by itself in real time, no more requests after it,
+  an answer ending it). Real catalogue, server started from a Python script with `--think 3`,
+  `--think 0` and no setting: 3, 2, 0 seconds left as real time passed, 38 then 26 LEDs, the
+  level back, nothing drawn after an answer, help still answering; servers stopped. The App Lab
+  build imported with `TUTOR_THINK=7` and stand-ins: 32 routes, the ring sent to the matrix with
+  brightness 2, nothing sent after an answer.
+- **Not done:** not seen in a real browser (the ring is an inline SVG the harness cannot
+  render) and not run on the board: whether brightness 2 reads as "quiet" on the real matrix,
+  and whether the Bridge keeps grey levels, is unchecked (the sketch sets 3 bits of grey).
+  Typing "pista" in the box during the time still gets a hint (typing counts as an attempt, as
+  asked). A practice card opened during the time does not end it. The page asks the server
+  every two seconds while the ring runs. The length is one setting for the whole server, not
+  per student or level. The Catalan ("Primer, pensa-hi tu. La pista arriba de seguida.", "Ja hi
+  he pensat") needs a native read.
+- **Commit:** see `git log -1 -- copilot/matrix.py`

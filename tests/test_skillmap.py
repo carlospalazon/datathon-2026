@@ -584,6 +584,25 @@ class ThroughTheServer(unittest.TestCase):
         with self.assertRaises(ValueError):
             call("sessionnext", {})
 
+    def test_think_first_through_the_server(self):
+        call = self.app.call
+        self.assertEqual(self.app.think, server.THINK)          # the default when no --think is given
+        first = call("think", {})
+        self.assertEqual((first["left"], first["of"]), (server.THINK, server.THINK))
+        self.assertEqual(sum(1 for row in first["frames"][0] for v in row if v), 38)
+        self.assertNotIn('"label"', json.dumps(first))
+        skipped = call("thinkskip", {})
+        self.assertEqual((skipped["left"], len(skipped["frames"])), (0, 1))
+        self.assertEqual(call("think", {})["frames"], [])
+        call("next", {})
+        self.assertGreater(call("think", {})["left"], 0)
+        call("answer", {"letter": "A"})
+        self.assertEqual((call("think", {})["left"], call("think", {})["frames"]), (0, []))
+        call("studentnew", {})                                   # each student has a think-first time of their own
+        self.assertGreater(call("think", {})["left"], 0)
+        self.app.think = 0
+        self.assertEqual(call("think", {})["left"], 0)
+
     def test_no_change_of_student_in_the_middle_of_a_paper(self):
         call = self.app.call
         call("examstart", {"level": 0, "paper": "tast"})

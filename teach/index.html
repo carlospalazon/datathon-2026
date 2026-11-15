@@ -140,6 +140,14 @@
   .key .tried { border: 2px solid var(--accent); }
   .key .shaky { border: 2px solid var(--warn); background: var(--warn-bg); }
   .key .solid { border: 2px solid var(--green); background: var(--ok-bg); }
+  /* Think-first time: for the first seconds of a new problem a calm ring takes the place of the hint button */
+  #think { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 14px; }
+  #think svg { width: 38px; height: 38px; transform: rotate(-90deg); flex: none; }
+  #think circle { fill: none; stroke-width: 4; }
+  #think .track { stroke: var(--line); }
+  #think .ring { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  @media (prefers-reduced-motion: reduce) { #think .ring { transition: none; } }
+  .actions #thinkskip { font-size: 13px; padding: 8px 12px; text-transform: none; letter-spacing: 0; }
   /* Today's session: three problems chosen from the map; a bar over the problem says where the student is */
   .planbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 10px 14px; border: 2px solid var(--green); border-radius: 16px; background: var(--ok-bg); }
   .planbar button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
@@ -174,6 +182,11 @@
     <div class="letters" id="letters" role="group" aria-label="Respostes"></div>
     <div class="actions">
       <button id="help" class="primary">Una pista</button>
+      <span id="think" hidden role="status">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><circle class="track" cx="20" cy="20" r="16"></circle><circle class="ring" cx="20" cy="20" r="16" stroke-dasharray="100.5"></circle></svg>
+        <span>Primer, pensa-hi tu. La pista arriba de seguida.</span>
+        <button id="thinkskip" hidden>Ja hi he pensat</button>
+      </span>
       <button id="solution">Veure la solució</button>
       <button id="practice" hidden>Un de semblant</button>
       <button id="next">Següent problema</button>
@@ -265,7 +278,52 @@ function show(view) {
   canPractise = false;
   $("#practice").hidden = true;
   api("practiceok").then(r => { canPractise = !!(r && r.available); $("#practice").hidden = !canPractise; }).catch(() => {});
+  startThink();
 }
+
+// --- Think-first time: the server says how long is left for the problem on screen; a ring takes the hint button's place ---
+// It ends by itself, at the first answer, or when the student has typed something and asks for the button.
+let thinkTimer = null, thinkRun = 0;
+function stopThink() {
+  thinkRun++;  // an answer still on its way from the server is dropped: it must not redraw the matrix
+  if (thinkTimer !== null) { clearInterval(thinkTimer); thinkTimer = null; }
+  $("#think").hidden = true;
+  $("#help").hidden = false;
+}
+async function startThink() {
+  stopThink();
+  const run = thinkRun;
+  let r;
+  try { r = await api("think"); } catch (e) { return; }
+  if (run !== thinkRun || r.error || !(r.left > 0)) return;
+  let left = r.left, beat = 0;
+  const of = r.of, ring = $("#think").querySelector(".ring");
+  const paint = () => { ring.style.strokeDashoffset = String(Math.round(1005 * (1 - left / of)) / 10); };
+  draw(r.frames);
+  $("#help").hidden = true;
+  $("#thinkskip").hidden = $("#chattext").value.trim().length < 3;
+  $("#think").hidden = false;
+  paint();
+  thinkTimer = setInterval(async () => {
+    if (left > 0) left--;
+    paint();
+    if (++beat % 2 && left > 0) return;  // every two seconds, and at the end: the board moves its ring too
+    let t;
+    try { t = await api("think"); } catch (e) { return; }
+    if (run !== thinkRun || t.error) return;
+    draw(t.frames);
+    left = t.left;
+    if (left > 0) paint(); else stopThink();
+  }, 1000);
+}
+async function skipThink() {  // after a clear attempt: the hint button comes back at once
+  const running = thinkTimer !== null;
+  stopThink();
+  if (!running) return;
+  try { const r = await api("thinkskip"); if (!r.error) draw(r.frames); } catch (e) { /* the button is back anyway */ }
+}
+$("#thinkskip").onclick = skipThink;
+$("#chattext").oninput = e => { if (thinkTimer !== null && e.target.value.trim().length >= 3) $("#thinkskip").hidden = false; };
 
 // --- "One like this, but yours": a fresh problem of the same kind, with the slip named ---
 let canPractise = false, practising = false;
@@ -331,6 +389,7 @@ async function practise() {
 $("#practice").onclick = practise;
 
 async function answer(letter, button) {
+  stopThink();  // an answer is an attempt: the hint button is back
   const r = await api("answer", { letter });
   if (r.error) return say(esc(r.error), "bad");
   button.classList.add(r.correct ? "right" : "wrong");
@@ -414,6 +473,7 @@ $("#chat").onsubmit = async e => {
   const text = $("#chattext").value.trim();
   if (!text) return;
   $("#chattext").value = "";
+  await skipThink();  // writing to the tutor is an attempt too
   say(`<strong>Tu:</strong> ${esc(text)}`);
   const r = await api("chat", { text });
   draw(r.frames);
@@ -473,6 +533,7 @@ function ask(q) {
 }
 
 $("#solution").onclick = async () => {
+  stopThink();
   const r = await api("solution");
   draw(r.frames);
   say(`<strong>La resposta correcta és la ${esc(r.label)}.</strong>`
@@ -502,6 +563,8 @@ function examButton() {  // the header button: into the exam, back to its result
 }
 function showPane(side) {  // false: the tutor; true: the exam; "map": the skill map
   const examSide = side === true, mapSide = side === "map";
+  if (side !== false) stopThink();                 // no ring, and no ring on the matrix, behind the exam or the map
+  else if ($("#tutorpane").hidden) startThink();   // back to the tutor: the server knows if any time is left
   pane.hidden = !examSide;
   $("#mappane").hidden = !mapSide;
   $("#tutorpane").hidden = examSide || mapSide;

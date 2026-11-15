@@ -31,6 +31,10 @@ from copilot.tutor import Tutor  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SHOW = tuple(os.environ.get("TUTOR_SHOW", "revisado,preparado,generado").split(","))
+try:  # think-first seconds before the hint button appears on a new problem (0: off)
+    THINK = max(0, int(os.environ.get("TUTOR_THINK", "20")))
+except ValueError:
+    THINK = 20
 
 with open(os.path.join(HERE, "catalog.jsonl")) as f:
     problems = [json.loads(line) for line in f if line.strip()]
@@ -184,6 +188,9 @@ ui.expose_api("GET", "/api/respond/{qid}/{value}",
 ui.expose_api("GET", "/api/solution", lambda: run(tutor.solution))
 ui.expose_api("GET", "/api/next", next_problem)
 ui.expose_api("GET", "/api/chat/{text}", chat)
+# The page asks every two seconds while the think-first ring runs: each request moves the ring on the matrix
+ui.expose_api("GET", "/api/think", lambda: run(lambda: tutor.think(THINK)))
+ui.expose_api("GET", "/api/thinkskip", lambda: run(lambda: tutor.think(THINK, skip=True)))
 ui.expose_api("GET", "/api/practiceok",
               lambda: run(lambda: {"available": practice.available(tutor.current["problem"]["topic"])}))
 ui.expose_api("GET", "/api/practice",
