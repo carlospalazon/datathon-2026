@@ -149,3 +149,54 @@ never problem text (M3Kang is research-use only).
   training for the rest of the night whatever this run says.
 - **For the user / organisers:** is a model other than Qwen3.5 0.8B allowed on the board, and is the
   hidden test M3Kang-style or 2026-style? Both answers change the ranking.
+
+### 2026-11-15 03:00 · Ideas · Round 2: one backlog from three sources; value copy clears its line, code solvers do not
+- **Tried / claim:** merged round 1 with brainstorms A (data, training) and B (decoding, system) into
+  `IDEAS.md`; closed the maths 1.5B (owner's rule); prototyped B1 and B2 on CPU, on `data/train.jsonl`
+  only. Nothing here read `data/val.jsonl` or `data/demo`.
+- **Result, B1 (copy the answer value of a near-identical training problem), leave one id out:**
+  similarity = shared words and word pairs over all of them, same language, another id. At 0.5: answers
+  64 of 1,863 problems with options (3.4%), 52 right (81%, about 70–89). At 0.6: 50, 42 right; at 0.4:
+  80, 62 right. Without options, the neighbour's letter is right 48 of 97 (49%) against about 23% for a
+  fixed letter. Kill line was coverage under 3% or precision under 70%: **cleared, narrowly.** Module
+  `copilot/presolve.py`, 8 tests (`tests/test_presolve.py`); `python3 -m copilot.presolve data/train.jsonl`
+  reprints the numbers.
+- **What it is worth, honestly:** every one of the 64 matches is a problem of the same year (the same
+  problem at a neighbouring level). On an M3Kang-style test: about 3.4% × (81 − 22) ≈ +2 points on problems
+  with options and about 9% × (49 − 23) ≈ +2 on those without. On a 2026-style test (the demo set): no
+  neighbour, no answers, **zero gain**. It will not move the number the owner asked for. It also cannot
+  hurt it. The threshold was read off the same training split, so expect a little less on validation.
+- **Result, B2 (pure-code solvers with abstention), 1,863 training problems with options:** arithmetic
+  written in the statement: answers 10 (0.5%), 4 right. Divisibility, multiple, remainder, prime, square,
+  parity and digit-sum conditions tried on integer options: a condition is found in 66 problems, exactly
+  one option passes in 15 (0.8%), 3 right; refusing statements with "not", "how many", "smallest" and
+  the like leaves 1. Kill line was coverage under 4% or precision under 85%: **dropped.** The statements
+  mention these words while asking something else.
+- **Raw outputs checked:** not applicable (no model). Wrong B1 copies are twins whose numbers changed
+  while the old value stayed among the options (seen by id, not listed here).
+- **Two things from brainstorm B that change how results are read:**
+  1. `bench_exam.py` builds its own prompts and never calls `pipeline.solve()`. Every "main number" so
+     far, including round 1's 23/21/16, is a development number. The number for the owner has to come
+     from `eval.py` / `compare_models.py` on the predict path (M1).
+  2. The pipeline decides by elapsed seconds in two places, so letters can change between runs and
+     between laptop and board (M2). Fix before the final measurement, not after.
+- **A leak to guard against (M3):** because twins are same-year, a development set must hold out whole
+  years; a held-out id whose twin stays in training is not held out. Same for A4's paraphrases.
+- **Conclusion and next:** nothing found tonight moves the demo number except training (running) and,
+  untested, B3 and B4. Estimates from all three sources agree: 22–30% by morning; no evidence for 45%.
+- **For the Engineer** (the GPU is training, so in this order, no model needed):
+  1. M1 + M2: make the pipeline's time handling token-budgeted, and prepare the `eval.py` run that will
+     produce the reported number.
+  2. Wire `presolve` in `pipeline.solve()` before any model call, behind `PRESOLVE=1`: build the index
+     once from `data/train.jsonl` (`build(rows)`); `hit = presolve(problem, index, exclude_id)`; if
+     `hit["kind"] == "value"` answer it with `status = "presolve"`; if `"letter"` use it only where
+     `NO_OPTIONS_PRIOR` would have answered. Then count it on validation with no model (answered, right):
+     keep it if at least 12 of 562 are answered and at least 65% of them are right.
+  3. M3: cut the development set (whole years 2022–2024) and add the guard to the builder.
+  4. Wire `find_letter` where the saved texts are scored.
+  When the GPU is free: first the new model through the predict path on the 100 demo problems with texts
+  saved (read 5, print letter counts: A under 35), then B3 (two short constrained calls per problem, 100
+  dev problems, kill under 28%), then B4.
+- **For the user / organisers:** is the hidden test M3Kang-style or 2026-style? B1 is worth about 2 points
+  or nothing depending on the answer.
+
