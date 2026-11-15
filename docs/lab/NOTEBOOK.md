@@ -426,3 +426,17 @@ never problem text (M3Kang is research-use only).
   sentences; stop the generator and training routes, try B3 once, and tell the owner the 0.8B stays
   at 20–25%. In between: 20 more per family before deciding.
 
+
+### 2026-11-15 09:25 · Coordinator (as Engineer) · Transfer test: the tuned model learned the wording, not the maths
+- **Tried:** Ideas' test `laptop/reworded_problems.py --n 10 --seed 7` (nine families the tuned model
+  solves, retold as another story with the same numbers and wrong-option rules, with the trained
+  wording as control), `v3_mix` step 2250, predict path.
+- **Result:** trained wording **159/180 (88%)**; reworded **63/180 (35%)**. English 34/90, Catalan
+  29/90 reworded. By family (reworded / trained wording, out of 20): coin_count 6/20, fraction_two_step
+  1/15, number_think 3/16, percent_discount 14/20, rect_area 4/18, ribbon_pieces 13/20, sharing 13/16,
+  shopping 1/16, speed_minutes 8/18.
+- **Conclusion:** below the kill line Ideas set beforehand (40%). The model matches sentence templates;
+  change the story and it falls most of the way back to chance. Writing more generators and training
+  on them will not make the 0.8B solve Cangur problems. The generator and fine-tuning routes are
+  closed for the solver. What remains for the score on an M3Kang-like test is code that needs no
+  model: the value copy from a twin training problem (measured) and the statistical prior (being built).
