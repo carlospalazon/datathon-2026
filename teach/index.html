@@ -3,16 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cangur tutor</title>
+<title>CangurMath</title>
 <style>
-  /* Design inspired by Duolingo: rounded shapes, bold colours, chunky 3D buttons */
-  :root { --ink: #4b4b4b; --muted: #777777; --line: #e5e5e5; --bg: #ffffff; --card: #ffffff; --accent: #1cb0f6; --accent-dark: #1899d6;
-          --green: #58cc02; --green-dark: #58a700;
-          --ok: #58a700; --ok-bg: #d7ffb8; --bad: #ea2b2b; --bad-bg: #ffdfe0; --warn: #b87300; --warn-bg: #fff3cc;
-          --soft: #f7f7f7; --led-off: #2b3a44; --led-on: #1cb0f6; --board: #131f24; }
+  /* Colours taken from the CangurMath logo: the dark purple of its outline for text, the purple of "Math"
+     for what can be pressed, the kangaroo's orange for the main action. Green and red only say right and wrong.
+     The LED matrix stays blue: it is the colour of the real one on the board. */
+  :root { --ink: #21093f; --muted: #6e6283; --line: #e6dff0; --bg: #fbf9fe; --card: #ffffff; --soft: #f5f0fc;
+          --accent: #5a24a1; --accent-dark: #431a7c; --accent-hover: #6b33b5;
+          --primary: #f8921a; --primary-dark: #cf6f00; --primary-hover: #ffa53a; --primary-ink: #a85600; --on-primary: #21093f; --on-accent: #ffffff; --tint: #fff1dc;
+          --green: #2f9e52; --green-dark: #237a3e;
+          --ok: #1f7a3a; --ok-bg: #dff6e4; --bad: #c62828; --bad-line: #e5484d; --bad-bg: #ffe3e3; --warn: #8f5a00; --warn-bg: #ffefc4;
+          --led-off: #2b3a44; --led-on: #1cb0f6; --board: #131f24; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --ink: #f1f7fb; --muted: #afafaf; --line: #37464f; --bg: #131f24; --card: #131f24; --soft: #202f36;
-          --accent: #49c0f8; --accent-dark: #1899d6; --ok: #89e219; --ok-bg: #202f36; --bad: #ff7878; --bad-bg: #202f36; --warn: #ffc800; --warn-bg: #3a3210; --board: #0b1418; }
+    :root:not([data-theme="light"]) { --ink: #f4eefb; --muted: #b5a8c9; --line: #3e2c5a; --bg: #170d26; --card: #1f1332; --soft: #2a1b42;
+          --accent: #b998f0; --accent-dark: #8d63d6; --accent-hover: #c9adf5;
+          --primary-ink: #ffb454; --on-accent: #1a0d2b; --tint: #3a2710;
+          --green: #46b96b; --green-dark: #2f9e52;
+          --ok: #7ddc98; --ok-bg: #173323; --bad: #ff8a8a; --bad-line: #e5484d; --bad-bg: #3a1a22; --warn: #ffc94d; --warn-bg: #3a2c10; --board: #0b1418; }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -20,9 +27,12 @@
   header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 24px; background: var(--card); border-bottom: 2px solid var(--line); position: sticky; top: 0; z-index: 5; }
   header h1 { margin: 0 14px 0 0; }
   /* The logo is the way home: back to the tutor's problem from the map, the session or a result */
-  #home { font: inherit; font-size: 26px; font-weight: 800; color: var(--green); letter-spacing: -.3px; background: none; border: 0; padding: 2px 6px; border-radius: 12px; cursor: pointer; }
-  #home::before { content: "🦘 "; }
+  #home { display: block; background: none; border: 0; padding: 4px 8px; border-radius: 14px; cursor: pointer; }
+  #home img { display: block; height: 46px; width: auto; }
   #home:hover { background: var(--soft); }
+  @media (prefers-color-scheme: dark) {  /* the logo's dark lettering needs a light ground */
+    :root:not([data-theme="light"]) #home, :root:not([data-theme="light"]) #home:hover { background: #fff; }
+  }
   #home:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* Drop-downs: what is used now and then stays folded, so the problem and its answers lead the page */
   details.dd { position: relative; }
@@ -41,7 +51,7 @@
   #readdd > summary b { color: var(--accent); }
   .pill { font-size: 13px; font-weight: 800; padding: 4px 14px; border-radius: 999px; border: 2px solid var(--line); color: var(--muted); background: var(--card); text-transform: uppercase; letter-spacing: .5px; }
   #grade { color: var(--accent); border-color: var(--accent); }
-  #topic { color: var(--green-dark); border-color: var(--green); }
+  #topic { color: var(--primary-ink); border-color: var(--primary); }
   main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; padding: 24px; max-width: 1240px; margin: 0 auto; }
   @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } }
   section, aside > div { background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 20px 22px; }
@@ -54,23 +64,23 @@
   .letters button:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 2px; }
   .letters button:focus-visible, .actions button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .letters button.right { background: var(--ok-bg); border-color: var(--green); color: var(--ok); }
-  .letters button.wrong { background: var(--bad-bg); border-color: #ff4b4b; color: var(--bad); }
+  .letters button.wrong { background: var(--bad-bg); border-color: var(--bad-line); color: var(--bad); }
   .letters button:disabled { cursor: default; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: center; }
   .actions button { font: inherit; font-weight: 800; font-size: 15px; text-transform: uppercase; letter-spacing: .6px; padding: 12px 20px; border-radius: 16px; border: 2px solid var(--line); border-bottom-width: 5px; background: var(--card); color: var(--accent); cursor: pointer; transition: transform .05s; }
   .actions button:hover:not(:disabled) { background: var(--soft); }
   .actions button:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 2px; }
   .actions button:disabled { opacity: .5; cursor: default; }
-  .actions button.primary { background: var(--green); border-color: var(--green-dark); color: #fff; }
-  .actions button.primary:hover:not(:disabled) { background: #61d800; }
-  #chat button[type="submit"] { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
-  #chat button[type="submit"]:hover { background: #3cc0ff; }
+  .actions button.primary { background: var(--primary); border-color: var(--primary-dark); color: var(--on-primary); }
+  .actions button.primary:hover:not(:disabled) { background: var(--primary-hover); }
+  #chat button[type="submit"] { background: var(--accent); border-color: var(--accent-dark); color: var(--on-accent); }
+  #chat button[type="submit"]:hover { background: var(--accent-hover); }
   #chattext { border: 2px solid var(--line) !important; border-radius: 16px !important; padding: 12px 16px !important; background: var(--soft) !important; font-weight: 600; }
   #chattext:focus { outline: none; border-color: var(--accent) !important; background: var(--card) !important; }
   #feed { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
   .msg { border: 2px solid var(--line); border-left-width: 2px; padding: 12px 16px; background: var(--soft); border-radius: 16px; }
   .msg.ok { border-color: var(--green); background: var(--ok-bg); }
-  .msg.bad { border-color: #ff4b4b; background: var(--bad-bg); }
+  .msg.bad { border-color: var(--bad-line); background: var(--bad-bg); }
   .msg.help { border-color: var(--accent); background: var(--card); }
   .msg strong { font-weight: 800; }
   .msg small { display: block; color: var(--muted); font-size: 13px; font-weight: 600; }
@@ -83,14 +93,14 @@
   .matrix span.on { background: var(--led-on); box-shadow: 0 0 8px var(--led-on); }
   .muted { color: var(--muted); font-size: 14px; }
   label.muted { display: flex; gap: 8px; align-items: center; font-weight: 700; }
-  input[type="checkbox"] { accent-color: var(--green); width: 18px; height: 18px; }
+  input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; }
   details.debug { margin-top: 6px; font-size: 13px; color: var(--muted); }
   details.debug summary { cursor: pointer; font-weight: 800; color: var(--accent); }
   details.debug pre { white-space: pre-wrap; margin: 4px 0 0; font: 12px/1.4 ui-monospace, monospace; }
   body.nodebug details.debug { display: none; }
   ol { padding-left: 22px; margin: 6px 0 0; }
   /* "One like this, but yours": a practice problem made on the spot, as text */
-  .msg.practice { border-color: var(--green); background: var(--card); }
+  .msg.practice { border-color: var(--primary); background: var(--card); }
   .msg.practice .ptext, #warmpane .ptext { font-size: 19px; margin: 8px 0 0; }
   .ptext .rtext p { margin-top: 0; }
   .msg.practice .letters, #warmpane .letters { margin: 14px 0 6px; }
@@ -117,8 +127,8 @@
   .xopt.other { border-color: var(--warn); opacity: 1; }
   /* Warm-up of three: short practice problems in the tutor's place before the first Cangur problem; skippable */
   #warmpane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
-  #warmpane .wstep { color: var(--green-dark); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; font-size: 14px; }
-  .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--green); border-bottom-width: 4px; background: var(--card); color: var(--ok); cursor: pointer; }
+  #warmpane .wstep { color: var(--primary-ink); font-weight: 800; text-transform: uppercase; letter-spacing: .6px; font-size: 14px; }
+  .msg .inline { font: inherit; font-weight: 800; font-size: 14px; margin-top: 10px; padding: 8px 14px; border-radius: 12px; border: 2px solid var(--accent); border-bottom-width: 4px; background: var(--card); color: var(--accent); cursor: pointer; }
   .msg .inline:hover { background: var(--soft); }
   .msg .inline:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   /* Reading modes: one idea per line, more room, the key data marked, a strip with only the numbers. The student's choice */
@@ -138,35 +148,35 @@
   .keybox { margin-top: 12px; padding-top: 10px; border-top: 2px dashed var(--line); font-size: 17px; }
   .keybox ul { margin: 4px 0 8px; padding-left: 22px; }
   /* Exam mode: a timed paper in the tutor's place, no hints, the competition's scoring */
-  #exambtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: #fff; cursor: pointer; }
-  #exambtn:hover { background: #3cc0ff; }
+  #exambtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--accent-dark); border-bottom-width: 4px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  #exambtn:hover { background: var(--accent-hover); }
   #exambtn:focus-visible, .chips button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   #exampane h2, #mappane h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; }
   #exampane h3, #mappane h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
   #exampane .rules, #mappane .rules { margin: 8px 0 0; padding-left: 22px; }
-  .actions button.picked { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .actions button.picked { background: var(--accent); border-color: var(--accent-dark); color: var(--on-accent); }
   .ebar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .timer { font: 800 34px/1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; padding: 8px 16px; border-radius: 16px; border: 2px solid var(--line); }
   .timer.late { color: var(--bad); border-color: var(--bad); }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
   .chips button { font: inherit; font-weight: 800; font-size: 14px; min-width: 36px; height: 36px; border-radius: 10px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
-  .chips button.answered { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .chips button.answered { background: var(--accent); border-color: var(--accent-dark); color: var(--on-accent); }
   .chips button.here { border-color: var(--ink); color: var(--ink); }
-  .chips button.answered.here { color: #fff; box-shadow: 0 0 0 2px var(--ink); }
-  #exampane .letters button.picked { background: var(--accent); border-color: var(--accent-dark); color: #fff; }
+  .chips button.answered.here { color: var(--on-accent); box-shadow: 0 0 0 2px var(--ink); }
+  #exampane .letters button.picked { background: var(--accent); border-color: var(--accent-dark); color: var(--on-accent); }
   .confirm { margin-top: 12px; padding: 12px 16px; border: 2px solid var(--warn); background: var(--warn-bg); border-radius: 16px; }
-  .score { font-size: 30px; font-weight: 800; margin: 4px 0; color: var(--green-dark); }
+  .score { font-size: 30px; font-weight: 800; margin: 4px 0; color: var(--accent); }
   .review { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 8px; }
   .review li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 10px 14px; border: 2px solid var(--line); border-radius: 14px; }
   .review li.right { border-color: var(--green); }
-  .review li.wrong { border-color: #ff4b4b; }
+  .review li.wrong { border-color: var(--bad-line); }
   .review li b { min-width: 28px; }
   .review li .what { flex: 1; min-width: 180px; }
   .review li .delta { font-variant-numeric: tabular-nums; font-weight: 800; }
   /* The skill map: topics by level (new, tried, shaky, solid), what to try next, and the class by pseudonym */
   .hbtns { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
-  #mapbtn, #sessionbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--green-dark); border-bottom-width: 4px; background: var(--green); color: #fff; cursor: pointer; }
-  #mapbtn:hover, #sessionbtn:hover { background: #61d800; }
+  #mapbtn, #sessionbtn { font: inherit; font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; padding: 8px 16px; border-radius: 14px; border: 2px solid var(--primary-dark); border-bottom-width: 4px; background: var(--primary); color: var(--on-primary); cursor: pointer; }
+  #mapbtn:hover, #sessionbtn:hover { background: var(--primary-hover); }
   #mapbtn:focus-visible, #sessionbtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   .who { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin-top: 10px; }
   .nexts { display: flex; flex-direction: column; gap: 10px; }
@@ -205,7 +215,7 @@
   @media (prefers-reduced-motion: reduce) { #think .ring { transition: none; } }
   .actions #thinkskip { font-size: 13px; padding: 8px 12px; text-transform: none; letter-spacing: 0; }
   /* Today's session: three problems chosen from the map; a bar over the problem says where the student is */
-  .planbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 10px 14px; border: 2px solid var(--green); border-radius: 16px; background: var(--ok-bg); }
+  .planbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 10px 14px; border: 2px solid var(--primary); border-radius: 16px; background: var(--tint); }
   .planbar button { font: inherit; font-weight: 800; font-size: 13px; padding: 6px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--muted); cursor: pointer; }
   .planbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .plan { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; counter-reset: plan; }
@@ -218,7 +228,7 @@
 </head>
 <body>
 <header>
-  <h1><button id="home" title="Torna a l'inici" aria-label="Tutor Cangur: torna a l'inici">Tutor Cangur</button></h1>
+  <h1><button id="home" title="Torna a l'inici" aria-label="CangurMath: torna a l'inici"><img alt="CangurMath" width="159" height="46" src="data:image/png;base64,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"></button></h1>
   <span class="pill" id="grade"></span>
   <span class="pill" id="topic"></span>
   <span class="pill" id="pid"></span>
