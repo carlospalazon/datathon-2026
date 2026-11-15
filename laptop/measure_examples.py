@@ -95,6 +95,8 @@ def main(argv=None):
     p.add_argument("--port", type=int, required=True, help="port of the language model server")
     p.add_argument("--input", default="data/val.jsonl")
     p.add_argument("--limit", type=int, default=0)
+    p.add_argument("--style", choices=("solved", "method"), default="solved",
+                   help="solved: the example as a solved turn with its letter; method: statement and reasoning only")
     args = p.parse_args(argv)
     base = f"http://127.0.0.1:{args.port}"
 
@@ -125,10 +127,19 @@ def main(argv=None):
                     best, score = s, c
             user = {"role": "user", "content": format_problem(q) + "\nAnswer:"}
             plain = ask(base, [{"role": "system", "content": SYSTEM}, user], q)
-            shown = [{"role": "system", "content": SYSTEM},
-                     {"role": "user", "content": format_problem(best) + "\nAnswer:"},
-                     {"role": "assistant",
-                      "content": f"{best['rationale']}\n{option_line(best)}\nAnswer: {best['label']}"}, user]
+            if args.style == "method":
+                # The similar problem's statement and reasoning only: no options, no letter.
+                note = {"eng": ("A similar problem and how it is solved:", "Now solve this problem the same way."),
+                        "cat": ("Un problema semblant i com es resol:", "Ara resol aquest problema de la mateixa manera.")
+                        }.get(q["language"], ("A similar problem and how it is solved:", "Now solve this problem the same way."))
+                shown = [{"role": "system", "content": SYSTEM},
+                         {"role": "user", "content": f"{note[0]}\n{best['text'].strip()}\n{best['rationale']}\n\n{note[1]}\n"
+                                                     + format_problem(q) + "\nAnswer:"}]
+            else:
+                shown = [{"role": "system", "content": SYSTEM},
+                         {"role": "user", "content": format_problem(best) + "\nAnswer:"},
+                         {"role": "assistant",
+                          "content": f"{best['rationale']}\n{option_line(best)}\nAnswer: {best['label']}"}, user]
             with_ex = ask(base, shown, q)
             same_value = int(str(best["options"][best["label"]]).strip() == str(q["options"][q["label"]]).strip())
             row = {"id": q["id"], "language": q["language"], "level": q["level"], "text_only": int(bool(q["text_only"])),
