@@ -186,36 +186,47 @@ Held-out problems: the 154 of levels 0 and 1, each with its own year removed fro
 
 ## Error analysis
 
-Board baseline, 281 English validation problems. Commands: [docs/error-analysis.md](docs/error-analysis.md).
+Of what we deliver: the 0.8B answering one letter, with the twin copy before it, on the 562 validation problems (M3Kang, English and Catalan). Every table with its 95% intervals is in [docs/error-analysis-delivery.md](docs/error-analysis-delivery.md).
 
-| Group | Correct/total | Accuracy |
+**Overall: 147/562 = 26.2%.** The model alone gets 128/562 and always answering D gets 130/562.
+
+| Who answered | Problems | Right |
 |---|---|---|
-| Levels 0 to 2 (grades 5 to 7) | 23/66 | 34.8% |
-| Levels 3 to 7 (grades 8 to 12) | 40/215 | 18.6% |
-| Arithmetic | 10/31 | 32.3% |
-| Numbers | 11/40 | 27.5% |
-| Counting | 7/26 | 26.9% |
-| Algebra | 10/45 | 22.2% |
-| Plane geometry | 13/66 | 19.7% |
-| Visual | 5/26 | 19.2% |
-| Solid geometry | 1/20 | 5.0% |
-| Logic | 0/11 | 0.0% |
-| No figure needed | 37/147 | 25.2% |
-| Figure needed | 26/134 | 19.4% |
+| Twin copy (code, no model) | 50 | 27 (54%) |
+| The model | 512 | 120 (23%) |
 
-**By language** (all after the overnight run: board run in Catalan and Spanish)
+| By language | Right | | By difficulty | Right |
+|---|---|---|---|---|
+| English | 70/281 (25%) | | Levels 0–3 (grades 5–8) | 56/156 (36%) |
+| Catalan | 77/281 (27%) | | Levels 4–7 (grades 9–12) | 91/406 (22%) |
 
-| Language | Correct/total | Accuracy |
-|---|---|---|
-| English | | |
-| Catalan | | |
-| Spanish | | |
+| By what the model can see | Right |
+|---|---|
+| With options read from the image | 86/339 (25%) |
+| Without options (they are only in the picture) | 61/223 (27%) |
+| Needs the figure | 71/268 (26%) |
+| Text only | 76/294 (26%) |
+| Has options and needs no figure | 51/204 (25%) |
 
-- **The model answers by letter, not by problem.** It answered D 129 times and A 95 times, and C and E once each, while the right answers are spread evenly. That alone caps the score near chance.
-- **Readable options don't help.** Accuracy is the same with and without them, so the model isn't using them.
-- **Easier levels go better,** but with 66 problems the interval is wide. Topic groups are small too, so read them as hints, not rankings.
+| By topic | Right | | By topic | Right |
+|---|---|---|---|---|
+| Plane geometry | 38/132 (29%) | | Counting | 12/52 (23%) |
+| Algebra | 17/90 (19%) | | Space geometry | 6/40 (15%) |
+| Numbers | 21/80 (26%) | | Logic | 3/22 (14%) |
+| Arithmetic | 21/62 (34%) | | Patterns | 8/18 (44%) |
+| Visual | 15/52 (29%) | | Measurement | 6/14 (43%) |
 
-<!-- all: add 3 to 5 wrong answers explained, from results/error-review.csv, without problem text. -->
+What the numbers say:
+
+- **The gain comes from code, not from the model.** The twin copy answers 50 problems and is right on 27; on the other 512 the model is at 23%, which is what always answering D gives.
+- **The model has a letter habit, not a method.** It answers D 243 times and A 138 times out of 562, and C and E 40 times together, while the true answers are spread almost evenly (94 to 130 each).
+- **Seeing more does not help it.** It scores the same with options (25%) and without (27%), and the same on problems that need the figure (26%) and on text-only ones (26%). A solver that read the problem would do better where it has the options and no figure; this one gets 51/204 there.
+- **Difficulty is the only real slope**: 36% on grades 5–8 against 22% on grades 9–12. Part of it is the twin copy, which finds more twins among the lower levels.
+- **Language makes no difference** (25% English, 27% Catalan).
+- **Topics**: with 562 problems, cells under about 50 problems cannot support a claim (logic 22, patterns 18, measurement 14). Among the larger ones, algebra (19%) and space geometry (15%) are the weakest and arithmetic (34%) the strongest, all inside or near the noise.
+- **Speed is not the limit.** On the board: 8.5 s per problem on average, 15.2 s the worst, none over 60 s (30 validation problems), and 7.3 s on the 100 sample problems.
+
+Why the model fails, from the experiments in [Results](#results): it imitates wording instead of solving (88% on a problem family in its trained wording, 35% when the same problems are told as another story); a worked example helps only when it is almost the same problem; when it sets up an expression for Python to compute, the value is a listed option in 15 of 172 Kangaroo problems and right in none; and giving it all the time it wants gets 26 of 100 text-only problems. Three limits stand behind that: 40% of the problems arrive without their options, about half need a figure the model does not see, and a 0.8B model reasons too little for competition problems.
 
 ## What didn't work, and what's next
 
